@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Asistencia — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Asistencia del día</h2>
+    <form method="get" action="/rrhh/asistencia" class="inline-form" style="margin-bottom:16px;">
+      <div class="field"><label>Fecha</label><input type="date" name="fecha" value="{{ dia.isoformat() }}"></div>
+      <div class="field">
+        <label>Empresa</label>
+        <select name="empresa_id">
+          <option value="">— Todas —</option>
+          {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn secondary" type="submit">Filtrar</button>
+    </form>
+
+    <p class="muted">{{ total_activos - sin_marcar|length }} de {{ total_activos }} trabajadores activos marcaron entrada este día.</p>
+
+    <table>
+      <tr><th>Trabajador</th><th>Tipo</th><th>Hora</th><th>Registrado por</th><th>Nota</th></tr>
+      {% for r in registros %}
+      <tr>
+        <td>{{ r.employee.nombre_completo }}</td>
+        <td><span class="badge {{ 'firmado' if r.tipo == 'entrada' else 'pendiente' }}">{{ r.tipo }}</span></td>
+        <td>{{ r.timestamp.strftime('%H:%M:%S') }}</td>
+        <td class="muted">{{ r.registrado_por or '—' }}</td>
+        <td class="muted">{{ r.nota or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Sin marcaciones ese día.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% if sin_marcar %}
+  <div class="card">
+    <h2>Sin marcar entrada ({{ sin_marcar|length }})</h2>
+    <table>
+      <tr><th>Trabajador</th><th>Empresa</th><th></th></tr>
+      {% for e in sin_marcar %}
+      <tr>
+        <td>{{ e.nombre_completo }}</td>
+        <td>{{ e.empresa_rel.nombre if e.empresa_rel else (e.empresa or "—") }}</td>
+        <td><a class="btn small secondary" href="/rrhh/personal/{{ e.id }}#asistencia">Ver ficha</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if user.rol in ['administrador', 'opeoka'] %}
+  <div class="card">
+    <h2>Registrar marcación manual (corrección)</h2>
+    <p class="muted">Úsalo si alguien olvidó marcar o todavía no tiene cuenta propia en el sistema.</p>
+    <form method="post" action="/rrhh/asistencia/manual" class="inline-form">
+      <div class="field">
+        <label>Trabajador (ID)</label>
+        <input type="number" name="employee_id" required placeholder="Ver ID en su ficha">
+      </div>
+      <div class="field">
+        <label>Tipo</label>
+        <select name="tipo" required><option value="entrada">Entrada</option><option value="salida">Salida</option></select>
+      </div>
+      <div class="field"><label>Fecha</label><input type="date" name="fecha" value="{{ dia.isoformat() }}" required></div>
+      <div class="field"><label>Hora</label><input type="time" name="hora" required></div>
+      <div class="field" style="flex:2;"><label>Nota</label><input type="text" name="nota" placeholder="Motivo de la corrección"></div>
+      <button class="btn small" type="submit">Registrar</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

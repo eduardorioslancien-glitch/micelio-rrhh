@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Indicadores de Gestión — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Indicadores de Clima y Cultura</h2>
+    <p class="muted">
+      Los indicadores generales de personal (headcount, rotación, ausentismo) ya viven en el
+      <a href="/rrhh/dashboard">Dashboard</a>; acá se agregan los específicos de clima, a partir de la Encuesta 360.
+    </p>
+
+    <div class="kpi-grid" style="margin-top:16px;">
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.headcount }}</div>
+        <div class="kpi-label">Headcount activo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.rotacion_pct }}%</div>
+        <div class="kpi-label">Rotación</div>
+        <div class="kpi-sub">últimos {{ data.dias }} días</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.ausentismo_pct }}%</div>
+        <div class="kpi-label">Ausentismo</div>
+        <div class="kpi-sub">últimos {{ data.dias }} días</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Encuesta 360 — Participación y Resultados</h2>
+    <table>
+      <tr><th>Campaña</th><th>Respuestas</th><th>Evaluados únicos</th><th>Participación</th><th>Promedio general</th><th></th></tr>
+      {% for r in campanas_resumen %}
+      <tr>
+        <td><strong>{{ r.c.nombre }}</strong></td>
+        <td>{{ r.respuestas }}</td>
+        <td>{{ r.evaluados_unicos }}</td>
+        <td>{{ r.participacion_pct }}% <span class="muted">del headcount activo</span></td>
+        <td>{{ r.promedio_general if r.promedio_general is not none else "—" }}{% if r.promedio_general is not none %} / 5{% endif %}</td>
+        <td><a class="btn small secondary" href="/rrhh/clima/encuestas/{{ r.c.id }}">Ver detalle</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Todavía no hay campañas de Encuesta 360. <a href="/rrhh/clima/encuestas">Crear una</a>.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

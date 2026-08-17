@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ campana.nombre }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/clima/encuestas">&larr; Volver a campañas</a>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>{{ campana.nombre }}</h2>
+    {% if campana.descripcion %}<p class="muted">{{ campana.descripcion }}</p>{% endif %}
+    <p>
+      <span class="badge {{ 'firmado' if campana.estado == 'abierta' else 'pendiente' }}">{{ 'Abierta' if campana.estado == 'abierta' else 'Cerrada' }}</span>
+      · {{ campana.respuestas|length }} respuesta(s) recibidas
+      {% if promedio_general is not none %} · Promedio general: <strong>{{ promedio_general }} / 5</strong>{% endif %}
+    </p>
+
+    <h3 style="margin-top:18px;">Promedio por pregunta</h3>
+    <table>
+      <tr><th>Pregunta</th><th>Promedio</th></tr>
+      {% for p in campana.preguntas %}
+      <tr>
+        <td>{{ p }}</td>
+        <td>{{ promedios[loop.index0] if promedios[loop.index0] is not none else "—" }}{% if promedios[loop.index0] is not none %} / 5{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Respuestas recibidas</h2>
+    <table>
+      <tr><th>Evaluado</th><th>Relación</th><th>Puntajes</th><th>Comentario</th><th>Fecha</th></tr>
+      {% for r in campana.respuestas %}
+      <tr>
+        <td>{{ r.evaluado.nombre_completo if r.evaluado else "—" }}</td>
+        <td>{{ r.relacion or "—" }}</td>
+        <td class="muted">{{ r.respuestas|join(", ") }}</td>
+        <td class="muted">{{ r.comentario or "—" }}</td>
+        <td class="muted">{{ r.created_at.strftime('%d/%m/%Y') if r.created_at else "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Todavía no hay respuestas cargadas.</td></tr>
+      {% endfor %}
+    </table>
+
+    {% if campana.estado == 'abierta' %}
+    <h3 style="margin-top:22px;">Cargar respuesta</h3>
+    <form method="post" action="/rrhh/clima/encuestas/{{ campana.id }}/respuesta">
+      <div class="grid2">
+        <div class="field">
+          <label>Evaluado</label>
+          <select name="evaluado_id" required>
+            <option value="">Seleccionar…</option>
+            {% for e in empleados %}<option value="{{ e.id }}">{{ e.nombre_completo }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Relación con el evaluado</label>
+          <select name="relacion">
+            <option value="">Seleccionar…</option>
+            {% for r in relaciones %}<option>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      {% for p in campana.preguntas %}
+      <div class="field">
+        <label>{{ p }}</label>
+        <select name="pregunta_{{ loop.index0 }}" required>
+          <option value="">Seleccionar…</option>
+          <option value="1">1 — Muy en desacuerdo</option>
+          <option value="2">2 — En desacuerdo</option>
+          <option value="3">3 — Neutral</option>
+          <option value="4">4 — De acuerdo</option>
+          <option value="5">5 — Muy de acuerdo</option>
+        </select>
+      </div>
+      {% endfor %}
+      <div class="field"><label>Comentario (opcional)</label><input type="text" name="comentario"></div>
+      <button class="btn" type="submit">Guardar respuesta</button>
+    </form>
+    {% else %}
+    <p class="muted" style="margin-top:16px;">Esta campaña está cerrada; reábrela desde el listado de campañas para seguir cargando respuestas.</p>
+    {% endif %}
+  </div>
+
+</div>
+</body>
+</html>

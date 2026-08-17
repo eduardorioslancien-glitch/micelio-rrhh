@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Registro de Pedidos — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">Registro de Pedidos de Personal</h2>
+      <form method="get" action="/rrhh/reclutamiento/pedidos" class="inline-form">
+        <div class="field">
+          <label>Estado</label>
+          <select name="estado" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            {% for key, label in estados %}
+            <option value="{{ key }}" {{ 'selected' if f_estado == key else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+    </div>
+    <table>
+      <tr>
+        <th>Cargo solicitado</th><th>Empresa</th><th>Área</th><th>Cant.</th><th>Urgencia</th>
+        <th>Solicitante</th><th>Fecha requerida</th><th>Estado</th><th></th>
+      </tr>
+      {% for p in pedidos %}
+      <tr>
+        <td><strong>{{ p.cargo_solicitado }}</strong>{% if p.motivo %}<br><span class="muted">{{ p.motivo }}</span>{% endif %}</td>
+        <td>{{ p.empresa.nombre if p.empresa else "—" }}</td>
+        <td>{{ p.area or "—" }}</td>
+        <td>{{ p.cantidad }}</td>
+        <td>{{ p.urgencia or "—" }}</td>
+        <td>{{ p.solicitante or "—" }}</td>
+        <td>{{ p.fecha_requerida.strftime("%d/%m/%Y") if p.fecha_requerida else "—" }}</td>
+        <td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) }}</span></td>
+        <td>
+          <form method="post" action="/rrhh/reclutamiento/pedidos/{{ p.id }}/estado" class="inline-form" style="margin:0;">
+            <select name="estado" onchange="this.form.submit()">
+              {% for key, label in estados %}
+              <option value="{{ key }}" {{ 'selected' if p.estado == key else '' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="muted">Todavía no hay pedidos de personal registrados.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Registrar nuevo pedido</h3>
+    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo">
+      <div class="grid3">
+        <div class="field"><label>Cargo Solicitado</label><input type="text" name="cargo_solicitado" required></div>
+        <div class="field"><label>Área</label><input type="text" name="area"></div>
+        <div class="field">
+          <label>Empresa</label>
+          <select name="empresa_id">
+            <option value="">Seleccionar…</option>
+            {% for e in empresas %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Cantidad</label><input type="text" name="cantidad" value="1"></div>
+        <div class="field">
+          <label>Motivo</label>
+          <select name="motivo">
+            <option value="">Seleccionar…</option>
+            {% for m in motivos %}<option>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Urgencia</label>
+          <select name="urgencia">
+            <option value="">Seleccionar…</option>
+            {% for u in urgencias %}<option>{{ u }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Solicitante (jefe/gerencia que lo pide)</label><input type="text" name="solicitante"></div>
+        <div class="field"><label>Fecha Requerida</label><input type="date" name="fecha_requerida"></div>
+        <div class="field" style="grid-column:span 3;"><label>Observaciones</label><input type="text" name="observaciones"></div>
+      </div>
+      <button class="btn" type="submit">Registrar pedido</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>

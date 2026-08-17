@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Unidades de Negocio — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Unidades de Negocio</h2>
+    <table>
+      <tr><th>Nombre</th><th>Descripción</th><th>Empresas</th><th>Estado</th><th></th></tr>
+      {% for u in unidades %}
+      <tr>
+        <td><strong>{{ u.nombre }}</strong></td>
+        <td class="muted">{{ u.descripcion or "—" }}</td>
+        <td>{{ u.empresas|length }}</td>
+        <td><span class="badge {{ 'firmado' if u.activo else 'pendiente' }}">{{ 'activa' if u.activo else 'inactiva' }}</span></td>
+        <td style="display:flex; gap:6px;">
+          <details>
+            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Editar</summary>
+            <form method="post" action="/rrhh/parametrizacion/unidad/{{ u.id }}/editar" style="margin-top:8px;">
+              <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ u.nombre }}" required></div>
+              <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ u.descripcion or '' }}"></div>
+              <button class="btn small" type="submit">Guardar</button>
+            </form>
+          </details>
+          <form method="post" action="/rrhh/parametrizacion/unidad/{{ u.id }}/toggle" style="display:inline;">
+            <button class="btn small secondary" type="submit">{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+          </form>
+          {% if not bloqueadas[u.id] %}
+          <form method="post" action="/rrhh/parametrizacion/unidad/{{ u.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar esta unidad de negocio? No se puede deshacer.');">
+            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+          </form>
+          {% else %}
+          <span class="muted" style="font-size:11px; align-self:center;">Tiene empresas asignadas</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Todavía no hay unidades de negocio registradas.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Agregar unidad de negocio</h3>
+    <form method="post" action="/rrhh/parametrizacion/unidad" class="inline-form">
+      <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
+      <div class="field" style="flex:2;"><label>Descripción</label><input type="text" name="descripcion"></div>
+      <button class="btn" type="submit">Agregar</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>

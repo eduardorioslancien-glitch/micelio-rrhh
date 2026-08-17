@@ -1,0 +1,31 @@
+# Entornos locales / dependencias
+.venv/
+.venv_test/
+node_modules/
+__pycache__/
+*.pyc
+
+# Legado (ya no se usa, ver README — la generación de PDF es Python puro)
+render/
+package.json
+package-lock.json
+
+# Datos reales / de prueba — NUNCA a GitHub (PII de trabajadores, contraseñas hasheadas)
+data/hrapp.db
+data/hrapp.db.bak-*
+data/secret_key.txt
+app/generated/*
+app/uploads/*
+app/fotos/*
+app/signatures/*
+app/firmas_empresa/*
+!app/generated/.gitkeep
+!app/uploads/.gitkeep
+!app/fotos/.gitkeep
+!app/signatures/.gitkeep
+!app/firmas_empresa/.gitkeep
+
+ejemplos_generados_en_prueba/
+
+# Secretos de entorno para docker-compose
+.env

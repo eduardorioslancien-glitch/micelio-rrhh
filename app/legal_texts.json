@@ -1,0 +1,49 @@
+{
+  "ficha": {
+    "titulo": "Ficha de Datos del Personal",
+    "subtitulo": "DIGETEL GROUP · Confirmación de Datos",
+    "intro": "Yo, {nombre_completo}, identificado(a) con documento N.° {num_doc}, confirmo que los datos personales, de contacto, laborales, previsionales y bancarios que acabo de registrar en el Portal RR.HH. son correctos y completos.",
+    "items": [],
+    "cierre": "Al firmar electrónicamente, confirmo la veracidad de los datos consignados en mi ficha de personal."
+  },
+  "declaracion_jurada": {
+    "titulo": "Declaración Jurada",
+    "subtitulo": "DIGETEL GROUP · Legajo de Personal",
+    "intro": "Yo, {nombre_completo}, identificado(a) con documento de identidad N.° {num_doc}, con domicilio en {direccion}, trabajador(a) de {empresa} (integrante de DIGETEL GROUP), declaro bajo juramento lo siguiente:",
+    "items": [
+      "Que toda la información y documentación proporcionada a la Empresa para la elaboración de mi legajo personal (datos personales, académicos, familiares y de derechohabientes) es veraz, completa y se encuentra debidamente sustentada, asumiendo responsabilidad por cualquier inexactitud u omisión en la que pudiera incurrir.",
+      "Que me comprometo a comunicar por escrito al área de Recursos Humanos cualquier cambio de domicilio dentro de los cinco (5) días hábiles siguientes de producido dicho cambio, siendo válidas para todo efecto legal las notificaciones cursadas a la última dirección registrada mientras no se comunique la variación.",
+      "Que los derechohabientes declarados en mi Ficha de Datos del Personal (cónyuge o conviviente e hijos) son reales y cumplen las condiciones establecidas por EsSalud para su registro, comprometiéndome a informar cualquier variación (nacimiento, fallecimiento, separación, mayoría de edad u otra) dentro de los plazos que establece la normativa vigente.",
+      "Que autorizo a la Empresa a verificar la veracidad de la información declarada a través de los medios que considere pertinentes, y a adoptar las medidas correctivas o disciplinarias que correspondan en caso de comprobarse una declaración falsa."
+    ],
+    "cierre": "Al firmar electrónicamente este documento, suscribo la presente declaración jurada en señal de conformidad con lo antes expuesto."
+  },
+  "autorizacion_datos": {
+    "titulo": "Autorización para el Tratamiento de Datos Personales",
+    "subtitulo": "DIGETEL GROUP · Ley N.° 29733 y su Reglamento",
+    "intro": "De conformidad con lo establecido en la Ley N.° 29733, Ley de Protección de Datos Personales, y su Reglamento aprobado mediante Decreto Supremo N.° 003-2013-JUS, DIGETEL GROUP (en adelante, \"la Empresa\") informa y solicita el consentimiento del titular, {nombre_completo}, identificado(a) con documento N.° {num_doc}, para el tratamiento de sus datos personales, en los siguientes términos:",
+    "items": [
+      "Finalidad: Los datos personales proporcionados serán tratados con la finalidad de gestionar la relación laboral, administrar planillas, beneficios sociales, seguros, capacitación, seguridad y salud en el trabajo, y demás obligaciones legales y contractuales derivadas del vínculo laboral con la Empresa.",
+      "Datos tratados: Datos de identificación y contacto, domicilio, datos familiares y de derechohabientes, datos académicos y profesionales, datos bancarios y previsionales, así como datos de salud estrictamente necesarios para el cumplimiento de obligaciones en materia de seguridad y salud en el trabajo.",
+      "Conservación de datos: Sus datos serán conservados durante la vigencia de la relación laboral y, posteriormente, por los plazos de prescripción legal aplicables en materia laboral, tributaria y previsional, transcurridos los cuales serán eliminados o anonimizados de forma segura.",
+      "Derechos ARCO: El titular puede ejercer en cualquier momento sus derechos de acceso, rectificación, cancelación y oposición (derechos ARCO), así como el derecho a la portabilidad de sus datos, dirigiendo su solicitud al área de Recursos Humanos de la Empresa.",
+      "Consentimiento: Al suscribir el presente documento, el titular otorga su consentimiento libre, previo, expreso, inequívoco e informado para el tratamiento de sus datos personales conforme a lo señalado en los numerales precedentes."
+    ],
+    "cierre": "Al firmar electrónicamente este documento, el titular otorga el consentimiento descrito líneas arriba."
+  },
+  "derechohabientes": {
+    "titulo": "Formato de Derechohabientes EsSalud",
+    "subtitulo": "DIGETEL GROUP · Documento para el Legajo de Personal",
+    "intro": "El presente formato constituye el documento interno de sustento para el registro y actualización de los derechohabientes del trabajador {nombre_completo} (DNI {num_doc}) ante EsSalud (T-Registro / PLAME). La información aquí consignada debe coincidir con la documentación sustentatoria (partidas, DNI) que se adjunta al legajo.",
+    "items": [],
+    "cierre": "Al firmar electrónicamente este documento, declaro que la información de derechohabientes consignada es veraz y me comprometo a comunicar al área de Recursos Humanos cualquier variación dentro de los plazos que establece la normativa vigente."
+  },
+  "autorizacion_deposito": {
+    "titulo": "Autorización de Depósito de Haberes y CTS",
+    "subtitulo": "DIGETEL GROUP · Legajo de Personal",
+    "intro": "Yo, {nombre_completo}, identificado(a) con DNI / CE N.° {num_doc}, trabajador(a) de {empresa} (integrante de DIGETEL GROUP), autorizo a la Empresa a depositar mis remuneraciones (haberes) y, de corresponder, mi Compensación por Tiempo de Servicios (CTS), en las cuentas bancarias que declaro a continuación, siendo de mi entera responsabilidad la exactitud de estos datos.",
+    "items": [],
+    "nota_legal": "De acuerdo con la Ley de Compensación por Tiempo de Servicios (Texto Único Ordenado aprobado por Decreto Supremo N.° 001-97-TR), el/la trabajador(a) podrá comunicar por escrito a la Empresa el cambio de entidad depositaria de su CTS, con una anticipación no menor de ocho (8) días hábiles a la fecha en que corresponda efectuar el depósito semestral.",
+    "cierre": "Al firmar electrónicamente este documento, autorizo el depósito de mis haberes y CTS en las cuentas declaradas."
+  }
+}

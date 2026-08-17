@@ -1,0 +1,12 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+sqlalchemy>=2.0
+python-multipart>=0.0.9
+jinja2>=3.1
+openpyxl>=3.1
+pillow>=10.0
+pypdf>=4.0          # fusiona PDFs para la exportación selectiva ante SUNAFIL
+itsdangerous>=2.1    # firma la cookie de sesión del login (Administración de Personal)
+reportlab>=4.0    # genera los PDF firmados del legajo en Python puro (sin Word/LibreOffice)
+a2wsgi>=1.10      # adapta la app ASGI (FastAPI) a WSGI para Passenger (cPanel Setup Python App)
+requests>=2.31   # solo lo usa test_e2e.py (prueba automatizada), no el servidor

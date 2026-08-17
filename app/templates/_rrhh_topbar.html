@@ -1,0 +1,106 @@
+<div class="rrhh-topstrip">
+  <img src="/static/dg_logo.png" alt="DG">
+  <div>
+    <h1>MICELIO - Sistema de Recursos Humanos DIGETEL GROUP</h1>
+    <div class="sub">Administración de Personal · Prototipo</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="userbox">
+    <span class="role-badge">{{ role_labels.get(user.rol, user.rol) }}</span>
+    <span>{{ user.nombre_completo }}</span>
+    <a class="btn small secondary" href="/rrhh/mi-cuenta">Mi cuenta</a>
+    <a class="btn small secondary" href="/logout">Salir</a>
+  </div>
+</div>
+
+<nav class="sidebar">
+  {% if user.rol == 'usuario' %}
+  {# Punto de acceso restringido: solo su propia ficha (Administración > Personal) y Capacitación. #}
+  <a class="nav-top-link active" href="/rrhh/mi-perfil">Mi Ficha de Personal</a>
+
+  <details class="nav-group" open>
+    <summary>Capacitación</summary>
+    <div class="nav-children">
+      {% if man_academy_url %}
+      <a href="{{ man_academy_url }}" target="_blank" rel="noopener">Man Academy ↗</a>
+      {% else %}
+      <span class="nav-soon">Man Academy <span class="tag-soon">Falta URL</span></span>
+      {% endif %}
+    </div>
+  </details>
+  {% else %}
+
+  <a class="nav-top-link {{ 'active' if active == 'dashboard' else '' }}" href="/rrhh/dashboard">Dashboard</a>
+
+  {% set administracion_activos = ('personal', 'asistencia', 'parametrizacion', 'usuarios', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco') %}
+  <details class="nav-group" {{ 'open' if active in administracion_activos else '' }}>
+    <summary>Administración</summary>
+    <div class="nav-children">
+      <a href="/rrhh/personal" class="{{ 'active' if active == 'personal' else '' }}">Personal</a>
+      <a href="/rrhh/asistencia" class="{{ 'active' if active == 'asistencia' else '' }}">Control de Asistencia</a>
+      {% if user.rol == 'administrador' %}
+      {% set parametrizacion_activos = ('parametrizacion', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco') %}
+      <details class="nav-group nested" {{ 'open' if active in parametrizacion_activos else '' }}>
+        <summary>Parámetros</summary>
+        <div class="nav-children">
+          <a href="/rrhh/parametrizacion/unidades" class="{{ 'active' if active == 'unidades' else '' }}">Unidades de Negocio</a>
+          <a href="/rrhh/parametrizacion/empresas" class="{{ 'active' if active == 'empresas' else '' }}">Empresas</a>
+          <a href="/rrhh/parametrizacion/competencias" class="{{ 'active' if active == 'competencias' else '' }}">Principios, Valores y Competencias</a>
+          <a href="/rrhh/parametrizacion/catalogo/area" class="{{ 'active' if active == 'area' else '' }}">Áreas</a>
+          <a href="/rrhh/parametrizacion/catalogo/gerencia" class="{{ 'active' if active == 'gerencia' else '' }}">Gerencias</a>
+          <a href="/rrhh/parametrizacion/cargos" class="{{ 'active' if active == 'cargos' else '' }}">Cargos y Funciones</a>
+          <a href="/rrhh/parametrizacion/catalogo/sede" class="{{ 'active' if active == 'sede' else '' }}">Sedes</a>
+          <a href="/rrhh/parametrizacion/catalogo/banco" class="{{ 'active' if active == 'banco' else '' }}">Bancos</a>
+        </div>
+      </details>
+      <a href="/rrhh/usuarios" class="{{ 'active' if active == 'usuarios' else '' }}">Usuarios del Sistema</a>
+      {% endif %}
+    </div>
+  </details>
+
+  <details class="nav-group" {{ 'open' if active in ('seleccion', 'pedidos', 'leads') else '' }}>
+    <summary>Reclutamiento y Selección</summary>
+    <div class="nav-children">
+      <a href="/rrhh/reclutamiento/pedidos" class="{{ 'active' if active == 'pedidos' else '' }}">Registro de Pedidos</a>
+      <details class="nav-group nested" {{ 'open' if active == 'leads' else '' }}>
+        <summary>Control de Leads</summary>
+        <div class="nav-children">
+          <a href="/rrhh/reclutamiento/leads" class="{{ 'active' if active == 'leads' else '' }}">Ver Leads</a>
+          <span class="nav-soon">Entrevista por Competencias <span class="tag-soon">Próximamente</span></span>
+        </div>
+      </details>
+      {# "Selección" ya existe como una sola pantalla (ficha + documentos + firma juntos);
+         se separará en Ficha de Datos / Control Documentos / Firma de Contrato más adelante. #}
+      <a href="/admin" class="{{ 'active' if active == 'seleccion' else '' }}">Selección</a>
+      <details class="nav-group nested" {{ 'open' if active == 'onboarding' else '' }}>
+        <summary>Onboarding</summary>
+        <div class="nav-children">
+          <a href="/rrhh/reclutamiento/onboarding" class="{{ 'active' if active == 'onboarding' else '' }}">Ver avance</a>
+          <span class="nav-soon" style="font-size:11px;">Inducción · Acompañamiento · Evaluación · Feedback, dentro de cada ficha</span>
+        </div>
+      </details>
+    </div>
+  </details>
+
+  <details class="nav-group">
+    <summary>Capacitación</summary>
+    <div class="nav-children">
+      {% if man_academy_url %}
+      <a href="{{ man_academy_url }}" target="_blank" rel="noopener">Man Academy ↗</a>
+      {% else %}
+      <span class="nav-soon">Man Academy <span class="tag-soon">Falta URL</span></span>
+      {% endif %}
+    </div>
+  </details>
+
+  <details class="nav-group" {{ 'open' if active in ('encuestas', 'indicadores') else '' }}>
+    <summary>Clima y Cultura</summary>
+    <div class="nav-children">
+      <a href="/rrhh/clima/encuestas" class="{{ 'active' if active == 'encuestas' else '' }}">Encuesta 360</a>
+      <a href="/rrhh/clima/indicadores" class="{{ 'active' if active == 'indicadores' else '' }}">Indicadores de Gestión</a>
+    </div>
+  </details>
+  {% endif %}
+</nav>
+
+<div class="rrhh-main">

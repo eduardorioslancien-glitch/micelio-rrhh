@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dashboard — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">Indicadores de Recursos Humanos</h2>
+      <form method="get" action="/rrhh/dashboard" class="inline-form">
+        <div class="field">
+          <label>Periodo</label>
+          <select name="dias" onchange="this.form.submit()">
+            <option value="7" {{ 'selected' if data.dias == 7 else '' }}>Últimos 7 días</option>
+            <option value="30" {{ 'selected' if data.dias == 30 else '' }}>Últimos 30 días</option>
+            <option value="90" {{ 'selected' if data.dias == 90 else '' }}>Últimos 90 días</option>
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <div class="kpi-grid" style="margin-top:16px;">
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.headcount }}</div>
+        <div class="kpi-label">Headcount activo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.altas }}</div>
+        <div class="kpi-label">Incorporaciones</div>
+        <div class="kpi-sub">en los últimos {{ data.dias }} días</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.bajas }}</div>
+        <div class="kpi-label">Bajas</div>
+        <div class="kpi-sub">en los últimos {{ data.dias }} días</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.rotacion_pct }}%</div>
+        <div class="kpi-label">Rotación</div>
+        <div class="kpi-sub">bajas / headcount activo</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns: 1fr; margin-top:14px;">
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.ausentismo_pct }}%</div>
+        <div class="kpi-label">Ausentismo</div>
+        <div class="kpi-sub">{{ data.ausentismo_sin_marcar }} de {{ data.ausentismo_esperados }} días-trabajador hábiles sin marcar entrada en los últimos {{ data.dias }} días</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Headcount por Empresa</h2>
+    {% for nombre, count in data.headcount_empresa %}
+    <div class="bar-row">
+      <div class="bar-label">{{ nombre }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (count / max_empresa * 100)|round(1) }}%;"></div></div>
+      <div class="bar-count">{{ count }}</div>
+    </div>
+    {% else %}
+    <p class="muted">Sin empresas registradas.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>Headcount por Unidad de Negocio</h2>
+    {% for nombre, count in data.headcount_unidad %}
+    <div class="bar-row">
+      <div class="bar-label">{{ nombre }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (count / max_unidad * 100)|round(1) }}%;"></div></div>
+      <div class="bar-count">{{ count }}</div>
+    </div>
+    {% else %}
+    <p class="muted">Sin unidades de negocio registradas.</p>
+    {% endfor %}
+  </div>
+
+</div>
+</body>
+</html>

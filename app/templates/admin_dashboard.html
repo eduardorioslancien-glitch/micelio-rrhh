@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Panel Admin — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if request.query_params.get('nuevo') %}
+  <div class="card" style="border:1px solid var(--green); background: var(--green-bg);">
+    <h3 style="margin-top:0;">Enlace generado correctamente</h3>
+    <p class="muted">Envía este enlace al trabajador (WhatsApp, correo, etc.) para que complete su legajo:</p>
+    <div class="link-box">{{ request.url_for('formulario', token=request.query_params.get('nuevo')) }}</div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Generar nuevo enlace</h2>
+    <form method="post" action="/admin/nuevo">
+      <div class="grid3">
+        <div class="field">
+          <label>Nombre completo</label>
+          <input type="text" name="nombre_completo" required placeholder="Apellidos y nombres">
+        </div>
+        <div class="field">
+          <label>Correo (opcional)</label>
+          <input type="email" name="email" placeholder="correo@digetel.pe">
+        </div>
+        <div class="field">
+          <label>Empresa</label>
+          <select name="empresa">
+            <option>Digetel</option>
+            <option>Intecno</option>
+            <option>Evolution</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" type="submit">Generar enlace</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Trabajadores invitados ({{ rows|length }})</h2>
+    <div style="margin-bottom:14px;">
+      <a class="btn secondary" href="/admin/export.xlsx">Exportar a Excel</a>
+    </div>
+    <table>
+      <tr>
+        <th>Trabajador</th>
+        <th>Empresa</th>
+        <th>Estado general</th>
+        {% for k, lbl in doc_types %}<th>{{ lbl.split(' ')[0] }}</th>{% endfor %}
+        <th></th>
+      </tr>
+      {% for r in rows %}
+      <tr>
+        <td><strong>{{ r.e.nombre_completo }}</strong><br><span class="muted">{{ r.e.email or 'sin correo' }}</span></td>
+        <td>{{ r.e.empresa }}</td>
+        <td><span class="badge {{ r.overall }}">{{ r.overall }}</span></td>
+        {% for d in r.docs %}
+        <td>
+          {% if d.status == 'firmado' %}
+            <a class="badge firmado" href="/descargas/{{ d.doc_id }}" title="Descargar PDF firmado">✔ firmado</a>
+          {% else %}
+            <span class="badge {{ d.status }}">{{ d.status }}</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td><a class="btn small secondary" href="/admin/empleado/{{ r.e.id }}">Detalle</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="muted">Aún no se ha generado ningún enlace.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ e.nombre_completo }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+<h2 style="margin-top:0;">{{ e.nombre_completo }}</h2>
+  <a class="btn secondary" href="/admin">&larr; Volver al panel</a>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>Documentos del legajo</h2>
+    <table>
+      <tr><th>Documento</th><th>Estado</th><th>Firmado el</th><th>Hash</th><th></th></tr>
+      {% for k, lbl in doc_types %}
+      {% set d = docs.get(k) %}
+      <tr>
+        <td>{{ lbl }}</td>
+        <td><span class="badge {{ d.status if d else 'pendiente' }}">{{ d.status if d else 'pendiente' }}</span></td>
+        <td>{{ d.signed_at.strftime('%d/%m/%Y %H:%M') if d and d.signed_at else '—' }}</td>
+        <td class="muted">{{ d.content_hash[:16] if d and d.content_hash else '—' }}</td>
+        <td>{% if d and d.status == 'firmado' %}<a class="btn small" href="/descargas/{{ d.id }}">Descargar PDF</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td>Contrato de Trabajo</td>
+        <td><span class="badge pendiente">previsto</span></td>
+        <td colspan="3" class="muted">Se agregará como paso final del legajo cuando RR.HH. entregue el formato del contrato.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Presentar información ante SUNAFIL</h2>
+    <p class="muted">Selecciona las secciones del legajo que necesitas presentar en una revisión. Se genera un único PDF con carátula, listo para descargar.</p>
+    <form method="get" action="/admin/empleado/{{ e.id }}/exportar-sunafil" target="_blank">
+      <div class="grid3">
+        {% for k, lbl in doc_types %}
+        <label style="display:flex; gap:8px; align-items:center; text-transform:none; font-weight:400; font-size:13px; margin-bottom:8px;">
+          <input type="checkbox" name="docs" value="{{ k }}" style="width:auto;" {% if docs.get(k) and docs.get(k).status == 'firmado' %}checked{% endif %} {% if not docs.get(k) or docs.get(k).status != 'firmado' %}disabled{% endif %}>
+          {{ lbl }}{% if not docs.get(k) or docs.get(k).status != 'firmado' %} <span class="muted">(no firmado)</span>{% endif %}
+        </label>
+        {% endfor %}
+        <label style="display:flex; gap:8px; align-items:center; text-transform:none; font-weight:400; font-size:13px; margin-bottom:8px;">
+          <input type="checkbox" name="adjuntos" value="true" style="width:auto;" {% if attachments %}checked{% endif %} {% if not attachments %}disabled{% endif %}>
+          Documentos adjuntos (CV, CUL, antecedentes, otros){% if not attachments %} <span class="muted">(sin adjuntos)</span>{% endif %}
+        </label>
+      </div>
+      <button class="btn" type="submit">Generar PDF para SUNAFIL</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Documentos adjuntos</h2>
+    {% if attachments %}
+    <table>
+      <tr><th>Tipo</th><th>Archivo</th><th>Fecha de carga</th><th></th></tr>
+      {% for a in attachments %}
+      <tr>
+        <td>{{ attachment_labels.get(a.tipo, a.tipo) }}</td>
+        <td>{{ a.filename }}</td>
+        <td>{{ a.uploaded_at.strftime('%d/%m/%Y %H:%M') if a.uploaded_at else '—' }}</td>
+        <td><a class="btn small secondary" href="/adjuntos/{{ a.id }}">Descargar</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">Todavía no se adjuntó ningún documento (CV, CUL, antecedentes policiales, otros).</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Ficha de datos — resumen</h2>
+    {% if e.ficha_data %}
+    <table>
+      {% for key, val in e.ficha_data.items() %}
+      {% if val and key not in ["familia","educacion","experiencia","capacitaciones"] %}
+      <tr><td style="width:260px;"><strong>{{ key }}</strong></td><td>{{ val }}</td></tr>
+      {% endif %}
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">El trabajador todavía no ha llenado su ficha.</p>
+    {% endif %}
+  </div>
+
+  {% if familia %}
+  <div class="card">
+    <h2>Información familiar</h2>
+    <table>
+      <tr><th>Parentesco</th><th>Nombre</th><th>DNI</th><th>Fecha Nac.</th><th>Depende económicamente</th><th>Derechohabiente EsSalud</th></tr>
+      {% for f in familia %}
+      <tr><td>{{ f.parentesco }}</td><td>{{ f.nombre }}</td><td>{{ f.dni }}</td><td>{{ f.fecha_nacimiento }}</td>
+        <td>{{ "Sí" if f.depende_economicamente else "No" }}</td><td>{{ "Sí" if f.derechohabiente_essalud else "No" }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if educacion %}
+  <div class="card">
+    <h2>Educación</h2>
+    <table>
+      <tr><th>Institución</th><th>Carrera</th><th>Nivel</th><th>Grado</th><th>Año</th><th>Estado</th></tr>
+      {% for ed in educacion %}
+      <tr><td>{{ ed.institucion }}</td><td>{{ ed.carrera }}</td><td>{{ ed.nivel }}</td><td>{{ ed.grado }}</td><td>{{ ed.anio }}</td><td>{{ ed.estado }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if experiencia %}
+  <div class="card">
+    <h2>Experiencia laboral</h2>
+    <table>
+      <tr><th>Empresa</th><th>Cargo</th><th>Periodo</th><th>Funciones</th></tr>
+      {% for ex in experiencia %}
+      <tr><td>{{ ex.empresa }}</td><td>{{ ex.cargo }}</td><td>{{ ex.periodo }}</td><td>{{ ex.funciones }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if capacitaciones %}
+  <div class="card">
+    <h2>Capacitaciones</h2>
+    <table>
+      <tr><th>Curso</th><th>Institución</th><th>Horas</th><th>Año</th></tr>
+      {% for cap in capacitaciones %}
+      <tr><td>{{ cap.curso }}</td><td>{{ cap.institucion }}</td><td>{{ cap.horas }}</td><td>{{ cap.anio }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Bitácora de auditoría</h2>
+    <table>
+      <tr><th>Evento</th><th>Fecha y hora</th><th>IP</th><th>Navegador</th></tr>
+      {% for l in logs %}
+      <tr>
+        <td>{{ l.event }}</td>
+        <td>{{ l.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>{{ l.ip_address or '—' }}</td>
+        <td class="muted" style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ l.user_agent or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Sin eventos todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+</body>
+</html>

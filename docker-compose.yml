@@ -1,0 +1,25 @@
+services:
+  micelio:
+    build: .
+    container_name: micelio
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - RRHH_SECRET_KEY=${RRHH_SECRET_KEY}
+      # Opcionales, solo si querés correo automático al completar un legajo:
+      # - SMTP_HOST=smtp.gmail.com
+      # - SMTP_PORT=587
+      # - SMTP_USER=
+      # - SMTP_PASS=
+      # - SMTP_FROM=
+    volumes:
+      # Todo lo que la app escribe en tiempo de ejecución (base de datos,
+      # PDFs firmados, adjuntos, fotos, firmas) queda en el host — así
+      # `docker compose down` / reconstruir la imagen no borra nada.
+      - ./data:/app/data
+      - ./app/generated:/app/app/generated
+      - ./app/uploads:/app/app/uploads
+      - ./app/fotos:/app/app/fotos
+      - ./app/signatures:/app/app/signatures
+      - ./app/firmas_empresa:/app/app/firmas_empresa

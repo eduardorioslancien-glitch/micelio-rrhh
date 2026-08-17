@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Usuarios — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Usuarios del sistema ({{ usuarios|length }})</h2>
+    <table>
+      <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Vinculado a</th><th>Último ingreso</th><th>Estado</th><th></th></tr>
+      {% for u in usuarios %}
+      <tr>
+        <td><strong>{{ u.username }}</strong></td>
+        <td>{{ u.nombre_completo }}</td>
+        <td><span class="role-badge">{{ role_labels.get(u.rol, u.rol) }}</span></td>
+        <td>{% if u.employee %}<a href="/rrhh/personal/{{ u.employee.id }}">{{ u.employee.nombre_completo }}</a>{% else %}—{% endif %}</td>
+        <td class="muted">{{ u.last_login_at.strftime('%d/%m/%Y %H:%M') if u.last_login_at else 'nunca' }}</td>
+        <td><span class="badge {{ 'firmado' if u.activo else 'pendiente' }}">{{ 'activo' if u.activo else 'inactivo' }}</span></td>
+        <td>
+          <form method="post" action="/rrhh/usuarios/{{ u.id }}/toggle" style="display:inline;">
+            <button class="btn small secondary" type="submit" {{ 'disabled' if u.id == user.id else '' }}>{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+          </form>
+          <details style="display:inline-block;">
+            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Resetear contraseña</summary>
+            <form method="post" action="/rrhh/usuarios/{{ u.id }}/reset-password" style="margin-top:6px;">
+              <input type="password" name="nueva_password" placeholder="Nueva contraseña" required style="width:160px;">
+              <button class="btn small" type="submit">Guardar</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Crear usuario</h2>
+    <form method="post" action="/rrhh/usuarios/nuevo">
+      <div class="grid3">
+        <div class="field"><label>Usuario (login)</label><input type="text" name="username" required></div>
+        <div class="field"><label>Contraseña inicial</label><input type="password" name="password" required></div>
+        <div class="field"><label>Nombre completo</label><input type="text" name="nombre_completo" required></div>
+        <div class="field">
+          <label>Rol</label>
+          <select name="rol" required>
+            {% for k, lbl in roles %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Empresa (alcance opcional)</label>
+          <select name="empresa_id">
+            <option value="">— Todas —</option>
+            {% for e in empresas %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Vincular a trabajador (solo rol "Usuario")</label>
+          <select name="employee_id">
+            <option value="">— Ninguno —</option>
+            {% for emp in empleados %}<option value="{{ emp.id }}">{{ emp.nombre_completo }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <button class="btn" type="submit">Crear usuario</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>

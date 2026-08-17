@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Parametrización — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Parametrización</h2>
+    <p class="muted">Cada catálogo tiene su propia página (también accesibles desde el menú lateral, dentro de Administración &gt; Parámetros).</p>
+    <table>
+      <tr><th>Catálogo</th><th></th></tr>
+      <tr><td>Unidades de Negocio</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/unidades">Abrir</a></td></tr>
+      <tr><td>Empresas</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/empresas">Abrir</a></td></tr>
+      <tr><td>Principios, Valores y Competencias</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/competencias">Abrir</a></td></tr>
+      {% for tipo, label in catalogo_tipos %}
+      <tr><td>{{ label }}s</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/catalogo/{{ tipo }}">Abrir</a></td></tr>
+      {% endfor %}
+      <tr><td>Cargos y Funciones (MOF)</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/cargos">Abrir</a></td></tr>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

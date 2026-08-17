@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Control de Leads — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">Control de Leads (Candidatos)</h2>
+      <form method="get" action="/rrhh/reclutamiento/leads" class="inline-form">
+        <div class="field">
+          <label>Etapa</label>
+          <select name="etapa" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for key, label in etapas %}
+            <option value="{{ key }}" {{ 'selected' if f_etapa == key else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+    </div>
+    <table>
+      <tr>
+        <th>Candidato</th><th>Contacto</th><th>Origen</th><th>Pedido</th><th>Registrado</th><th>Etapa</th><th></th>
+      </tr>
+      {% for l in leads %}
+      <tr>
+        <td><strong>{{ l.nombre_completo }}</strong>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
+        <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
+        <td>{{ l.origen or "—" }}</td>
+        <td>{{ l.pedido.cargo_solicitado if l.pedido else "—" }}</td>
+        <td>{{ l.created_at.strftime("%d/%m/%Y") }}</td>
+        <td><span class="badge {{ l.etapa }}">{{ etapa_labels.get(l.etapa, l.etapa) }}</span></td>
+        <td>
+          <form method="post" action="/rrhh/reclutamiento/leads/{{ l.id }}/etapa" class="inline-form" style="margin:0;">
+            <select name="etapa" onchange="this.form.submit()">
+              {% for key, label in etapas %}
+              <option value="{{ key }}" {{ 'selected' if l.etapa == key else '' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="muted">Todavía no hay candidatos registrados.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Registrar candidato</h3>
+    <form method="post" action="/rrhh/reclutamiento/leads/nuevo">
+      <div class="grid3">
+        <div class="field"><label>Nombre Completo</label><input type="text" name="nombre_completo" required></div>
+        <div class="field"><label>Correo</label><input type="email" name="email"></div>
+        <div class="field"><label>Celular</label><input type="text" name="celular"></div>
+        <div class="field">
+          <label>Origen</label>
+          <select name="origen">
+            <option value="">Seleccionar…</option>
+            {% for o in origenes %}<option>{{ o }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Pedido de Personal (opcional)</label>
+          <select name="pedido_id">
+            <option value="">Sin asignar todavía</option>
+            {% for p in pedidos_abiertos %}<option value="{{ p.id }}">{{ p.cargo_solicitado }} ({{ p.empresa.nombre if p.empresa else "—" }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Notas</label><input type="text" name="notas"></div>
+      </div>
+      <button class="btn" type="submit">Registrar candidato</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>

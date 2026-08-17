@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ cargo.nombre }} — MOF — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/parametrizacion/cargos">&larr; Volver a Cargos y Funciones</a>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>{{ cargo.nombre }} — Manual de Organización y Funciones</h2>
+    <form method="post" action="/rrhh/parametrizacion/cargo/{{ cargo.id }}/editar">
+      <div class="grid2">
+        <div class="field"><label>Nombre del cargo</label><input type="text" name="nombre" value="{{ cargo.nombre }}" required></div>
+        <div class="field">
+          <label>Reporta a</label>
+          <select name="reporta_a_id">
+            <option value="">— Ninguno (máxima jerarquía) —</option>
+            {% for c in otros_cargos %}<option value="{{ c.id }}" {{ 'selected' if cargo.reporta_a_id == c.id else '' }}>{{ c.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Descripción del puesto</label><textarea name="descripcion" rows="3">{{ cargo.descripcion or '' }}</textarea></div>
+      <div class="field"><label>Funciones (una por línea)</label><textarea name="funciones" rows="6">{{ cargo.funciones|join('\n') }}</textarea></div>
+      <div class="field"><label>Responsabilidades (una por línea)</label><textarea name="responsabilidades" rows="6">{{ cargo.responsabilidades|join('\n') }}</textarea></div>
+
+      <div class="section-title">Requisitos del Puesto</div>
+      <div class="field"><label>Formación académica</label><textarea name="requisito_academico" rows="2">{{ cargo.requisito_academico or '' }}</textarea></div>
+      <div class="field"><label>Experiencia</label><textarea name="requisito_experiencia" rows="2">{{ cargo.requisito_experiencia or '' }}</textarea></div>
+      <div class="field"><label>Conocimientos</label><textarea name="requisito_conocimientos" rows="2">{{ cargo.requisito_conocimientos or '' }}</textarea></div>
+
+      <button class="btn" type="submit">Guardar cambios</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Jerarquía</h2>
+    <table>
+      <tr><td style="width:220px;"><strong>Reporta a</strong></td><td>{{ cargo.reporta_a.nombre if cargo.reporta_a else "— Ninguno (máxima jerarquía) —" }}</td></tr>
+      <tr><td><strong>Le reportan (lidera a)</strong></td><td>{{ cargo.subordinados|map(attribute='nombre')|join(', ') if cargo.subordinados else "— Ninguno —" }}</td></tr>
+    </table>
+    <p class="hint">"Lidera a" se calcula solo, a partir de qué cargos eligieron a este como "Reporta a" — no se edita acá directamente.</p>
+  </div>
+
+  <div class="card">
+    <h2>Competencias Requeridas</h2>
+    <table>
+      <tr><th>Competencia</th><th>Nivel Requerido</th><th></th></tr>
+      {% for r in cargo.requisitos_competencias %}
+      <tr>
+        <td>{{ r.competencia.nombre if r.competencia else "—" }}</td>
+        <td>{{ r.nivel_requerido }} / 4</td>
+        <td>
+          <form method="post" action="/rrhh/parametrizacion/cargo/{{ cargo.id }}/competencia/{{ r.id }}/eliminar" style="display:inline;">
+            <button class="btn small secondary" type="submit">Quitar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="muted">Todavía no hay competencias asignadas a este cargo.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Agregar competencia requerida</h3>
+    {% if competencias %}
+    <form method="post" action="/rrhh/parametrizacion/cargo/{{ cargo.id }}/competencia" class="inline-form">
+      <div class="field">
+        <label>Competencia</label>
+        <select name="competencia_id" required>
+          {% for comp in competencias %}<option value="{{ comp.id }}">{{ comp.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Nivel Requerido</label>
+        <select name="nivel_requerido" required>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+        </select>
+      </div>
+      <button class="btn" type="submit">Agregar</button>
+    </form>
+    {% else %}
+    <p class="muted">Todavía no hay competencias registradas en Parámetros &gt; Principios, Valores y Competencias. <a href="/rrhh/parametrizacion/competencias">Crear una</a>.</p>
+    {% endif %}
+  </div>
+
+</div>
+</body>
+</html>

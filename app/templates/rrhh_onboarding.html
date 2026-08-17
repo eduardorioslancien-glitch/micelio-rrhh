@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Onboarding — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Onboarding — Avance por Trabajador</h2>
+    <p class="muted">
+      El detalle de cada etapa (Inducción General, Acompañamiento, Evaluación, Feedback) se registra
+      dentro de la ficha de cada trabajador, en la pestaña "Onboarding".
+    </p>
+    <table>
+      <tr><th>Trabajador</th><th>Empresa</th><th>Ingreso</th><th>Avance de Onboarding</th><th></th></tr>
+      {% for r in resumen %}
+      <tr>
+        <td><strong>{{ r.e.nombre_completo }}</strong></td>
+        <td>{{ r.e.empresa_rel.nombre if r.e.empresa_rel else (r.e.empresa or "—") }}</td>
+        <td class="muted">{{ r.e.created_at.strftime('%d/%m/%Y') if r.e.created_at else "—" }}</td>
+        <td>
+          <span class="badge {{ 'firmado' if r.completadas == r.total else ('en_proceso' if r.completadas > 0 else 'pendiente') }}">
+            {{ r.completadas }} / {{ r.total }} etapas
+          </span>
+        </td>
+        <td><a class="btn small secondary" href="/rrhh/personal/{{ r.e.id }}#onboarding">Ver ficha</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No hay trabajadores activos registrados todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

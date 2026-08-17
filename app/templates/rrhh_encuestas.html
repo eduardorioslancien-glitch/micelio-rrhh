@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Encuesta 360 — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Encuesta 360 — Campañas</h2>
+    <table>
+      <tr><th>Campaña</th><th>Preguntas</th><th>Respuestas</th><th>Estado</th><th></th></tr>
+      {% for c in campanas %}
+      <tr>
+        <td><strong>{{ c.nombre }}</strong>{% if c.descripcion %}<br><span class="muted">{{ c.descripcion }}</span>{% endif %}</td>
+        <td>{{ c.preguntas|length }}</td>
+        <td>{{ c.respuestas|length }}</td>
+        <td><span class="badge {{ 'firmado' if c.estado == 'abierta' else 'pendiente' }}">{{ estado_labels.get(c.estado, c.estado) }}</span></td>
+        <td style="display:flex; gap:6px;">
+          <a class="btn small secondary" href="/rrhh/clima/encuestas/{{ c.id }}">Ver / cargar respuestas</a>
+          <form method="post" action="/rrhh/clima/encuestas/{{ c.id }}/estado" style="margin:0;">
+            <input type="hidden" name="estado" value="{{ 'cerrada' if c.estado == 'abierta' else 'abierta' }}">
+            <button class="btn small secondary" type="submit">{{ 'Cerrar' if c.estado == 'abierta' else 'Reabrir' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Todavía no hay campañas de Encuesta 360.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Nueva campaña</h3>
+    <form method="post" action="/rrhh/clima/encuestas/nueva">
+      <div class="field"><label>Nombre</label><input type="text" name="nombre" required placeholder="Encuesta 360 - 3er trimestre 2026"></div>
+      <div class="field"><label>Descripción</label><input type="text" name="descripcion"></div>
+      <div class="field">
+        <label>Preguntas (una por línea, se responden en escala 1-5)</label>
+        <textarea name="preguntas" rows="6" required placeholder="Comunica claramente sus ideas&#10;Cumple los plazos comprometidos&#10;Colabora bien con el equipo"></textarea>
+      </div>
+      <button class="btn" type="submit">Crear campaña</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>

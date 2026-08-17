@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ e.nombre_completo }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    {% if user.rol != 'usuario' %}<a class="btn secondary" href="/rrhh/personal">&larr; Volver al listado</a>{% else %}<span></span>{% endif %}
+    {% if user.rol in ('administrador', 'opeoka') %}
+    <a class="btn" href="/rrhh/personal/{{ e.id }}/ficha">{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}</a>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="profile-header">
+      {% if e.foto_path %}<img class="avatar" src="/rrhh/personal/{{ e.id }}/foto">
+      {% else %}<div class="avatar-placeholder">{{ e.nombre_completo[0] }}</div>{% endif %}
+      <div class="info">
+        <h2>{{ e.nombre_completo }}</h2>
+        <p class="muted">
+          {{ e.empresa_rel.nombre if e.empresa_rel else (e.empresa or "Sin empresa asignada") }}
+          {% if e.empresa_rel and e.empresa_rel.unidad_negocio %} · {{ e.empresa_rel.unidad_negocio.nombre }}{% endif %}
+          · <span class="badge {{ 'firmado' if e.estado == 'activo' else 'pendiente' }}">{{ e.estado }}</span>
+        </p>
+        {% if can_edit %}
+        <form method="post" action="/rrhh/personal/{{ e.id }}/foto" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+          <input type="file" name="foto" accept=".jpg,.jpeg,.png" required style="width:auto;">
+          <button class="btn small secondary" type="submit">Actualizar foto</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if user.rol == 'administrador' %}
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+      <form method="post" action="/rrhh/personal/{{ e.id }}/empresa" class="inline-form">
+        <div class="field">
+          <label>Reasignar empresa</label>
+          <select name="empresa_id">
+            <option value="">— Sin asignar —</option>
+            {% for emp2 in empresas %}<option value="{{ emp2.id }}" {{ 'selected' if e.empresa_id == emp2.id else '' }}>{{ emp2.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <button class="btn small secondary" type="submit">Guardar</button>
+      </form>
+      {% if e.estado == 'activo' %}
+      <details style="margin-top:10px;">
+        <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Dar de baja</summary>
+        <form method="post" action="/rrhh/personal/{{ e.id }}/baja" class="inline-form" style="margin-top:8px;">
+          <div class="field"><label>Fecha de baja</label><input type="date" name="fecha_baja" required></div>
+          <div class="field" style="flex:2;"><label>Motivo</label><input type="text" name="motivo_baja" required></div>
+          <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Confirmar baja</button>
+        </form>
+      </details>
+      {% else %}
+      <p class="muted" style="margin-top:10px;">Cesado el {{ e.fecha_baja.strftime('%d/%m/%Y') if e.fecha_baja else '—' }} — {{ e.motivo_baja }}</p>
+      <form method="post" action="/rrhh/personal/{{ e.id }}/reactivar" style="margin-top:6px;">
+        <button class="btn small secondary" type="submit">Reactivar</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if e.documents %}
+  <div class="card">
+    <h2>Legajo de Selección — documentos firmados</h2>
+    <table>
+      <tr><th>Documento</th><th>Estado</th><th></th></tr>
+      {% for d in e.documents %}
+      <tr>
+        <td>{{ d.doc_type }}</td>
+        <td><span class="badge {{ d.status }}">{{ d.status }}</span></td>
+        <td>{% if d.status == 'firmado' %}<a class="btn small" href="/descargas/{{ d.id }}">Descargar PDF</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="tabs">
+    <a href="#datos" class="active">Datos generales</a>
+    {% if can_operativo %}<a href="#laboral">Laboral</a>{% endif %}
+    {% if can_planilla %}<a href="#planilla">Planilla</a>{% endif %}
+    {% if can_mark_own and user.rol == 'usuario' %}<a href="#asistencia">Asistencia</a>{% endif %}
+    {% if can_edit %}<a href="#onboarding">Onboarding</a>{% endif %}
+    {% if can_edit %}<a href="#bitacora">Bitácora</a>{% endif %}
+    {% if can_edit %}<a href="#documentos">Documentos</a>{% endif %}
+  </div>
+
+  <div class="card" id="datos">
+    <h2>Datos generales</h2>
+    {% if e.ficha_data %}
+    {% set f = e.ficha_data %}
+    <table>
+      <tr><td style="width:220px;"><strong>Documento</strong></td><td>{{ f.get('tipo_documento','') }} {{ f.get('numero_documento','') }}</td></tr>
+      <tr><td><strong>Fecha de nacimiento</strong></td><td>{{ f.get('fecha_nacimiento','—') }}</td></tr>
+      <tr><td><strong>Dirección</strong></td><td>{{ f.get('direccion','—') }}, {{ f.get('distrito','') }}</td></tr>
+      <tr><td><strong>Celular</strong></td><td>{{ f.get('celular','—') }}</td></tr>
+      <tr><td><strong>Correo personal</strong></td><td>{{ f.get('correo_personal', e.email or '—') }}</td></tr>
+    </table>
+    {% else %}
+    <p class="muted">Esta persona todavía no tiene una ficha completa (no pasó por el proceso de Selección o está pendiente).</p>
+    {% endif %}
+  </div>
+
+  {% if can_operativo %}
+  <div class="card" id="laboral">
+    <h2>Datos laborales</h2>
+    {% set f = e.ficha_data or {} %}
+    <table>
+      <tr><td style="width:220px;"><strong>Cargo</strong></td><td>{{ f.get('cargo','—') }}</td></tr>
+      <tr><td><strong>Área</strong></td><td>{{ f.get('area','—') }}</td></tr>
+      <tr><td><strong>Sede</strong></td><td>{{ f.get('sede','—') }}</td></tr>
+      <tr><td><strong>Tipo de contrato</strong></td><td>{{ f.get('tipo_contrato','—') }}</td></tr>
+      <tr><td><strong>Fecha de ingreso</strong></td><td>{{ f.get('fecha_ingreso','—') }}</td></tr>
+      <tr><td><strong>Jefe inmediato</strong></td><td>{{ f.get('jefe_inmediato','—') }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if can_planilla %}
+  <div class="card" id="planilla">
+    <h2>Planilla — bancaria y previsional</h2>
+    {% set f = e.ficha_data or {} %}
+    <table>
+      <tr><td style="width:220px;"><strong>Remuneración</strong></td><td>S/ {{ f.get('remuneracion','—') }}</td></tr>
+      <tr><td><strong>Banco (haberes)</strong></td><td>{{ f.get('banco_haberes','—') }} · Cta {{ f.get('cuenta_haberes','—') }}</td></tr>
+      <tr><td><strong>CCI</strong></td><td>{{ f.get('cci_haberes','—') }}</td></tr>
+      <tr><td><strong>Banco CTS</strong></td><td>{{ f.get('banco_cts','—') }} · Cta {{ f.get('cuenta_cts','—') }}</td></tr>
+      <tr><td><strong>Sistema de pensión</strong></td><td>{{ f.get('sistema_pension','—') }} {{ f.get('afp','') }}</td></tr>
+      <tr><td><strong>CUSPP</strong></td><td>{{ f.get('cuspp','—') }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if can_mark_own and user.rol == 'usuario' %}
+  <div class="card" id="asistencia">
+    <h2>Asistencia</h2>
+    <p class="muted">El detalle y la gestión completa de asistencia de todo el personal vive en Administración &gt; Control de Asistencia; acá solo marcas la tuya.</p>
+    <form method="post" action="/rrhh/personal/{{ e.id }}/asistencia/marcar" style="margin-bottom:16px;">
+      {% if puede_marcar_entrada %}
+      <button class="btn" name="tipo" value="entrada" type="submit">Marcar entrada</button>
+      {% else %}
+      <button class="btn" name="tipo" value="salida" type="submit" style="background:var(--red); border-color:var(--red);">Marcar salida</button>
+      {% endif %}
+    </form>
+    <table>
+      <tr><th>Tipo</th><th>Fecha y hora</th><th>Registrado por</th><th>Nota</th></tr>
+      {% for a in asistencia_reciente %}
+      <tr>
+        <td><span class="badge {{ 'firmado' if a.tipo == 'entrada' else 'pendiente' }}">{{ a.tipo }}</span></td>
+        <td>{{ a.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td class="muted">{{ a.registrado_por or '—' }}</td>
+        <td class="muted">{{ a.nota or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Sin marcaciones todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if can_edit %}
+  <div class="card" id="onboarding">
+    <h2>Onboarding</h2>
+    <p class="muted">Seguimiento de inducción, acompañamiento, evaluación y feedback del trabajador recién ingresado.</p>
+    <form method="post" action="/rrhh/personal/{{ e.id }}/onboarding" class="inline-form" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Etapa</label>
+        <select name="etapa" required>{% for k, lbl in etapas_onboarding %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
+      </div>
+      <div class="field">
+        <label>Estado</label>
+        <select name="estado">{% for k, lbl in estados_onboarding %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Fecha</label><input type="date" name="fecha"></div>
+      <div class="field"><label>Responsable</label><input type="text" name="responsable"></div>
+      <div class="field" style="flex:2;"><label>Notas</label><input type="text" name="notas"></div>
+      <button class="btn small" type="submit">Agregar</button>
+    </form>
+    <table>
+      <tr><th>Etapa</th><th>Estado</th><th>Fecha</th><th>Responsable</th><th>Notas</th></tr>
+      {% for o in e.onboarding %}
+      <tr>
+        <td>{{ etapa_onboarding_labels.get(o.etapa, o.etapa) }}</td>
+        <td><span class="badge {{ 'firmado' if o.estado == 'completado' else 'pendiente' }}">{{ estado_onboarding_labels.get(o.estado, o.estado) }}</span></td>
+        <td class="muted">{{ o.fecha.strftime('%d/%m/%Y') if o.fecha else '—' }}</td>
+        <td class="muted">{{ o.responsable or '—' }}</td>
+        <td class="muted">{{ o.notas or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Sin registros de onboarding todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card" id="bitacora">
+    <h2>Bitácora de acciones</h2>
+    <p class="muted">Registro interno de RR.HH.: observaciones, memorándums, reconocimientos, incidencias.</p>
+    <form method="post" action="/rrhh/personal/{{ e.id }}/bitacora" class="inline-form" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Tipo</label>
+        <select name="tipo" required>{% for t in tipos_bitacora %}<option>{{ t }}</option>{% endfor %}</select>
+      </div>
+      <div class="field" style="flex:3;"><label>Detalle</label><input type="text" name="texto" required></div>
+      <button class="btn small" type="submit">Agregar</button>
+    </form>
+    <table>
+      <tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Registrado por</th></tr>
+      {% for b in e.bitacora %}
+      <tr>
+        <td class="muted">{{ b.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td><span class="role-badge">{{ b.tipo }}</span></td>
+        <td>{{ b.texto }}</td>
+        <td class="muted">{{ b.autor or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Sin registros todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card" id="documentos">
+    <h2>Documentos del legajo</h2>
+    <form method="post" action="/rrhh/personal/{{ e.id }}/documentos" enctype="multipart/form-data" class="inline-form" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Tipo</label>
+        <select name="tipo" required>{% for k, lbl in attachment_types %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Archivo</label><input type="file" name="archivo" required></div>
+      <button class="btn small" type="submit">Subir</button>
+    </form>
+    <table>
+      <tr><th>Tipo</th><th>Archivo</th><th>Subido por</th><th>Fecha</th><th></th></tr>
+      {% for a in e.attachments %}
+      <tr>
+        <td>{{ attachment_labels.get(a.tipo, a.tipo) }}</td>
+        <td>{{ a.filename }}</td>
+        <td class="muted">{{ a.subido_por or '—' }}</td>
+        <td class="muted">{{ a.uploaded_at.strftime('%d/%m/%Y %H:%M') if a.uploaded_at else '—' }}</td>
+        <td><a class="btn small secondary" href="/adjuntos/{{ a.id }}">Descargar</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Sin documentos adjuntos todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

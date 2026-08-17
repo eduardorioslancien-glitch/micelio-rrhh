@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Principios, Valores y Competencias — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+  {% for tipo, label in tipos %}
+  {% set plural = (label + 'es') if label == 'Valor' else (label + 's') %}
+  <div class="card">
+    <h2>{{ plural }}</h2>
+    <table>
+      <tr><th>Nombre</th><th>Descripción</th><th>Estado</th><th></th></tr>
+      {% for item in items if item.tipo == tipo %}
+      <tr>
+        <td><strong>{{ item.nombre }}</strong></td>
+        <td class="muted">{{ item.descripcion or "—" }}</td>
+        <td><span class="badge {{ 'firmado' if item.activo else 'pendiente' }}">{{ 'activo' if item.activo else 'inactivo' }}</span></td>
+        <td style="display:flex; gap:6px;">
+          <details>
+            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Editar</summary>
+            <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/editar" style="margin-top:8px; min-width:340px;">
+              <input type="hidden" name="tipo" value="{{ item.tipo }}">
+              <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ item.nombre }}" required></div>
+              <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ item.descripcion or '' }}"></div>
+              <div class="field"><label>Nivel 1</label><textarea name="nivel_1" rows="2">{{ item.nivel_1 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 2</label><textarea name="nivel_2" rows="2">{{ item.nivel_2 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 3</label><textarea name="nivel_3" rows="2">{{ item.nivel_3 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 4</label><textarea name="nivel_4" rows="2">{{ item.nivel_4 or '' }}</textarea></div>
+              <button class="btn small" type="submit">Guardar</button>
+            </form>
+          </details>
+          <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/toggle" style="display:inline;">
+            <button class="btn small secondary" type="submit">{{ 'Desactivar' if item.activo else 'Activar' }}</button>
+          </form>
+          <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar {{ item.nombre }}? No se puede deshacer.');">
+            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Agregar {{ label|lower }}</h3>
+    <form method="post" action="/rrhh/parametrizacion/competencia">
+      <input type="hidden" name="tipo" value="{{ tipo }}">
+      <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
+      <div class="field"><label>Descripción</label><input type="text" name="descripcion"></div>
+      <div class="grid2">
+        <div class="field"><label>Nivel 1 (desarrollo)</label><textarea name="nivel_1" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 2 (desarrollo)</label><textarea name="nivel_2" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 3 (desarrollo)</label><textarea name="nivel_3" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 4 (desarrollo)</label><textarea name="nivel_4" rows="2"></textarea></div>
+      </div>
+      <button class="btn" type="submit">Agregar {{ label|lower }}</button>
+    </form>
+  </div>
+  {% endfor %}
+
+</div>
+</body>
+</html>

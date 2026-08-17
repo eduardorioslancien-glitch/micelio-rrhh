@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mi cuenta — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card" style="max-width:480px;">
+    <h2>Mi cuenta</h2>
+    <p><strong>Usuario:</strong> {{ user.username }}</p>
+    <p><strong>Nombre:</strong> {{ user.nombre_completo }}</p>
+    <p><strong>Rol:</strong> <span class="role-badge">{{ role_labels.get(user.rol, user.rol) }}</span></p>
+
+    <h3 style="margin-top:22px;">Cambiar contraseña</h3>
+    {% if forzado %}<div class="alert-error">Por seguridad debes definir una contraseña nueva antes de continuar usando el sistema.</div>{% endif %}
+    {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+    {% if ok %}<div class="alert-ok">{{ ok }}</div>{% endif %}
+    <form method="post" action="/rrhh/mi-cuenta/password">
+      <div class="field"><label>Contraseña actual</label><input type="password" name="actual" required></div>
+      <div class="field"><label>Nueva contraseña</label><input type="password" name="nueva" required></div>
+      <button class="btn" type="submit">Actualizar contraseña</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>

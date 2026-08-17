@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Editar ficha — {{ e.nombre_completo }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/personal/{{ e.id }}">&larr; Volver a la ficha</a>
+
+  <div class="card" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <h2 style="margin:0;">Editar ficha — {{ e.nombre_completo }}</h2>
+      <p class="muted" style="margin:4px 0 0;">Carga o corrige los datos directamente. Esto no dispara firma ni documentos legales — solo actualiza la ficha.</p>
+    </div>
+    <div>
+      <span id="guardar_status" class="muted" style="margin-right:10px;"></span>
+      <button class="btn" onclick="guardarFicha()">Guardar Ficha</button>
+    </div>
+  </div>
+
+  <!-- I. Datos Personales -->
+  <div class="card">
+    <h2>I. Datos Personales</h2>
+    <div class="grid3">
+      <div class="field"><label>Código de Trabajador</label><input type="text" id="codigo_trabajador" readonly style="background:#F2F2F2;"></div>
+      <div class="field"><label>Apellido Paterno</label><input type="text" id="apellido_paterno"></div>
+      <div class="field"><label>Apellido Materno</label><input type="text" id="apellido_materno"></div>
+      <div class="field"><label>Nombres</label><input type="text" id="nombres"></div>
+      <div class="field"><label>Tipo de Documento</label>
+        <select id="tipo_documento"><option value="">Seleccionar…</option><option>DNI</option><option>Carné de Extranjería</option><option>Pasaporte</option></select>
+      </div>
+      <div class="field"><label>N.° de Documento</label><input type="text" id="numero_documento"></div>
+      <div class="field"><label>RUC (si corresponde)</label><input type="text" id="ruc"></div>
+      <div class="field"><label>Nacionalidad</label><input type="text" id="nacionalidad" value="Peruana"></div>
+      <div class="field"><label>Sexo</label>
+        <select id="sexo"><option value="">Seleccionar…</option><option>Masculino</option><option>Femenino</option></select>
+      </div>
+      <div class="field"><label>Estado Civil</label>
+        <select id="estado_civil"><option value="">Seleccionar…</option><option>Soltero(a)</option><option>Casado(a)</option><option>Conviviente</option><option>Divorciado(a)</option><option>Viudo(a)</option></select>
+      </div>
+      <div class="field"><label>Fecha de Nacimiento</label><input type="date" id="fecha_nacimiento" onchange="actualizarEdad()"></div>
+      <div class="field"><label>Lugar de Nacimiento</label><input type="text" id="lugar_nacimiento"></div>
+      <div class="field"><label>Edad</label><input type="text" id="edad" readonly style="background:#F2F2F2;"></div>
+    </div>
+    <div class="section-title">Domicilio</div>
+    <div class="grid3">
+      <div class="field" style="grid-column:span 2;"><label>Dirección</label><input type="text" id="direccion"></div>
+      <div class="field"><label>Urbanización</label><input type="text" id="urbanizacion"></div>
+      <div class="field"><label>Departamento</label>
+        <select id="departamento"><option value="">Seleccionar…</option></select>
+      </div>
+      <div class="field"><label>Provincia</label>
+        <select id="provincia" disabled><option value="">Seleccionar departamento primero…</option></select>
+      </div>
+      <div class="field"><label>Distrito</label>
+        <select id="distrito" disabled><option value="">Seleccionar provincia primero…</option></select>
+      </div>
+      <div class="field" style="grid-column:span 3;"><label>Referencia</label><input type="text" id="referencia"></div>
+    </div>
+    <div class="section-title">Contacto</div>
+    <div class="grid3">
+      <div class="field"><label>Teléfono Fijo</label><input type="text" id="telefono_fijo"></div>
+      <div class="field"><label>Celular</label><input type="text" id="celular"></div>
+      <div class="field"><label>Correo Personal</label><input type="email" id="correo_personal"></div>
+      <div class="field"><label>Correo Corporativo</label><input type="email" id="correo_corporativo"></div>
+    </div>
+    <div class="section-title">Licencia de Conducir (si aplica)</div>
+    <div class="grid3">
+      <div class="field"><label>N.° de Licencia</label><input type="text" id="licencia_numero"></div>
+      <div class="field"><label>Tipo (categoría)</label>
+        <select id="licencia_tipo"><option value="">Seleccionar…</option>{% for t in tipos_licencia %}<option>{{ t }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Fecha de Vencimiento</label><input type="date" id="licencia_vencimiento"></div>
+    </div>
+  </div>
+
+  <!-- II. Información Familiar -->
+  <div class="card">
+    <h2>II. Información Familiar</h2>
+    <p class="section-sub">Cónyuge, conviviente, hijos, padres u otros familiares a cargo.</p>
+    <div id="familia_container"></div>
+    <button type="button" class="btn secondary" onclick="addFamiliaRow()">+ Agregar familiar</button>
+  </div>
+
+  <!-- III. Contactos de Emergencia -->
+  <div class="card">
+    <h2>III. Contactos de Emergencia</h2>
+    {% for i in [1, 2] %}
+    <div class="section-title">Contacto {{ i }}</div>
+    <div class="grid2">
+      <div class="field"><label>Nombre</label><input type="text" id="emerg{{ i }}_nombre"></div>
+      <div class="field"><label>Parentesco</label>
+        <select id="emerg{{ i }}_parentesco"><option value="">Seleccionar…</option><option>Cónyuge</option><option>Padre</option><option>Madre</option><option>Hijo(a)</option><option>Hermano(a)</option><option>Otro</option></select>
+      </div>
+      <div class="field"><label>Celular</label><input type="text" id="emerg{{ i }}_celular"></div>
+      <div class="field"><label>Dirección</label><input type="text" id="emerg{{ i }}_direccion"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- IV. Datos Laborales -->
+  <div class="card">
+    <h2>IV. Datos Laborales</h2>
+    <div class="grid3">
+      <div class="field"><label>Código (plaza/puesto)</label><input type="text" id="lab_codigo"></div>
+      <div class="field"><label>Área</label>
+        <select id="area"><option value="">Seleccionar…</option>{% for n in catalogos.area %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Gerencia</label>
+        <select id="gerencia"><option value="">Seleccionar…</option>{% for n in catalogos.gerencia %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Cargo</label>
+        <select id="cargo"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Puesto</label>
+        <select id="puesto"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Sede</label>
+        <select id="sede"><option value="">Seleccionar…</option>{% for n in catalogos.sede %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Centro de Costos</label><input type="text" id="centro_costos"></div>
+      <div class="field"><label>Jefe Inmediato</label>
+        <select id="jefe_inmediato"><option value="">Seleccionar…</option>{% for n in empleados_activos %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Fecha de Ingreso</label><input type="date" id="fecha_ingreso"></div>
+      <div class="field"><label>Fecha de Contrato</label><input type="date" id="fecha_contrato"></div>
+      <div class="field"><label>Tipo de Contrato</label>
+        <select id="tipo_contrato"><option value="">Seleccionar…</option><option>Plazo Indeterminado</option><option>Plazo Fijo</option><option>Por Obra o Servicio</option><option>Part Time</option><option>Locación de Servicios</option><option>Practicante</option></select>
+      </div>
+      <div class="field"><label>Modalidad</label>
+        <select id="modalidad"><option value="">Seleccionar…</option><option>Presencial</option><option>Remoto</option><option>Híbrido</option></select>
+      </div>
+      <div class="field"><label>Horario</label><input type="text" id="horario" placeholder="L-V 9:00-18:00"></div>
+      <div class="field"><label>Jornada</label>
+        <select id="jornada"><option value="">Seleccionar…</option><option>Completa</option><option>Parcial</option></select>
+      </div>
+      <div class="field"><label>Turno</label>
+        <select id="turno"><option value="">Seleccionar…</option><option>Día</option><option>Tarde</option><option>Noche</option><option>Rotativo</option></select>
+      </div>
+      <div class="field"><label>Categoría</label><input type="text" id="categoria"></div>
+      <div class="field"><label>Grupo Ocupacional</label>
+        <select id="grupo_ocupacional"><option value="">Seleccionar…</option><option>Ejecutivo</option><option>Empleado</option><option>Obrero</option></select>
+      </div>
+      <div class="field"><label>Remuneración (S/)</label><input type="text" id="remuneracion"></div>
+      <div class="field"><label>Bonificaciones (S/)</label><input type="text" id="bonificaciones"></div>
+      <div class="field"><label>Asignación Familiar</label>
+        <select id="asignacion_familiar"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- V y VI. Bancaria y Previsional -->
+  <div class="card">
+    <h2>V. Información Bancaria</h2>
+    <div class="grid3">
+      <div class="field"><label>Banco (Haberes)</label>
+        <select id="banco_haberes"><option value="">Seleccionar…</option>{% for n in catalogos.banco %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Cuenta (Haberes)</label><input type="text" id="cuenta_haberes"></div>
+      <div class="field"><label>CCI (Haberes)</label><input type="text" id="cci_haberes"></div>
+      <div class="field"><label>Banco CTS</label>
+        <select id="banco_cts"><option value="">Seleccionar…</option>{% for n in catalogos.banco %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Cuenta CTS</label><input type="text" id="cuenta_cts"></div>
+      <div class="field"><label>CCI CTS</label><input type="text" id="cci_cts"></div>
+    </div>
+    <h2 style="margin-top:26px;">VI. Información Previsional</h2>
+    <div class="grid3">
+      <div class="field"><label>Sistema</label>
+        <select id="sistema_pension"><option value="">Seleccionar…</option><option>AFP</option><option>ONP</option></select>
+      </div>
+      <div class="field"><label>AFP</label>
+        <select id="afp"><option value="">Seleccionar…</option><option>Integra</option><option>Prima</option><option>Profuturo</option><option>Habitat</option><option>No aplica</option></select>
+      </div>
+      <div class="field"><label>CUSPP</label><input type="text" id="cuspp"></div>
+      <div class="field"><label>Comisión</label>
+        <select id="comision"><option value="">Seleccionar…</option><option>Flujo</option><option>Mixta</option><option>No aplica</option></select>
+      </div>
+      <div class="field"><label>Seguro</label><input type="text" id="seguro"></div>
+      <div class="field"><label>Fecha de Afiliación</label><input type="date" id="fecha_afiliacion"></div>
+    </div>
+  </div>
+
+  <!-- VII, VIII, IX -->
+  <div class="card">
+    <h2>VII. Educación</h2>
+    <div id="educacion_container"></div>
+    <button type="button" class="btn secondary" onclick="addEducacionRow()">+ Agregar estudio</button>
+
+    <h2 style="margin-top:26px;">VIII. Experiencia Laboral</h2>
+    <div id="experiencia_container"></div>
+    <button type="button" class="btn secondary" onclick="addExperienciaRow()">+ Agregar experiencia</button>
+
+    <h2 style="margin-top:26px;">IX. Capacitaciones</h2>
+    <div id="capacitaciones_container"></div>
+    <button type="button" class="btn secondary" onclick="addCapacitacionRow()">+ Agregar capacitación</button>
+  </div>
+
+  <!-- X y XI -->
+  <div class="card">
+    <h2>X. Tallas</h2>
+    <div class="grid4">
+      <div class="field"><label>Camisa</label>
+        <select id="talla_camisa"><option value="">—</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select>
+      </div>
+      <div class="field"><label>Polo</label>
+        <select id="talla_polo"><option value="">—</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select>
+      </div>
+      <div class="field"><label>Pantalón</label><input type="text" id="talla_pantalon" placeholder="32"></div>
+      <div class="field"><label>Zapato</label>
+        <select id="talla_zapato"><option value="">—</option><option>36</option><option>37</option><option>38</option><option>39</option><option>40</option><option>41</option><option>42</option><option>43</option><option>44</option></select>
+      </div>
+      <div class="field"><label>Chaleco</label>
+        <select id="talla_chaleco"><option value="">—</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select>
+      </div>
+      <div class="field"><label>Casco</label>
+        <select id="talla_casco"><option value="">—</option><option>S</option><option>M</option><option>L</option></select>
+      </div>
+      <div class="field"><label>Guantes</label>
+        <select id="talla_guantes"><option value="">—</option><option>S</option><option>M</option><option>L</option></select>
+      </div>
+    </div>
+
+    <h2 style="margin-top:26px;">XI. Salud</h2>
+    <div class="grid3">
+      <div class="field"><label>Grupo Sanguíneo</label>
+        <select id="grupo_sanguineo"><option value="">Seleccionar…</option><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select>
+      </div>
+      <div class="field"><label>EPS</label><input type="text" id="eps"></div>
+      <div class="field"><label>EsSalud</label>
+        <select id="essalud"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
+      </div>
+      <div class="field" style="grid-column:span 3;"><label>Alergias</label><input type="text" id="alergias"></div>
+      <div class="field" style="grid-column:span 3;"><label>Restricciones</label><input type="text" id="restricciones"></div>
+      <div class="field" style="grid-column:span 3;"><label>Medicamentos de Uso Regular</label><input type="text" id="medicamentos"></div>
+      <div class="field"><label>Examen Médico — Fecha</label><input type="date" id="examen_medico_fecha"></div>
+      <div class="field"><label>Examen Médico — Vencimiento</label><input type="date" id="examen_medico_vencimiento"></div>
+      <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" placeholder="COVID-19 completo, Tétanos 2024…"></div>
+    </div>
+  </div>
+
+  <div class="card" style="text-align:right;">
+    <span id="guardar_status2" class="muted" style="margin-right:10px;"></span>
+    <button class="btn" onclick="guardarFicha()">Guardar Ficha</button>
+  </div>
+
+</div>
+
+<script>
+const EMPLOYEE_ID = {{ e.id }};
+const EMPRESA_ACTUAL = {{ (e.empresa_rel.nombre if e.empresa_rel else (e.empresa or ""))|tojson }};
+const NIVELES_EDUCATIVOS = {{ niveles_educativos|tojson }};
+const FICHA_EXISTENTE = {{ (e.ficha_data or {})|tojson }};
+const FAMILIA_EXISTENTE = {{ (e.familia_data or [])|tojson }};
+const EDUCACION_EXISTENTE = {{ (e.educacion_data or [])|tojson }};
+const EXPERIENCIA_EXISTENTE = {{ (e.experiencia_data or [])|tojson }};
+const CAPACITACIONES_EXISTENTE = {{ (e.capacitaciones_data or [])|tojson }};
+
+function actualizarEdad() {
+  const f = document.getElementById("fecha_nacimiento").value;
+  const el = document.getElementById("edad");
+  if (!f) { el.value = ""; return; }
+  const nac = new Date(f), hoy = new Date();
+  let edad = hoy.getFullYear() - nac.getFullYear();
+  const m = hoy.getMonth() - nac.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;
+  el.value = edad >= 0 ? edad : "";
+}
+
+function actualizarCodigoTrabajador() {
+  const prefijo = (EMPRESA_ACTUAL.replace(/[^a-zA-Z]/g, "").slice(0, 2) || "").toUpperCase();
+  const numDoc = document.getElementById("numero_documento").value.trim();
+  document.getElementById("codigo_trabajador").value = numDoc ? (prefijo + numDoc) : "";
+}
+document.getElementById("numero_documento").addEventListener("input", actualizarCodigoTrabajador);
+
+/* ---------- Domicilio: Departamento / Provincia / Distrito en cascada ---------- */
+let UBIGEO = [];
+function cargarProvincias(depNombre, provSeleccionar) {
+  const selProv = document.getElementById("provincia");
+  const selDist = document.getElementById("distrito");
+  selProv.innerHTML = '<option value="">Seleccionar…</option>';
+  selDist.innerHTML = '<option value="">Seleccionar provincia primero…</option>';
+  selDist.disabled = true;
+  const dep = UBIGEO.find(d => d.departamento === depNombre);
+  if (!dep) { selProv.disabled = true; return; }
+  dep.provincias.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.provincia; opt.textContent = p.provincia;
+    selProv.appendChild(opt);
+  });
+  selProv.disabled = false;
+  if (provSeleccionar) {
+    selProv.value = provSeleccionar;
+    cargarDistritos(depNombre, provSeleccionar, FICHA_EXISTENTE.distrito);
+  }
+}
+function cargarDistritos(depNombre, provNombre, distSeleccionar) {
+  const selDist = document.getElementById("distrito");
+  selDist.innerHTML = '<option value="">Seleccionar…</option>';
+  const dep = UBIGEO.find(d => d.departamento === depNombre);
+  const prov = dep && dep.provincias.find(p => p.provincia === provNombre);
+  if (!prov) { selDist.disabled = true; return; }
+  prov.distritos.forEach(dist => {
+    const opt = document.createElement("option");
+    opt.value = dist; opt.textContent = dist;
+    selDist.appendChild(opt);
+  });
+  selDist.disabled = false;
+  if (distSeleccionar) selDist.value = distSeleccionar;
+}
+fetch("/static/ubigeo_peru.json").then(r => r.json()).then(data => {
+  UBIGEO = data;
+  const selDep = document.getElementById("departamento");
+  UBIGEO.forEach(d => {
+    const opt = document.createElement("option");
+    opt.value = d.departamento; opt.textContent = d.departamento;
+    selDep.appendChild(opt);
+  });
+  if (FICHA_EXISTENTE.departamento) {
+    selDep.value = FICHA_EXISTENTE.departamento;
+    cargarProvincias(FICHA_EXISTENTE.departamento, FICHA_EXISTENTE.provincia);
+  }
+}).catch(() => { /* si no carga el listado, los campos siguen editables como selects vacíos */ });
+
+document.getElementById("departamento").addEventListener("change", function () {
+  cargarProvincias(this.value, null);
+});
+document.getElementById("provincia").addEventListener("change", function () {
+  cargarDistritos(document.getElementById("departamento").value, this.value, null);
+});
+
+/* ---------- II. Información Familiar (tabla dinámica) ---------- */
+let familiaCount = 0;
+function addFamiliaRow(datos) {
+  datos = datos || {};
+  familiaCount++;
+  const id = "fam_" + familiaCount;
+  const wrap = document.createElement("div");
+  wrap.className = "dyn-row-flex";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="field"><label>Parentesco</label>
+      <select class="fam-parentesco"><option value="">Seleccionar…</option><option>Cónyuge</option><option>Conviviente</option><option>Hijo(a)</option><option>Padre</option><option>Madre</option><option>Otro</option></select>
+    </div>
+    <div class="field"><label>Nombre</label><input type="text" class="fam-nombre"></div>
+    <div class="field"><label>DNI</label><input type="text" class="fam-dni"></div>
+    <div class="field"><label>Fecha Nac.</label><input type="date" class="fam-fecha"></div>
+    <div class="field-check"><input type="checkbox" class="fam-depende" style="width:auto;"><label>Depende económicamente</label></div>
+    <div class="field-check"><input type="checkbox" class="fam-essalud" style="width:auto;"><label>Derechohabiente EsSalud</label></div>
+    <button type="button" class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById("familia_container").appendChild(wrap);
+  if (datos.parentesco) wrap.querySelector(".fam-parentesco").value = datos.parentesco;
+  if (datos.nombre) wrap.querySelector(".fam-nombre").value = datos.nombre;
+  if (datos.dni) wrap.querySelector(".fam-dni").value = datos.dni;
+  if (datos.fecha_nacimiento) wrap.querySelector(".fam-fecha").value = datos.fecha_nacimiento;
+  wrap.querySelector(".fam-depende").checked = !!datos.depende_economicamente;
+  wrap.querySelector(".fam-essalud").checked = !!datos.derechohabiente_essalud;
+}
+function collectFamilia() {
+  const rows = [];
+  document.querySelectorAll("#familia_container .dyn-row-flex").forEach(row => {
+    const nombre = row.querySelector(".fam-nombre").value;
+    if (!nombre) return;
+    rows.push({
+      parentesco: row.querySelector(".fam-parentesco").value,
+      nombre,
+      dni: row.querySelector(".fam-dni").value,
+      fecha_nacimiento: row.querySelector(".fam-fecha").value,
+      depende_economicamente: row.querySelector(".fam-depende").checked,
+      derechohabiente_essalud: row.querySelector(".fam-essalud").checked,
+    });
+  });
+  return rows;
+}
+
+/* ---------- VII. Educación (tabla dinámica) ---------- */
+let educCount = 0;
+function addEducacionRow(datos) {
+  datos = datos || {};
+  educCount++;
+  const id = "educ_" + educCount;
+  const wrap = document.createElement("div");
+  wrap.className = "dyn-row-flex";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="field"><label>Institución</label><input type="text" class="educ-institucion"></div>
+    <div class="field"><label>Carrera</label><input type="text" class="educ-carrera"></div>
+    <div class="field"><label>Nivel</label>
+      <select class="educ-nivel"><option value="">Seleccionar…</option>${NIVELES_EDUCATIVOS.map(n => `<option>${n}</option>`).join("")}</select>
+    </div>
+    <div class="field"><label>Grado</label><input type="text" class="educ-grado" placeholder="Bachiller, Titulado…"></div>
+    <div class="field"><label>Año</label><input type="text" class="educ-anio" style="max-width:90px;"></div>
+    <div class="field"><label>Estado</label>
+      <select class="educ-estado"><option value="">Seleccionar…</option><option>Concluido</option><option>En curso</option><option>Truncado</option></select>
+    </div>
+    <button type="button" class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById("educacion_container").appendChild(wrap);
+  if (datos.institucion) wrap.querySelector(".educ-institucion").value = datos.institucion;
+  if (datos.carrera) wrap.querySelector(".educ-carrera").value = datos.carrera;
+  if (datos.nivel) wrap.querySelector(".educ-nivel").value = datos.nivel;
+  if (datos.grado) wrap.querySelector(".educ-grado").value = datos.grado;
+  if (datos.anio) wrap.querySelector(".educ-anio").value = datos.anio;
+  if (datos.estado) wrap.querySelector(".educ-estado").value = datos.estado;
+}
+function collectEducacion() {
+  const rows = [];
+  document.querySelectorAll("#educacion_container .dyn-row-flex").forEach(row => {
+    const institucion = row.querySelector(".educ-institucion").value;
+    if (!institucion) return;
+    rows.push({
+      institucion,
+      carrera: row.querySelector(".educ-carrera").value,
+      nivel: row.querySelector(".educ-nivel").value,
+      grado: row.querySelector(".educ-grado").value,
+      anio: row.querySelector(".educ-anio").value,
+      estado: row.querySelector(".educ-estado").value,
+    });
+  });
+  return rows;
+}
+
+/* ---------- VIII. Experiencia laboral (tabla dinámica) ---------- */
+let expCount = 0;
+function addExperienciaRow(datos) {
+  datos = datos || {};
+  expCount++;
+  const id = "exp_" + expCount;
+  const wrap = document.createElement("div");
+  wrap.className = "dyn-row-flex";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="field"><label>Empresa</label><input type="text" class="exp-empresa"></div>
+    <div class="field"><label>Cargo</label><input type="text" class="exp-cargo"></div>
+    <div class="field"><label>Periodo</label><input type="text" class="exp-periodo" placeholder="03/2020 - 01/2023"></div>
+    <div class="field" style="flex:2;"><label>Funciones</label><input type="text" class="exp-funciones"></div>
+    <button type="button" class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById("experiencia_container").appendChild(wrap);
+  if (datos.empresa) wrap.querySelector(".exp-empresa").value = datos.empresa;
+  if (datos.cargo) wrap.querySelector(".exp-cargo").value = datos.cargo;
+  if (datos.periodo) wrap.querySelector(".exp-periodo").value = datos.periodo;
+  if (datos.funciones) wrap.querySelector(".exp-funciones").value = datos.funciones;
+}
+function collectExperiencia() {
+  const rows = [];
+  document.querySelectorAll("#experiencia_container .dyn-row-flex").forEach(row => {
+    const empresa = row.querySelector(".exp-empresa").value;
+    if (!empresa) return;
+    rows.push({
+      empresa,
+      cargo: row.querySelector(".exp-cargo").value,
+      periodo: row.querySelector(".exp-periodo").value,
+      funciones: row.querySelector(".exp-funciones").value,
+    });
+  });
+  return rows;
+}
+
+/* ---------- IX. Capacitaciones (tabla dinámica) ---------- */
+let capCount = 0;
+function addCapacitacionRow(datos) {
+  datos = datos || {};
+  capCount++;
+  const id = "cap_" + capCount;
+  const wrap = document.createElement("div");
+  wrap.className = "dyn-row-flex";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="field"><label>Curso</label><input type="text" class="cap-curso"></div>
+    <div class="field"><label>Institución</label><input type="text" class="cap-institucion"></div>
+    <div class="field"><label>Horas</label><input type="text" class="cap-horas" style="max-width:90px;"></div>
+    <div class="field"><label>Año</label><input type="text" class="cap-anio" style="max-width:90px;"></div>
+    <button type="button" class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById("capacitaciones_container").appendChild(wrap);
+  if (datos.curso) wrap.querySelector(".cap-curso").value = datos.curso;
+  if (datos.institucion) wrap.querySelector(".cap-institucion").value = datos.institucion;
+  if (datos.horas) wrap.querySelector(".cap-horas").value = datos.horas;
+  if (datos.anio) wrap.querySelector(".cap-anio").value = datos.anio;
+}
+function collectCapacitaciones() {
+  const rows = [];
+  document.querySelectorAll("#capacitaciones_container .dyn-row-flex").forEach(row => {
+    const curso = row.querySelector(".cap-curso").value;
+    if (!curso) return;
+    rows.push({
+      curso,
+      institucion: row.querySelector(".cap-institucion").value,
+      horas: row.querySelector(".cap-horas").value,
+      anio: row.querySelector(".cap-anio").value,
+    });
+  });
+  return rows;
+}
+
+function val(id) { const el = document.getElementById(id); return el ? el.value : ""; }
+
+function collectFicha() {
+  const simpleIds = [
+    "codigo_trabajador","apellido_paterno","apellido_materno","nombres","tipo_documento","numero_documento",
+    "ruc","nacionalidad","sexo","estado_civil","fecha_nacimiento","lugar_nacimiento","edad",
+    "direccion","urbanizacion","distrito","provincia","departamento","referencia",
+    "telefono_fijo","celular","correo_personal","correo_corporativo",
+    "licencia_numero","licencia_tipo","licencia_vencimiento",
+    "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_direccion",
+    "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_direccion",
+    "lab_codigo","area","gerencia","cargo","puesto","sede","centro_costos","jefe_inmediato",
+    "fecha_ingreso","fecha_contrato","tipo_contrato","modalidad","horario","jornada","turno",
+    "categoria","grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar",
+    "banco_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
+    "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",
+    "talla_camisa","talla_polo","talla_pantalon","talla_zapato","talla_chaleco","talla_casco","talla_guantes",
+    "grupo_sanguineo","eps","essalud","alergias","restricciones","medicamentos",
+    "examen_medico_fecha","examen_medico_vencimiento","vacunas",
+  ];
+  const ficha = {};
+  simpleIds.forEach(id => { ficha[id] = val(id); });
+  ficha.nombre_completo = nombreCompletoActual();
+  ficha.telefono = ficha.celular || ficha.telefono_fijo;
+  ficha.email_personal = ficha.correo_personal;
+  ficha.banco = ficha.banco_haberes;
+  ficha.num_cuenta = ficha.cuenta_haberes;
+  ficha.cci = ficha.cci_haberes;
+  return ficha;
+}
+
+function nombreCompletoActual() {
+  const ap = document.getElementById("apellido_paterno").value;
+  const am = document.getElementById("apellido_materno").value;
+  const no = document.getElementById("nombres").value;
+  return [ap, am, no].filter(Boolean).join(" ") || {{ e.nombre_completo|tojson }};
+}
+
+async function guardarFicha() {
+  const ficha = collectFicha();
+  const familia = collectFamilia();
+  const educacion = collectEducacion();
+  const experiencia = collectExperiencia();
+  const capacitaciones = collectCapacitaciones();
+  const nombre_completo = ficha.nombre_completo;
+
+  ["guardar_status", "guardar_status2"].forEach(id => document.getElementById(id).textContent = "Guardando…");
+  try {
+    const res = await fetch(`/rrhh/personal/${EMPLOYEE_ID}/ficha`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ ficha, familia, educacion, experiencia, capacitaciones, nombre_completo }),
+    });
+    if (!res.ok) throw new Error("status " + res.status);
+    window.location.href = `/rrhh/personal/${EMPLOYEE_ID}`;
+  } catch (e) {
+    ["guardar_status", "guardar_status2"].forEach(id => document.getElementById(id).textContent = "");
+    alert("Ocurrió un error al guardar la ficha. Intenta nuevamente.");
+  }
+}
+
+/* ---------- Precarga de datos existentes ---------- */
+function precargar() {
+  Object.keys(FICHA_EXISTENTE).forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.tagName !== "SELECT") el.value = FICHA_EXISTENTE[id];
+  });
+  // Los <select> simples (no dependientes de otro campo) se llenan después de los inputs
+  document.querySelectorAll("select[id]").forEach(el => {
+    if (["departamento", "provincia", "distrito"].includes(el.id)) return; // manejado por el cascade
+    if (FICHA_EXISTENTE[el.id] !== undefined) el.value = FICHA_EXISTENTE[el.id];
+  });
+  actualizarEdad();
+  actualizarCodigoTrabajador();
+  FAMILIA_EXISTENTE.forEach(f => addFamiliaRow(f));
+  EDUCACION_EXISTENTE.forEach(e => addEducacionRow(e));
+  EXPERIENCIA_EXISTENTE.forEach(e => addExperienciaRow(e));
+  CAPACITACIONES_EXISTENTE.forEach(c => addCapacitacionRow(c));
+}
+precargar();
+</script>
+</body>
+</html>

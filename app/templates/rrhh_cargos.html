@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cargos y Funciones — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Cargos y Funciones (MOF)</h2>
+    <p class="muted">Cada cargo tiene su Manual de Organización y Funciones: descripción, funciones, responsabilidades, a quién reporta, requisitos y competencias exigidas.</p>
+    <table>
+      <tr><th>Cargo</th><th>Reporta a</th><th>Le reportan</th><th>Competencias exigidas</th><th>Estado</th><th></th></tr>
+      {% for c in cargos %}
+      <tr>
+        <td><strong>{{ c.nombre }}</strong></td>
+        <td class="muted">{{ c.reporta_a.nombre if c.reporta_a else "—" }}</td>
+        <td class="muted">{{ c.subordinados|length }}</td>
+        <td class="muted">{{ c.requisitos_competencias|length }}</td>
+        <td><span class="badge {{ 'firmado' if c.activo else 'pendiente' }}">{{ 'activo' if c.activo else 'inactivo' }}</span></td>
+        <td style="display:flex; gap:6px;">
+          <a class="btn small secondary" href="/rrhh/parametrizacion/cargo/{{ c.id }}">Abrir MOF</a>
+          <form method="post" action="/rrhh/parametrizacion/cargo/{{ c.id }}/toggle" style="display:inline;">
+            <button class="btn small secondary" type="submit">{{ 'Desactivar' if c.activo else 'Activar' }}</button>
+          </form>
+          {% if not bloqueados[c.id] %}
+          <form method="post" action="/rrhh/parametrizacion/cargo/{{ c.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar {{ c.nombre }}? No se puede deshacer.');">
+            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+          </form>
+          {% else %}
+          <span class="muted" style="font-size:11px; align-self:center;">En uso</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Todavía no hay cargos registrados.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Agregar cargo</h3>
+    <form method="post" action="/rrhh/parametrizacion/cargo" class="inline-form">
+      <div class="field"><label>Nombre del cargo</label><input type="text" name="nombre" required></div>
+      <button class="btn" type="submit">Crear y completar MOF</button>
+    </form>
+  </div>
+
+</div>
+</body>
+</html>
