@@ -25,7 +25,10 @@
         <td><span class="badge {{ 'cancelado' if c.dias_restantes < 0 else ('abierto' if c.dias_restantes <= 15 else 'pendiente') }}">
           {{ 'vencido hace ' + (c.dias_restantes * -1)|string + ' días' if c.dias_restantes < 0 else c.dias_restantes|string + ' días' }}
         </span></td>
-        <td><a class="btn small secondary" href="/rrhh/personal/{{ c.employee.id }}#laboral">Ver ficha</a></td>
+        <td style="display:flex; gap:6px;">
+          <a class="btn small secondary" href="/rrhh/personal/{{ c.employee.id }}#laboral">Ver ficha</a>
+          <a class="btn small" href="/rrhh/personal/{{ c.employee.id }}/solicitar-renovacion">Solicitar renovación</a>
+        </td>
       </tr>
       {% else %}
       <tr><td colspan="7" class="muted">No hay contratos con vencimiento cargado todavía.</td></tr>

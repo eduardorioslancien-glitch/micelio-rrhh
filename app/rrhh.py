@@ -16,7 +16,7 @@ from .database import get_db
 from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion,
-    Holding, LineaProducto, Anuncio, SaludoCumpleanos,
+    Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -32,9 +32,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOTOS_DIR = os.path.join(BASE_DIR, "fotos")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 FIRMAS_EMPRESA_DIR = os.path.join(BASE_DIR, "firmas_empresa")
+GENERATED_DIR = os.path.join(BASE_DIR, "generated")
 os.makedirs(FOTOS_DIR, exist_ok=True)
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 os.makedirs(FIRMAS_EMPRESA_DIR, exist_ok=True)
+os.makedirs(GENERATED_DIR, exist_ok=True)
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 router = APIRouter()
@@ -54,6 +56,39 @@ def _ensure_documents(db: Session, employee: Employee):
         if key not in existing:
             db.add(Document(employee_id=employee.id, doc_type=key, status=STATUS_PENDIENTE))
     db.commit()
+
+
+def _enviar_correo(destinatarios: list, asunto: str, cuerpo: str, cc: list = None) -> bool:
+    """Correo de texto plano (mismo mecanismo SMTP_* que main.py:
+    send_completion_email — se duplica acá para no crear un import circular
+    entre rrhh.py y main.py). No bloquea el flujo si SMTP_HOST no está
+    configurado: devuelve False y quien llama decide qué avisarle al usuario."""
+    import smtplib
+    from email.message import EmailMessage
+    host = os.environ.get("SMTP_HOST")
+    destinatarios = [d for d in (destinatarios or []) if d]
+    if not host or not destinatarios:
+        return False
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_pass = os.environ.get("SMTP_PASS")
+    sender = os.environ.get("SMTP_FROM", smtp_user)
+
+    msg = EmailMessage()
+    msg["Subject"] = asunto
+    msg["From"] = sender
+    msg["To"] = ", ".join(destinatarios)
+    cc = [c for c in (cc or []) if c]
+    if cc:
+        msg["Cc"] = ", ".join(cc)
+    msg.set_content(cuerpo)
+
+    with smtplib.SMTP(host, port, timeout=20) as server:
+        server.starttls()
+        if smtp_user and smtp_pass:
+            server.login(smtp_user, smtp_pass)
+        server.send_message(msg, to_addrs=destinatarios + cc)
+    return True
 
 
 def _documento_duplicado(db: Session, tipo_documento: str, numero_documento: str, excluir_employee_id: int = None) -> bool:
@@ -1210,6 +1245,178 @@ def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...),
     emp.ficha_data = ficha
     db.commit()
     return RedirectResponse(f"/rrhh/personal/{employee_id}#laboral", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Punto 14 del pedido: solicitud de aprobación de renovación de contrato por
+# correo, con enlace de un solo uso para que el gerente de la empresa
+# apruebe o rechace sin necesitar usuario en MICELIO. Si rechaza, se genera
+# la carta de aviso de no renovación (modelo inicial, ver pdf_signed.py).
+# ---------------------------------------------------------------------------
+@router.get("/rrhh/personal/{employee_id}/solicitar-renovacion", response_class=HTMLResponse)
+def solicitar_renovacion_form(request: Request, employee_id: int, db: Session = Depends(get_db),
+                               user: User = Depends(require_role("administrador", "opeoka"))):
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    empresa = emp.empresa_rel
+    solicitudes = db.query(SolicitudRenovacion).filter(
+        SolicitudRenovacion.employee_id == employee_id
+    ).order_by(SolicitudRenovacion.created_at.desc()).all()
+    return templates.TemplateResponse(request, "rrhh_solicitar_renovacion.html", _ctx(
+        request, user, e=emp, empresa=empresa, solicitudes=solicitudes, active="contratos",
+    ))
+
+
+@router.post("/rrhh/personal/{employee_id}/solicitar-renovacion")
+def solicitar_renovacion_crear(employee_id: int, meses_renovacion: str = Form(""),
+                                nueva_fecha_fin_contrato: str = Form(...),
+                                aumento_sueldo: str = Form(""), monto_aumento: str = Form(""),
+                                movilidad: str = Form(""), otra_comision: str = Form(""),
+                                notas: str = Form(""), db: Session = Depends(get_db),
+                                user: User = Depends(require_role("administrador", "opeoka"))):
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    empresa = emp.empresa_rel
+    if not empresa or not empresa.gerente_email:
+        return RedirectResponse(_con_error(f"/rrhh/personal/{employee_id}/solicitar-renovacion",
+            "Esta empresa no tiene cargado el correo del gerente (Parámetros > Empresas > Editar)."), status_code=303)
+
+    solicitud = SolicitudRenovacion(
+        employee_id=employee_id,
+        meses_renovacion=int(meses_renovacion) if meses_renovacion.strip().isdigit() else None,
+        nueva_fecha_fin_contrato=nueva_fecha_fin_contrato,
+        aumento_sueldo=bool(aumento_sueldo), monto_aumento=monto_aumento.strip() or None,
+        movilidad=movilidad.strip() or None, otra_comision=otra_comision.strip() or None,
+        notas=notas.strip() or None, solicitado_por=user.nombre_completo,
+    )
+    db.add(solicitud)
+    db.commit()
+    db.refresh(solicitud)
+
+    ficha = emp.ficha_data or {}
+    detalle = [
+        f"Trabajador: {emp.nombre_completo}",
+        f"Empresa: {empresa.nombre}",
+        f"Cargo: {ficha.get('cargo', '—')}",
+        f"Contrato actual vence: {ficha.get('fecha_fin_contrato', '—')}",
+        f"Nueva fecha de vencimiento propuesta: {nueva_fecha_fin_contrato}",
+    ]
+    if solicitud.meses_renovacion:
+        detalle.append(f"Meses de renovación: {solicitud.meses_renovacion}")
+    detalle.append(f"¿Aumento de sueldo base?: {'Sí' + (f' — {monto_aumento}' if monto_aumento.strip() else '') if aumento_sueldo else 'No'}")
+    if movilidad.strip():
+        detalle.append(f"Movilidad: {movilidad.strip()}")
+    if otra_comision.strip():
+        detalle.append(f"Otra comisión: {otra_comision.strip()}")
+    if notas.strip():
+        detalle.append(f"Notas de RR.HH.: {notas.strip()}")
+
+    link = _public_base_url() + f"renovacion/{solicitud.token}"
+    cuerpo = (
+        f"Hola{(' ' + empresa.gerente_nombre) if empresa.gerente_nombre else ''},\n\n"
+        f"Recursos Humanos solicita tu aprobación para renovar el contrato de {emp.nombre_completo}.\n\n"
+        + "\n".join(detalle) +
+        f"\n\nPara aprobar o rechazar esta renovación, entra a este enlace:\n{link}\n\n"
+        "Saludos,\nRecursos Humanos — DIGETEL GROUP"
+    )
+    enviado = _enviar_correo(
+        [empresa.gerente_email], f"Aprobación de renovación de contrato — {emp.nombre_completo}",
+        cuerpo, cc=[empresa.jefe_rrhh_email] if empresa.jefe_rrhh_email else None,
+    )
+    mensaje = "correo_enviado" if enviado else "correo_no_configurado"
+    return RedirectResponse(f"/rrhh/personal/{employee_id}/solicitar-renovacion?ok={mensaje}", status_code=303)
+
+
+def _public_base_url() -> str:
+    """Base pública del sitio para armar el enlace del correo. Usa
+    PUBLIC_BASE_URL si está definida (recomendado en producción, p.ej.
+    https://micelio.digetelperu.com); si no, localhost, para que al menos
+    funcione probando en la computadora."""
+    base = os.environ.get("PUBLIC_BASE_URL", "http://127.0.0.1:8000")
+    return base.rstrip("/") + "/"
+
+
+@router.get("/renovacion/{token}", response_class=HTMLResponse)
+def renovacion_confirmar(request: Request, token: str, db: Session = Depends(get_db)):
+    """Página pública (sin login) a la que llega el gerente desde el correo."""
+    solicitud = db.query(SolicitudRenovacion).filter(SolicitudRenovacion.token == token).first()
+    if not solicitud:
+        raise HTTPException(404, "Enlace no válido.")
+    return templates.TemplateResponse(request, "renovacion_confirmar.html", {
+        "s": solicitud, "e": solicitud.employee, "empresa": solicitud.employee.empresa_rel,
+    })
+
+
+@router.post("/renovacion/{token}/aprobar")
+def renovacion_aprobar(request: Request, token: str, db: Session = Depends(get_db)):
+    solicitud = db.query(SolicitudRenovacion).filter(SolicitudRenovacion.token == token).first()
+    if not solicitud:
+        raise HTTPException(404, "Enlace no válido.")
+    if solicitud.estado != "pendiente":
+        return RedirectResponse(f"/renovacion/{token}", status_code=303)
+    emp = solicitud.employee
+    ficha = dict(emp.ficha_data or {})
+    fin_anterior = ficha.get("fecha_fin_contrato") or ""
+    fecha_anterior = ficha.get("fecha_contrato") or ""
+    hoy = datetime.date.today().isoformat()
+    db.add(ContratoRenovacion(
+        employee_id=emp.id, fecha_contrato_anterior=fecha_anterior or None, fecha_contrato_nueva=hoy,
+        fecha_fin_contrato_anterior=fin_anterior or None,
+        fecha_fin_contrato_nueva=solicitud.nueva_fecha_fin_contrato,
+        tipo_contrato=ficha.get("tipo_contrato"),
+        notas=f"Renovación aprobada por el gerente vía correo. {solicitud.notas or ''}".strip(),
+        registrado_por="Gerente (aprobación por correo)",
+    ))
+    ficha["fecha_contrato"] = hoy
+    ficha["fecha_fin_contrato"] = solicitud.nueva_fecha_fin_contrato
+    emp.ficha_data = ficha
+    solicitud.estado = "aprobado"
+    solicitud.respondido_at = datetime.datetime.utcnow()
+    solicitud.respondido_ip = request.client.host if request.client else None
+    db.commit()
+    return RedirectResponse(f"/renovacion/{token}", status_code=303)
+
+
+@router.post("/renovacion/{token}/rechazar")
+def renovacion_rechazar(request: Request, token: str, db: Session = Depends(get_db)):
+    solicitud = db.query(SolicitudRenovacion).filter(SolicitudRenovacion.token == token).first()
+    if not solicitud:
+        raise HTTPException(404, "Enlace no válido.")
+    if solicitud.estado != "pendiente":
+        return RedirectResponse(f"/renovacion/{token}", status_code=303)
+    from .pdf_signed import build_no_renovacion_pdf
+    emp = solicitud.employee
+    ficha = emp.ficha_data or {}
+    empresa = emp.empresa_rel
+    out_path = os.path.join(GENERATED_DIR, f"no_renovacion_{emp.token}_{solicitud.id}.pdf")
+    build_no_renovacion_pdf(
+        nombre_completo=emp.nombre_completo, tipo_documento=ficha.get("tipo_documento"),
+        numero_documento=ficha.get("numero_documento"), cargo=ficha.get("cargo"),
+        tipo_contrato=ficha.get("tipo_contrato"), fecha_fin_contrato=ficha.get("fecha_fin_contrato") or "—",
+        fecha_emision=datetime.date.today().strftime("%d/%m/%Y"),
+        empresa_nombre=empresa.nombre if empresa else "",
+        representante_legal=empresa.representante_legal if empresa else None,
+        firma_empresa_path=empresa.firma_representante_path if empresa else None,
+        out_path=out_path,
+    )
+    solicitud.estado = "rechazado"
+    solicitud.respondido_at = datetime.datetime.utcnow()
+    solicitud.respondido_ip = request.client.host if request.client else None
+    solicitud.carta_no_renovacion_path = out_path
+    db.commit()
+    return RedirectResponse(f"/renovacion/{token}", status_code=303)
+
+
+@router.get("/rrhh/solicitudes-renovacion/{solicitud_id}/carta")
+def descargar_carta_no_renovacion(solicitud_id: int, db: Session = Depends(get_db),
+                                   user: User = Depends(require_role("administrador", "opeoka"))):
+    solicitud = db.query(SolicitudRenovacion).get(solicitud_id)
+    if not solicitud or not solicitud.carta_no_renovacion_path or not os.path.exists(solicitud.carta_no_renovacion_path):
+        raise HTTPException(404, "Carta no disponible.")
+    fname = f"Aviso de No Renovación - {solicitud.employee.nombre_completo}.pdf"
+    return FileResponse(solicitud.carta_no_renovacion_path, filename=fname, media_type="application/pdf")
 
 
 @router.get("/rrhh/personal/{employee_id}/ficha", response_class=HTMLResponse)

@@ -521,3 +521,46 @@ def build_pdf(doc_type: str, fields: dict, signature_image_path: str,
     )
     doc.build(full_story, canvasmaker=_NumberedCanvas)
     return out_path
+
+
+def build_no_renovacion_pdf(*, nombre_completo: str, tipo_documento: str, numero_documento: str,
+                             cargo: str, tipo_contrato: str, fecha_fin_contrato: str,
+                             fecha_emision: str, empresa_nombre: str, representante_legal: str = None,
+                             firma_empresa_path: str = None, out_path: str = None) -> str:
+    """Punto 14 del pedido: modelo inicial de carta de aviso de no renovación
+    de contrato — se genera cuando el gerente rechaza una solicitud de
+    renovación. Es un primer borrador (mismo estilo visual que el resto del
+    legajo); ajustar el texto legal cuando RR.HH. confirme el formato
+    definitivo que van a usar."""
+    doc_doc = f"{tipo_documento or 'documento'} N.° {numero_documento or '—'}"
+    cuerpo = (
+        f"Por medio de la presente, {empresa_nombre or 'la empresa'} comunica a {nombre_completo}, "
+        f"identificado(a) con {doc_doc}, que su contrato de trabajo"
+        + (f" en el cargo de {cargo}" if cargo else "")
+        + (f", bajo la modalidad de {tipo_contrato}," if tipo_contrato else ",")
+        + f" con fecha de vencimiento el {fecha_fin_contrato}, no será renovado."
+    )
+    cuerpo2 = (
+        "La relación laboral concluirá en la fecha antes indicada. Agradecemos los servicios prestados "
+        "durante su permanencia en la empresa y quedamos atentos para coordinar el proceso de liquidación "
+        "de beneficios sociales conforme a ley."
+    )
+    story = _header_flowables("Aviso de No Renovación de Contrato", empresa_nombre or "")
+    story.append(Paragraph(_esc(f"Fecha de emisión: {fecha_emision}"), _style_subtitle))
+    story.append(Spacer(1, 5 * mm))
+    story.append(_body_text(cuerpo))
+    story.append(_body_text(cuerpo2))
+    story.append(Spacer(1, 10 * mm))
+    if representante_legal and firma_empresa_path:
+        story.append(_company_signature_block(empresa_nombre, representante_legal, firma_empresa_path))
+    else:
+        story.append(Paragraph("_______________________________", _style_sig_meta))
+        story.append(Paragraph(f"Por {_esc(empresa_nombre or '')}", _style_sig_meta))
+
+    doc = SimpleDocTemplate(
+        out_path, pagesize=PAGE_SIZE,
+        leftMargin=MARGIN, rightMargin=MARGIN, topMargin=MARGIN,
+        bottomMargin=MARGIN + FOOTER_RESERVE, title="Aviso de No Renovación de Contrato",
+    )
+    doc.build(story, canvasmaker=_NumberedCanvas)
+    return out_path

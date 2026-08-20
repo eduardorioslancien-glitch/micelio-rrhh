@@ -165,8 +165,9 @@
 
     {% if can_edit %}
     <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
-      <details>
-        <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Renovar contrato</summary>
+      <a class="btn small secondary" href="/rrhh/personal/{{ e.id }}/solicitar-renovacion">Solicitar aprobación de renovación (por correo)</a>
+      <details style="margin-top:8px;">
+        <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Renovar contrato directamente</summary>
         <form method="post" action="/rrhh/personal/{{ e.id }}/renovar-contrato" class="inline-form" style="margin-top:10px;">
           <div class="field"><label>Nueva fecha de contrato</label><input type="date" name="nueva_fecha_contrato" required></div>
           <div class="field"><label>Nueva fecha de vencimiento</label><input type="date" name="nueva_fecha_fin_contrato"></div>

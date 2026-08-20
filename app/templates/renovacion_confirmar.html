@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renovación de contrato — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=5">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="logo-row"><img src="/static/dg_logo.png" alt="DG"></div>
+  <div class="card">
+    <h2 style="text-align:center;">Renovación de contrato</h2>
+    <p class="muted" style="text-align:center; margin-top:-8px;">{{ empresa.nombre if empresa else "" }}</p>
+
+    {% if s.estado == 'pendiente' %}
+    <table style="margin-top:10px;">
+      <tr><td style="width:180px;"><strong>Trabajador</strong></td><td>{{ e.nombre_completo }}</td></tr>
+      <tr><td><strong>Cargo</strong></td><td>{{ (e.ficha_data or {}).get('cargo', '—') }}</td></tr>
+      <tr><td><strong>Vence actualmente</strong></td><td>{{ (e.ficha_data or {}).get('fecha_fin_contrato', '—') }}</td></tr>
+      <tr><td><strong>Nueva fecha de vencimiento</strong></td><td>{{ s.nueva_fecha_fin_contrato }}</td></tr>
+      {% if s.meses_renovacion %}<tr><td><strong>Meses de renovación</strong></td><td>{{ s.meses_renovacion }}</td></tr>{% endif %}
+      <tr><td><strong>¿Aumento de sueldo base?</strong></td><td>{{ 'Sí' + (' — ' + s.monto_aumento if s.monto_aumento else '') if s.aumento_sueldo else 'No' }}</td></tr>
+      {% if s.movilidad %}<tr><td><strong>Movilidad</strong></td><td>{{ s.movilidad }}</td></tr>{% endif %}
+      {% if s.otra_comision %}<tr><td><strong>Otra comisión</strong></td><td>{{ s.otra_comision }}</td></tr>{% endif %}
+      {% if s.notas %}<tr><td><strong>Notas de RR.HH.</strong></td><td>{{ s.notas }}</td></tr>{% endif %}
+      <tr><td><strong>Solicitado por</strong></td><td>{{ s.solicitado_por or '—' }}</td></tr>
+    </table>
+
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <form method="post" action="/renovacion/{{ s.token }}/aprobar" style="flex:1;" onsubmit="return confirm('¿Confirmas la aprobación de esta renovación de contrato?');">
+        <button class="btn" type="submit" style="width:100%; background:var(--green); border-color:var(--green);">Aprobar renovación</button>
+      </form>
+      <form method="post" action="/renovacion/{{ s.token }}/rechazar" style="flex:1;" onsubmit="return confirm('¿Confirmas que NO se renueva este contrato? Se generará la carta de aviso de no renovación.');">
+        <button class="btn" type="submit" style="width:100%; background:var(--red); border-color:var(--red);">No renovar</button>
+      </form>
+    </div>
+    {% elif s.estado == 'aprobado' %}
+    <div class="alert-ok" style="text-align:center;">Renovación aprobada el {{ s.respondido_at.strftime('%d/%m/%Y %H:%M') }}. El contrato de {{ e.nombre_completo }} ya quedó actualizado en el sistema. Gracias.</div>
+    {% else %}
+    <div class="alert-error" style="text-align:center;">Quedó registrado que este contrato no se renueva (respondido el {{ s.respondido_at.strftime('%d/%m/%Y %H:%M') }}). Recursos Humanos ya tiene la carta de aviso lista. Gracias.</div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

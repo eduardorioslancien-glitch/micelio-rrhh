@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Solicitar renovación — {{ e.nombre_completo }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=5">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/contratos">&larr; Volver a Contratos / Renovaciones</a>
+
+  {% if request.query_params.get('error') %}<div class="alert-error" style="margin-top:14px;">{{ request.query_params.get('error') }}</div>{% endif %}
+  {% if request.query_params.get('ok') == 'correo_enviado' %}
+  <div class="alert-ok" style="margin-top:14px;">Solicitud enviada por correo al gerente de {{ empresa.nombre if empresa else '' }}.</div>
+  {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
+  <div class="alert-error" style="margin-top:14px;">La solicitud se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor). Comparte el enlace manualmente si hace falta.</div>
+  {% endif %}
+
+  <div class="card" style="margin-top:14px;">
+    <h2>Solicitar renovación de contrato</h2>
+    <p class="muted">
+      <strong>{{ e.nombre_completo }}</strong> — {{ empresa.nombre if empresa else "Sin empresa asignada" }}
+      {% if (e.ficha_data or {}).get('fecha_fin_contrato') %} · vence el {{ (e.ficha_data or {}).get('fecha_fin_contrato') }}{% endif %}
+    </p>
+    {% if not empresa or not empresa.gerente_email %}
+    <div class="alert-error">Esta empresa todavía no tiene cargado el correo del gerente. Complétalo en
+      <a href="/rrhh/parametrizacion/empresas">Parámetros &gt; Empresas &gt; Editar</a> antes de solicitar la renovación.</div>
+    {% else %}
+    <p class="muted">Se enviará un correo a <strong>{{ empresa.gerente_nombre or empresa.gerente_email }}</strong>
+      ({{ empresa.gerente_email }}){% if empresa.jefe_rrhh_email %} con copia a {{ empresa.jefe_rrhh_nombre or empresa.jefe_rrhh_email }}{% endif %},
+      con un enlace para que apruebe o rechace la renovación.</p>
+    <form method="post" action="/rrhh/personal/{{ e.id }}/solicitar-renovacion">
+      <div class="grid3">
+        <div class="field"><label>Meses de renovación</label><input type="number" name="meses_renovacion" min="1" placeholder="p. ej. 6"></div>
+        <div class="field"><label>Nueva fecha de vencimiento</label><input type="date" name="nueva_fecha_fin_contrato" required></div>
+        <div class="field-check"><input type="checkbox" name="aumento_sueldo" value="1" style="width:auto;"><label>¿Hay aumento de sueldo base?</label></div>
+        <div class="field"><label>Monto / detalle del aumento</label><input type="text" name="monto_aumento" placeholder="p. ej. S/ 200"></div>
+        <div class="field"><label>Movilidad</label><input type="text" name="movilidad" placeholder="Si aplica"></div>
+        <div class="field"><label>Otra comisión</label><input type="text" name="otra_comision" placeholder="Si aplica"></div>
+      </div>
+      <div class="field"><label>Notas para el gerente</label><textarea name="notas" rows="3"></textarea></div>
+      <button class="btn" type="submit">Enviar solicitud de aprobación</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if solicitudes %}
+  <div class="card">
+    <h2>Solicitudes anteriores</h2>
+    <table>
+      <tr><th>Fecha</th><th>Nueva fecha de vencimiento</th><th>Estado</th><th>Respondida</th><th></th></tr>
+      {% for s in solicitudes %}
+      <tr>
+        <td class="muted">{{ s.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>{{ s.nueva_fecha_fin_contrato }}</td>
+        <td><span class="badge {{ 'firmado' if s.estado == 'aprobado' else ('cancelado' if s.estado == 'rechazado' else 'pendiente') }}">{{ s.estado }}</span></td>
+        <td class="muted">{{ s.respondido_at.strftime('%d/%m/%Y %H:%M') if s.respondido_at else '—' }}</td>
+        <td>
+          {% if s.carta_no_renovacion_path %}
+          <a class="btn small secondary" href="/rrhh/solicitudes-renovacion/{{ s.id }}/carta">Descargar carta</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

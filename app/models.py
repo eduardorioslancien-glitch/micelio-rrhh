@@ -524,6 +524,45 @@ class ContratoRenovacion(Base):
     employee = relationship("Employee", back_populates="renovaciones_contrato")
 
 
+ESTADOS_SOLICITUD_RENOVACION = [
+    ("pendiente", "Pendiente de respuesta"),
+    ("aprobado", "Aprobado"),
+    ("rechazado", "Rechazado (no renovación)"),
+]
+ESTADO_SOLICITUD_RENOVACION_KEYS = [e[0] for e in ESTADOS_SOLICITUD_RENOVACION]
+
+
+class SolicitudRenovacion(Base):
+    """Punto 14 del pedido: pedido de aprobación de renovación de contrato,
+    enviado por correo al gerente de la empresa (con copia al jefe de RR.HH.
+    de esa empresa) con un enlace de un solo uso — no requiere que el
+    gerente tenga usuario en MICELIO. Si aprueba, se aplica la renovación
+    sola (mismo mecanismo que ContratoRenovacion); si rechaza, queda listo
+    para generar la carta de aviso de no renovación."""
+    __tablename__ = "solicitudes_renovacion"
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    token = Column(String(64), unique=True, index=True, default=gen_token)
+
+    meses_renovacion = Column(Integer, nullable=True)
+    nueva_fecha_fin_contrato = Column(String(20), nullable=False)
+    aumento_sueldo = Column(Boolean, default=False)
+    monto_aumento = Column(String(60), nullable=True)
+    movilidad = Column(String(200), nullable=True)
+    otra_comision = Column(String(200), nullable=True)
+    notas = Column(Text, nullable=True)
+
+    estado = Column(String(20), nullable=False, default="pendiente")  # uno de ESTADO_SOLICITUD_RENOVACION_KEYS
+    solicitado_por = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    respondido_at = Column(DateTime, nullable=True)
+    respondido_ip = Column(String(64), nullable=True)
+    carta_no_renovacion_path = Column(String(500), nullable=True)
+
+    employee = relationship("Employee")
+
+
 class Signature(Base):
     __tablename__ = "signatures"
 
