@@ -154,6 +154,22 @@ def doc_status_map(employee: Employee):
     return m
 
 
+def documento_duplicado(db: Session, tipo_documento: str, numero_documento: str, excluir_employee_id: int = None) -> bool:
+    """Punto 2 del pedido (rrhh.py tiene la misma función — se duplica acá
+    para no crear un import circular con el router de rrhh)."""
+    tipo = (tipo_documento or "").strip().lower()
+    numero = (numero_documento or "").strip().lower()
+    if not tipo or not numero:
+        return False
+    for other in db.query(Employee).all():
+        if excluir_employee_id and other.id == excluir_employee_id:
+            continue
+        f = other.ficha_data or {}
+        if (f.get("tipo_documento") or "").strip().lower() == tipo and (f.get("numero_documento") or "").strip().lower() == numero:
+            return True
+    return False
+
+
 def compute_overall_status(employee: Employee):
     docs = doc_status_map(employee)
     signed = sum(1 for d in docs.values() if d.status == STATUS_FIRMADO)
@@ -326,7 +342,17 @@ def formulario_estado(token: str, db: Session = Depends(get_db)):
 async def guardar_ficha(token: str, request: Request, db: Session = Depends(get_db)):
     emp = get_employee_or_404(db, token)
     payload = await request.json()
-    emp.ficha_data = payload.get("ficha", {})
+    ficha_nueva = payload.get("ficha", {})
+
+    if documento_duplicado(db, ficha_nueva.get("tipo_documento"), ficha_nueva.get("numero_documento"),
+                            excluir_employee_id=emp.id):
+        return JSONResponse({
+            "ok": False,
+            "error": "Ya existe otra persona registrada con ese mismo tipo y número de documento de identidad. "
+                     "Si crees que es un error, comunícate con Recursos Humanos.",
+        }, status_code=400)
+
+    emp.ficha_data = ficha_nueva
 
     # Código de trabajador: lo genera el sistema (2 primeras letras de la
     # empresa + N.° de documento), no lo escribe el trabajador. Se calcula

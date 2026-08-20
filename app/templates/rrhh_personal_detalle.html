@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -14,6 +14,16 @@
     <a class="btn" href="/rrhh/personal/{{ e.id }}/ficha">{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}</a>
     {% endif %}
   </div>
+
+  {% if faltan_datos %}
+  <div class="alert-error" style="margin-top:16px;">
+    <strong>Faltan datos por completar</strong> (esta persona llenó su ficha por Selección; RR.HH./Administrador
+    debe completar lo demás desde "{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}"):
+    <ul style="margin:6px 0 0 18px;">
+      {% for campo in faltan_datos %}<li>{{ campo }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
   <div class="card" style="margin-top:16px;">
     <div class="profile-header">
@@ -116,10 +126,48 @@
       <tr><td style="width:220px;"><strong>Cargo</strong></td><td>{{ f.get('cargo','—') }}</td></tr>
       <tr><td><strong>Área</strong></td><td>{{ f.get('area','—') }}</td></tr>
       <tr><td><strong>Sede</strong></td><td>{{ f.get('sede','—') }}</td></tr>
+      <tr><td><strong>Centro de Costos</strong></td><td>{{ f.get('centro_costos','—') }}</td></tr>
       <tr><td><strong>Tipo de contrato</strong></td><td>{{ f.get('tipo_contrato','—') }}</td></tr>
+      <tr><td><strong>Fecha de contrato</strong></td><td>{{ f.get('fecha_contrato','—') }}</td></tr>
       <tr><td><strong>Fecha de ingreso</strong></td><td>{{ f.get('fecha_ingreso','—') }}</td></tr>
       <tr><td><strong>Jefe inmediato</strong></td><td>{{ f.get('jefe_inmediato','—') }}</td></tr>
     </table>
+
+    {% if can_edit %}
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+      <details>
+        <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Renovar contrato</summary>
+        <form method="post" action="/rrhh/personal/{{ e.id }}/renovar-contrato" class="inline-form" style="margin-top:10px;">
+          <div class="field"><label>Nueva fecha de contrato</label><input type="date" name="nueva_fecha_contrato" required></div>
+          <div class="field">
+            <label>Tipo de contrato</label>
+            <select name="tipo_contrato">
+              <option value="">— Mantener actual —</option>
+              <option>Plazo Indeterminado</option><option>Plazo Fijo</option><option>Por Obra o Servicio</option>
+              <option>Part Time</option><option>Locación de Servicios</option><option>Practicante</option>
+            </select>
+          </div>
+          <div class="field" style="flex:2;"><label>Notas</label><input type="text" name="notas"></div>
+          <button class="btn small" type="submit">Registrar renovación</button>
+        </form>
+      </details>
+
+      {% if renovaciones %}
+      <table style="margin-top:14px;">
+        <tr><th>Fecha anterior</th><th>Fecha nueva</th><th>Tipo</th><th>Registrado por</th><th>Fecha de registro</th></tr>
+        {% for r in renovaciones %}
+        <tr>
+          <td class="muted">{{ r.fecha_contrato_anterior or '—' }}</td>
+          <td>{{ r.fecha_contrato_nueva }}</td>
+          <td class="muted">{{ r.tipo_contrato or '—' }}</td>
+          <td class="muted">{{ r.registrado_por or '—' }}</td>
+          <td class="muted">{{ r.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -230,11 +278,18 @@
     <form method="post" action="/rrhh/personal/{{ e.id }}/documentos" enctype="multipart/form-data" class="inline-form" style="margin-bottom:16px;">
       <div class="field">
         <label>Tipo</label>
-        <select name="tipo" required>{% for k, lbl in attachment_types %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
+        <select name="tipo" id="doc_tipo" required onchange="ajustarAcceptArchivo()">{% for k, lbl in attachment_types %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label>Archivo</label><input type="file" name="archivo" required></div>
+      <div class="field"><label>Archivo</label><input type="file" name="archivo" id="doc_archivo" required></div>
       <button class="btn small" type="submit">Subir</button>
     </form>
+    <script>
+      function ajustarAcceptArchivo() {
+        const tipo = document.getElementById("doc_tipo").value;
+        const archivo = document.getElementById("doc_archivo");
+        archivo.accept = (tipo === "dni_anverso" || tipo === "dni_reverso") ? ".pdf,application/pdf" : "";
+      }
+    </script>
     <table>
       <tr><th>Tipo</th><th>Archivo</th><th>Subido por</th><th>Fecha</th><th></th></tr>
       {% for a in e.attachments %}

@@ -75,6 +75,8 @@ ATTACHMENT_TYPES = [
     ("documento_salud", "Documento de Salud"),
     ("alta_sunat", "Constancia de Alta en SUNAT"),
     ("baja_sunat", "Constancia de Baja en SUNAT"),
+    ("dni_anverso", "Documento de Identidad — Anverso (PDF)"),
+    ("dni_reverso", "Documento de Identidad — Reverso (PDF)"),
     ("otros", "Otros documentos"),
 ]
 ATTACHMENT_TYPE_KEYS = [a[0] for a in ATTACHMENT_TYPES]
@@ -119,6 +121,7 @@ CATALOGO_TIPOS = [
     ("gerencia", "Gerencia"),
     ("sede", "Sede"),
     ("banco", "Banco"),
+    ("centro_costo", "Centro de Costos"),
 ]
 CATALOGO_TIPO_KEYS = [c[0] for c in CATALOGO_TIPOS]
 
@@ -239,6 +242,9 @@ class Competencia(Base):
     nivel_2 = Column(Text, nullable=True)
     nivel_3 = Column(Text, nullable=True)
     nivel_4 = Column(Text, nullable=True)
+    # Solo aplica a tipo="valor": qué comportamientos NO se toleran en relación
+    # a ese valor (además de los niveles, que describen el desarrollo deseado).
+    conductas_no_deseadas = Column(Text, nullable=True)
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -356,6 +362,8 @@ class Employee(Base):
                                order_by="desc(AsistenciaRegistro.timestamp)")
     onboarding = relationship("OnboardingRegistro", back_populates="employee", cascade="all, delete-orphan",
                                order_by="desc(OnboardingRegistro.created_at)")
+    renovaciones_contrato = relationship("ContratoRenovacion", back_populates="employee", cascade="all, delete-orphan",
+                                          order_by="desc(ContratoRenovacion.created_at)")
 
 
 class Document(Base):
@@ -447,6 +455,27 @@ class OnboardingRegistro(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     employee = relationship("Employee", back_populates="onboarding")
+
+
+class ContratoRenovacion(Base):
+    """Historial de renovaciones del contrato de un trabajador. Cada vez que
+    se renueva, el campo `fecha_contrato` de la ficha (Employee.ficha_data)
+    se actualiza al nuevo valor, pero queda acá un registro permanente de
+    cada renovación (fecha anterior -> nueva, tipo de contrato, quién la
+    registró) para no perder el historial."""
+    __tablename__ = "contrato_renovaciones"
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+
+    fecha_contrato_anterior = Column(String(20), nullable=True)  # "YYYY-MM-DD" o vacío si no había
+    fecha_contrato_nueva = Column(String(20), nullable=False)
+    tipo_contrato = Column(String(60), nullable=True)
+    notas = Column(Text, nullable=True)
+    registrado_por = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    employee = relationship("Employee", back_populates="renovaciones_contrato")
 
 
 class Signature(Base):

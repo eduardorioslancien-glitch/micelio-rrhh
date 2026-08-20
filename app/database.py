@@ -17,6 +17,27 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 def init_db():
     from .models import Base
     Base.metadata.create_all(engine)
+    _run_migraciones_livianas()
+
+
+# Columnas agregadas a tablas que ya existían en instalaciones previas.
+# Base.metadata.create_all() solo CREA tablas nuevas — no altera una tabla
+# que ya existe, así que una columna nueva en un modelo no aparece sola en
+# una base de datos que ya tenía esa tabla. Se agregan acá con ALTER TABLE
+# (una sola vez, no rompe si ya existe) para no forzar a nadie a borrar su
+# base de datos real cada vez que el modelo gana un campo.
+_MIGRACIONES_COLUMNAS = [
+    ("competencias", "conductas_no_deseadas", "TEXT"),
+]
+
+
+def _run_migraciones_livianas():
+    with engine.connect() as conn:
+        for tabla, columna, tipo_sql in _MIGRACIONES_COLUMNAS:
+            existentes = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({tabla})")}
+            if columna not in existentes:
+                conn.exec_driver_sql(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo_sql}")
+                conn.commit()
 
 
 def get_db():

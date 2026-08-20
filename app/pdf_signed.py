@@ -331,12 +331,11 @@ def _doc_ficha(fields):
     story.append(_field_table([
         ["Código", g("lab_codigo"), "Área", g("area")],
         ["Gerencia", g("gerencia"), "Cargo", g("cargo")],
-        ["Puesto", g("puesto"), "Sede", g("sede")],
-        ["Centro de Costos", g("centro_costos"), "Jefe Inmediato", g("jefe_inmediato")],
-        ["Fecha de Ingreso", g("fecha_ingreso"), "Fecha de Contrato", g("fecha_contrato")],
-        ["Tipo de Contrato", g("tipo_contrato"), "Modalidad", g("modalidad")],
-        ["Horario", g("horario"), "Jornada", g("jornada")],
-        ["Turno", g("turno"), "Categoría", g("categoria")],
+        ["Sede", g("sede"), "Centro de Costos", g("centro_costos")],
+        ["Jefe Inmediato", g("jefe_inmediato"), "Fecha de Ingreso", g("fecha_ingreso")],
+        ["Fecha de Contrato", g("fecha_contrato"), "Tipo de Contrato", g("tipo_contrato")],
+        ["Modalidad", g("modalidad"), "Horario", g("horario")],
+        ["Jornada", g("jornada"), "Turno", g("turno")],
         ["Grupo Ocupacional", g("grupo_ocupacional"), "Asignación Familiar", g("asignacion_familiar")],
         ["Remuneración (S/)", g("remuneracion"), "Bonificaciones (S/)", g("bonificaciones")],
     ]))

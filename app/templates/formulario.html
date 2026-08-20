@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Legajo Digital — DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
 </head>
 <body>
@@ -79,7 +79,6 @@
         <div class="field"><label>Teléfono Fijo</label><input type="text" id="telefono_fijo"></div>
         <div class="field"><label>Celular</label><input type="text" id="celular"></div>
         <div class="field"><label>Correo Personal</label><input type="email" id="correo_personal"></div>
-        <div class="field"><label>Correo Corporativo</label><input type="email" id="correo_corporativo"></div>
       </div>
       <div class="section-title">Licencia de Conducir (si aplica)</div>
       <div class="grid3">
@@ -128,63 +127,6 @@
       {% endfor %}
       <div class="footer-nav">
         <button class="btn secondary" onclick="goStep('1b')">Atrás</button>
-        <button class="btn" onclick="goStep('1d')">Continuar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PASO 1d: Datos Laborales -->
-  <div class="step" data-step="1d">
-    <div class="card">
-      <h2>IV. Datos Laborales</h2>
-      <div class="grid3">
-        <div class="field"><label>Código (plaza/puesto)</label><input type="text" id="lab_codigo"></div>
-        <div class="field"><label>Área</label>
-          <select id="area"><option value="">Seleccionar…</option>{% for n in catalogos.area %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Gerencia</label>
-          <select id="gerencia"><option value="">Seleccionar…</option>{% for n in catalogos.gerencia %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Cargo</label>
-          <select id="cargo"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Puesto</label>
-          <select id="puesto"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Sede</label>
-          <select id="sede"><option value="">Seleccionar…</option>{% for n in catalogos.sede %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Centro de Costos</label><input type="text" id="centro_costos"></div>
-        <div class="field"><label>Jefe Inmediato</label>
-          <select id="jefe_inmediato"><option value="">Seleccionar…</option>{% for n in empleados_activos %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Fecha de Ingreso</label><input type="date" id="fecha_ingreso"></div>
-        <div class="field"><label>Fecha de Contrato</label><input type="date" id="fecha_contrato"></div>
-        <div class="field"><label>Tipo de Contrato</label>
-          <select id="tipo_contrato"><option value="">Seleccionar…</option><option>Plazo Indeterminado</option><option>Plazo Fijo</option><option>Por Obra o Servicio</option><option>Part Time</option><option>Locación de Servicios</option><option>Practicante</option></select>
-        </div>
-        <div class="field"><label>Modalidad</label>
-          <select id="modalidad"><option value="">Seleccionar…</option><option>Presencial</option><option>Remoto</option><option>Híbrido</option></select>
-        </div>
-        <div class="field"><label>Horario</label><input type="text" id="horario" placeholder="L-V 9:00-18:00"></div>
-        <div class="field"><label>Jornada</label>
-          <select id="jornada"><option value="">Seleccionar…</option><option>Completa</option><option>Parcial</option></select>
-        </div>
-        <div class="field"><label>Turno</label>
-          <select id="turno"><option value="">Seleccionar…</option><option>Día</option><option>Tarde</option><option>Noche</option><option>Rotativo</option></select>
-        </div>
-        <div class="field"><label>Categoría</label><input type="text" id="categoria"></div>
-        <div class="field"><label>Grupo Ocupacional</label>
-          <select id="grupo_ocupacional"><option value="">Seleccionar…</option><option>Ejecutivo</option><option>Empleado</option><option>Obrero</option></select>
-        </div>
-        <div class="field"><label>Remuneración (S/)</label><input type="text" id="remuneracion"></div>
-        <div class="field"><label>Bonificaciones (S/)</label><input type="text" id="bonificaciones"></div>
-        <div class="field"><label>Asignación Familiar</label>
-          <select id="asignacion_familiar"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
-        </div>
-      </div>
-      <div class="footer-nav">
-        <button class="btn secondary" onclick="goStep('1c')">Atrás</button>
         <button class="btn" onclick="goStep('1e')">Continuar</button>
       </div>
     </div>
@@ -193,6 +135,9 @@
   <!-- PASO 1e: Información Bancaria y Previsional -->
   <div class="step" data-step="1e">
     <div class="card">
+      <p class="muted">Los datos laborales (área, cargo, sede, contrato, remuneración, etc.) y algunos datos
+        previsionales/de cuenta CTS los completa Recursos Humanos una vez que ingreses — no forman parte de este
+        formulario.</p>
       <h2>V. Información Bancaria</h2>
       <div class="grid3">
         <div class="field"><label>Banco (Haberes)</label>
@@ -200,16 +145,11 @@
         </div>
         <div class="field"><label>Cuenta (Haberes)</label><input type="text" id="cuenta_haberes"></div>
         <div class="field"><label>CCI (Haberes)</label><input type="text" id="cci_haberes"></div>
-        <div class="field"><label>Banco CTS</label>
-          <select id="banco_cts"><option value="">Seleccionar…</option>{% for n in catalogos.banco %}<option>{{ n }}</option>{% endfor %}</select>
-        </div>
-        <div class="field"><label>Cuenta CTS</label><input type="text" id="cuenta_cts"></div>
-        <div class="field"><label>CCI CTS</label><input type="text" id="cci_cts"></div>
       </div>
       <h2 style="margin-top:26px;">VI. Información Previsional</h2>
       <div class="grid3">
         <div class="field"><label>Sistema</label>
-          <select id="sistema_pension"><option value="">Seleccionar…</option><option>AFP</option><option>ONP</option></select>
+          <select id="sistema_pension" onchange="ajustarCamposPension()"><option value="">Seleccionar…</option><option>AFP</option><option>ONP</option></select>
         </div>
         <div class="field"><label>AFP</label>
           <select id="afp"><option value="">Seleccionar…</option><option>Integra</option><option>Prima</option><option>Profuturo</option><option>Habitat</option><option>No aplica</option></select>
@@ -218,11 +158,9 @@
         <div class="field"><label>Comisión</label>
           <select id="comision"><option value="">Seleccionar…</option><option>Flujo</option><option>Mixta</option><option>No aplica</option></select>
         </div>
-        <div class="field"><label>Seguro</label><input type="text" id="seguro"></div>
-        <div class="field"><label>Fecha de Afiliación</label><input type="date" id="fecha_afiliacion"></div>
       </div>
       <div class="footer-nav">
-        <button class="btn secondary" onclick="goStep('1d')">Atrás</button>
+        <button class="btn secondary" onclick="goStep('1c')">Atrás</button>
         <button class="btn" onclick="goStep('1f')">Continuar</button>
       </div>
     </div>
@@ -385,7 +323,7 @@ const DOC_KEYS = {{ doc_types|map(attribute=0)|list|tojson }};
 const LEGAL = {{ legal|tojson }};
 const NIVELES_EDUCATIVOS = {{ niveles_educativos|tojson }};
 const EMPRESA_ACTUAL = {{ (e.empresa or "")|tojson }};
-const FICHA_STEPS = ["1a", "1b", "1c", "1d", "1e", "1f", "1g", "1h"];
+const FICHA_STEPS = ["1a", "1b", "1c", "1e", "1f", "1g", "1h"];
 const STEP_ORDER = ["0", ...FICHA_STEPS, ...DOC_KEYS.map(k => "doc-" + k), "final"];
 
 let ficha = {};
@@ -666,19 +604,15 @@ function collectFicha() {
     "codigo_trabajador","apellido_paterno","apellido_materno","nombres","tipo_documento","numero_documento",
     "ruc","nacionalidad","sexo","estado_civil","fecha_nacimiento","lugar_nacimiento","edad",
     "direccion","urbanizacion","distrito","provincia","departamento","referencia",
-    "telefono_fijo","celular","correo_personal","correo_corporativo",
+    "telefono_fijo","celular","correo_personal",
     "licencia_numero","licencia_tipo","licencia_vencimiento",
     // III. Contactos de emergencia
     "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_direccion",
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_direccion",
-    // IV. Datos laborales
-    "lab_codigo","area","gerencia","cargo","puesto","sede","centro_costos","jefe_inmediato",
-    "fecha_ingreso","fecha_contrato","tipo_contrato","modalidad","horario","jornada","turno",
-    "categoria","grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar",
-    // V. Bancaria
-    "banco_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
-    // VI. Previsional
-    "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",
+    // V. Bancaria (los datos de Sección IV y la cuenta CTS los completa RR.HH.)
+    "banco_haberes","cuenta_haberes","cci_haberes",
+    // VI. Previsional (fecha de afiliación y seguro los completa RR.HH.)
+    "sistema_pension","afp","cuspp","comision",
     // X. Tallas
     "talla_camisa","talla_polo","talla_pantalon","talla_zapato","talla_chaleco","talla_casco","talla_guantes",
     // XI. Salud
@@ -708,7 +642,12 @@ async function continuarDesdeDocumentos() {
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ ficha, familia, educacion, experiencia, capacitaciones, nombre_completo }),
   });
-  if (!res.ok) { alert("Ocurrió un error al guardar tu ficha. Intenta nuevamente."); return; }
+  if (!res.ok) {
+    let mensaje = "Ocurrió un error al guardar tu ficha. Intenta nuevamente.";
+    try { const data = await res.json(); if (data.error) mensaje = data.error; } catch (e) {}
+    alert(mensaje);
+    return;
+  }
 
   const statusEl = document.getElementById("upload_status");
   const fileFields = [
@@ -807,8 +746,21 @@ async function cargarDescargasFinales() {
   el.innerHTML = "<p class='muted'>Tu legajo quedó registrado en el sistema de Recursos Humanos.</p>";
 }
 
+/* ---------- VI. Previsional: si el sistema es ONP, AFP/CUSPP/Comisión no aplican ---------- */
+function ajustarCamposPension() {
+  const sistema = document.getElementById("sistema_pension").value;
+  const esOnp = sistema === "ONP";
+  ["afp", "cuspp", "comision"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = esOnp;
+    if (esOnp) el.value = "";
+  });
+}
+
 renderProgress();
 fillIntros();
+ajustarCamposPension();
 </script>
 </body>
 </html>

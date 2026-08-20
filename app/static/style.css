@@ -267,6 +267,12 @@ canvas.sigpad {
   .login-art img { max-height: 220px; }
   .login-wrap { padding: 30px 20px 40px; }
 }
+.home-hero {
+  display: flex; align-items: center; justify-content: center;
+  min-height: calc(100vh - 90px);
+  background: #05070a; border-radius: 8px; margin-top: 4px;
+}
+.home-hero img { max-width: 70%; max-height: 78vh; object-fit: contain; }
 .alert-error {
   background: var(--red-bg); color: var(--red); border: 1px solid var(--red);
   padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;

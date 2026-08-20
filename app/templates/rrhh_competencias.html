@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Principios, Valores y Competencias — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -28,10 +28,13 @@
               <input type="hidden" name="tipo" value="{{ item.tipo }}">
               <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ item.nombre }}" required></div>
               <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ item.descripcion or '' }}"></div>
-              <div class="field"><label>Nivel 1</label><textarea name="nivel_1" rows="2">{{ item.nivel_1 or '' }}</textarea></div>
-              <div class="field"><label>Nivel 2</label><textarea name="nivel_2" rows="2">{{ item.nivel_2 or '' }}</textarea></div>
-              <div class="field"><label>Nivel 3</label><textarea name="nivel_3" rows="2">{{ item.nivel_3 or '' }}</textarea></div>
-              <div class="field"><label>Nivel 4</label><textarea name="nivel_4" rows="2">{{ item.nivel_4 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 1 (Básico)</label><textarea name="nivel_1" rows="2">{{ item.nivel_1 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 2 (Consolidado)</label><textarea name="nivel_2" rows="2">{{ item.nivel_2 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 3 (Avanzado)</label><textarea name="nivel_3" rows="2">{{ item.nivel_3 or '' }}</textarea></div>
+              <div class="field"><label>Nivel 4 (Referente)</label><textarea name="nivel_4" rows="2">{{ item.nivel_4 or '' }}</textarea></div>
+              {% if tipo == 'valor' %}
+              <div class="field"><label>Conductas No Deseadas</label><textarea name="conductas_no_deseadas" rows="2">{{ item.conductas_no_deseadas or '' }}</textarea></div>
+              {% endif %}
               <button class="btn small" type="submit">Guardar</button>
             </form>
           </details>
@@ -55,11 +58,14 @@
       <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
       <div class="field"><label>Descripción</label><input type="text" name="descripcion"></div>
       <div class="grid2">
-        <div class="field"><label>Nivel 1 (desarrollo)</label><textarea name="nivel_1" rows="2"></textarea></div>
-        <div class="field"><label>Nivel 2 (desarrollo)</label><textarea name="nivel_2" rows="2"></textarea></div>
-        <div class="field"><label>Nivel 3 (desarrollo)</label><textarea name="nivel_3" rows="2"></textarea></div>
-        <div class="field"><label>Nivel 4 (desarrollo)</label><textarea name="nivel_4" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 1 (Básico)</label><textarea name="nivel_1" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 2 (Consolidado)</label><textarea name="nivel_2" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 3 (Avanzado)</label><textarea name="nivel_3" rows="2"></textarea></div>
+        <div class="field"><label>Nivel 4 (Referente)</label><textarea name="nivel_4" rows="2"></textarea></div>
       </div>
+      {% if tipo == 'valor' %}
+      <div class="field"><label>Conductas No Deseadas</label><textarea name="conductas_no_deseadas" rows="2"></textarea></div>
+      {% endif %}
       <button class="btn" type="submit">Agregar {{ label|lower }}</button>
     </form>
   </div>

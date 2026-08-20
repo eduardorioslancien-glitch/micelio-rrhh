@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Editar ficha — {{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -115,13 +115,12 @@
       <div class="field"><label>Cargo</label>
         <select id="cargo"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label>Puesto</label>
-        <select id="puesto"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
-      </div>
       <div class="field"><label>Sede</label>
         <select id="sede"><option value="">Seleccionar…</option>{% for n in catalogos.sede %}<option>{{ n }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label>Centro de Costos</label><input type="text" id="centro_costos"></div>
+      <div class="field"><label>Centro de Costos</label>
+        <select id="centro_costos"><option value="">Seleccionar…</option>{% for n in catalogos.centro_costo %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
       <div class="field"><label>Jefe Inmediato</label>
         <select id="jefe_inmediato"><option value="">Seleccionar…</option>{% for n in empleados_activos %}<option>{{ n }}</option>{% endfor %}</select>
       </div>
@@ -140,7 +139,6 @@
       <div class="field"><label>Turno</label>
         <select id="turno"><option value="">Seleccionar…</option><option>Día</option><option>Tarde</option><option>Noche</option><option>Rotativo</option></select>
       </div>
-      <div class="field"><label>Categoría</label><input type="text" id="categoria"></div>
       <div class="field"><label>Grupo Ocupacional</label>
         <select id="grupo_ocupacional"><option value="">Seleccionar…</option><option>Ejecutivo</option><option>Empleado</option><option>Obrero</option></select>
       </div>
@@ -170,7 +168,7 @@
     <h2 style="margin-top:26px;">VI. Información Previsional</h2>
     <div class="grid3">
       <div class="field"><label>Sistema</label>
-        <select id="sistema_pension"><option value="">Seleccionar…</option><option>AFP</option><option>ONP</option></select>
+        <select id="sistema_pension" onchange="ajustarCamposPension()"><option value="">Seleccionar…</option><option>AFP</option><option>ONP</option></select>
       </div>
       <div class="field"><label>AFP</label>
         <select id="afp"><option value="">Seleccionar…</option><option>Integra</option><option>Prima</option><option>Profuturo</option><option>Habitat</option><option>No aplica</option></select>
@@ -501,6 +499,18 @@ function collectCapacitaciones() {
 
 function val(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
+/* ---------- VI. Previsional: si el sistema es ONP, AFP/CUSPP/Comisión no aplican ---------- */
+function ajustarCamposPension() {
+  const sistema = document.getElementById("sistema_pension").value;
+  const esOnp = sistema === "ONP";
+  ["afp", "cuspp", "comision"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = esOnp;
+    if (esOnp) el.value = "";
+  });
+}
+
 function collectFicha() {
   const simpleIds = [
     "codigo_trabajador","apellido_paterno","apellido_materno","nombres","tipo_documento","numero_documento",
@@ -510,9 +520,9 @@ function collectFicha() {
     "licencia_numero","licencia_tipo","licencia_vencimiento",
     "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_direccion",
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_direccion",
-    "lab_codigo","area","gerencia","cargo","puesto","sede","centro_costos","jefe_inmediato",
+    "lab_codigo","area","gerencia","cargo","sede","centro_costos","jefe_inmediato",
     "fecha_ingreso","fecha_contrato","tipo_contrato","modalidad","horario","jornada","turno",
-    "categoria","grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar",
+    "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar",
     "banco_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
     "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",
     "talla_camisa","talla_polo","talla_pantalon","talla_zapato","talla_chaleco","talla_casco","talla_guantes",
@@ -551,11 +561,14 @@ async function guardarFicha() {
       method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ ficha, familia, educacion, experiencia, capacitaciones, nombre_completo }),
     });
-    if (!res.ok) throw new Error("status " + res.status);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || ("status " + res.status));
+    }
     window.location.href = `/rrhh/personal/${EMPLOYEE_ID}`;
   } catch (e) {
     ["guardar_status", "guardar_status2"].forEach(id => document.getElementById(id).textContent = "");
-    alert("Ocurrió un error al guardar la ficha. Intenta nuevamente.");
+    alert(e.message || "Ocurrió un error al guardar la ficha. Intenta nuevamente.");
   }
 }
 
@@ -572,6 +585,7 @@ function precargar() {
   });
   actualizarEdad();
   actualizarCodigoTrabajador();
+  ajustarCamposPension();
   FAMILIA_EXISTENTE.forEach(f => addFamiliaRow(f));
   EDUCACION_EXISTENTE.forEach(e => addEducacionRow(e));
   EXPERIENCIA_EXISTENTE.forEach(e => addExperienciaRow(e));

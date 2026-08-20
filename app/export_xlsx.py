@@ -47,8 +47,8 @@ GENERAL_COLUMNS = [
     ("Área", lambda e: (e.ficha_data or {}).get("area", "")),
     ("Gerencia", lambda e: (e.ficha_data or {}).get("gerencia", "")),
     ("Cargo", lambda e: (e.ficha_data or {}).get("cargo", "")),
-    ("Puesto", lambda e: (e.ficha_data or {}).get("puesto", "")),
     ("Sede", lambda e: (e.ficha_data or {}).get("sede", "")),
+    ("Centro de Costos", lambda e: (e.ficha_data or {}).get("centro_costos", "")),
     ("Jefe Inmediato", lambda e: (e.ficha_data or {}).get("jefe_inmediato", "")),
     ("Tipo de Contrato", lambda e: (e.ficha_data or {}).get("tipo_contrato", "")),
     ("Fecha de Ingreso", lambda e: (e.ficha_data or {}).get("fecha_ingreso", "")),
@@ -87,8 +87,9 @@ def _style_header(ws, row, ncols, title=None):
     ws.freeze_panes = ws.cell(row=row + 1, column=1).coordinate
 
 
-def build_export(db):
-    employees = db.query(Employee).order_by(Employee.created_at.desc()).all()
+def build_export(db, employees=None):
+    if employees is None:
+        employees = db.query(Employee).order_by(Employee.created_at.desc()).all()
     wb = Workbook()
     today = datetime.date.today().strftime("%d/%m/%Y")
 

@@ -8,16 +8,18 @@ import os
 import uuid
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
-    OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ATTACHMENT_TYPES, REGIMENES_LABORALES,
+    OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion,
+    ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
+    STATUS_PENDIENTE,
 )
 from .auth import (
     get_current_user, require_login, require_role, hash_password, verify_password,
@@ -38,6 +40,37 @@ router = APIRouter()
 
 ATTACHMENT_LABELS = dict(ATTACHMENT_TYPES)
 ROLE_LABELS = dict(ROLES)
+
+
+def _ensure_documents(db: Session, employee: Employee):
+    """Crea los 5 documentos legales pendientes de un trabajador que va a
+    completar su ficha vía Selección (duplica la lógica de main.py:
+    ensure_documents — se mantiene acá aparte para no generar un import
+    circular entre rrhh.py y main.py)."""
+    existing = {d.doc_type for d in employee.documents}
+    from .models import Document
+    for key, _label in DOC_TYPES:
+        if key not in existing:
+            db.add(Document(employee_id=employee.id, doc_type=key, status=STATUS_PENDIENTE))
+    db.commit()
+
+
+def _documento_duplicado(db: Session, tipo_documento: str, numero_documento: str, excluir_employee_id: int = None) -> bool:
+    """Punto 2 del pedido: no puede haber dos trabajadores con el mismo tipo
+    y número de documento de identidad. Compara contra todos los demás
+    registros (ficha_data es JSON, no se puede indexar en SQLite) — a la
+    escala de un solo grupo empresarial esto es rápido de sobra."""
+    tipo = (tipo_documento or "").strip().lower()
+    numero = (numero_documento or "").strip().lower()
+    if not tipo or not numero:
+        return False
+    for other in db.query(Employee).all():
+        if excluir_employee_id and other.id == excluir_employee_id:
+            continue
+        f = other.ficha_data or {}
+        if (f.get("tipo_documento") or "").strip().lower() == tipo and (f.get("numero_documento") or "").strip().lower() == numero:
+            return True
+    return False
 
 # Man Academy vive en un proyecto/hosting aparte (no se reconstruye acá); el
 # menú de Capacitación solo enlaza hacia allá. Se deja vacío por defecto para
@@ -85,11 +118,13 @@ def logout(request: Request):
 # ---------------------------------------------------------------------------
 # Dashboard / entrada
 # ---------------------------------------------------------------------------
-@router.get("/rrhh")
-def rrhh_home(user: User = Depends(require_login)):
-    if user.rol == "usuario":
-        return RedirectResponse("/rrhh/mi-perfil")
-    return RedirectResponse("/rrhh/personal")
+@router.get("/rrhh", response_class=HTMLResponse)
+def rrhh_home(request: Request, user: User = Depends(require_login)):
+    # Punto 1 del pedido: la pantalla de entrada (recién logueado, o recién
+    # cambiada la contraseña) solo muestra el menú lateral y la imagen de
+    # MICELIO — sin listas ni tarjetas. El Dashboard de KPIs sigue existiendo
+    # aparte, como su propia opción de menú.
+    return templates.TemplateResponse(request, "rrhh_home.html", _ctx(request, user, active="home"))
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +417,8 @@ def competencias_list(request: Request, error: str = "", db: Session = Depends(g
 @router.post("/rrhh/parametrizacion/competencia")
 def crear_competencia(tipo: str = Form(...), nombre: str = Form(...), descripcion: str = Form(""),
                        nivel_1: str = Form(""), nivel_2: str = Form(""), nivel_3: str = Form(""),
-                       nivel_4: str = Form(""), db: Session = Depends(get_db),
+                       nivel_4: str = Form(""), conductas_no_deseadas: str = Form(""),
+                       db: Session = Depends(get_db),
                        user: User = Depends(require_role("administrador"))):
     if tipo not in TIPO_COMPETENCIA_KEYS:
         raise HTTPException(400, "Tipo inválido.")
@@ -390,6 +426,7 @@ def crear_competencia(tipo: str = Form(...), nombre: str = Form(...), descripcio
         tipo=tipo, nombre=nombre.strip(), descripcion=descripcion.strip() or None,
         nivel_1=nivel_1.strip() or None, nivel_2=nivel_2.strip() or None,
         nivel_3=nivel_3.strip() or None, nivel_4=nivel_4.strip() or None,
+        conductas_no_deseadas=(conductas_no_deseadas.strip() or None) if tipo == "valor" else None,
     ))
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/competencias", status_code=303)
@@ -398,7 +435,8 @@ def crear_competencia(tipo: str = Form(...), nombre: str = Form(...), descripcio
 @router.post("/rrhh/parametrizacion/competencia/{item_id}/editar")
 def editar_competencia(item_id: int, tipo: str = Form(...), nombre: str = Form(...), descripcion: str = Form(""),
                         nivel_1: str = Form(""), nivel_2: str = Form(""), nivel_3: str = Form(""),
-                        nivel_4: str = Form(""), db: Session = Depends(get_db),
+                        nivel_4: str = Form(""), conductas_no_deseadas: str = Form(""),
+                        db: Session = Depends(get_db),
                         user: User = Depends(require_role("administrador"))):
     item = db.query(Competencia).get(item_id)
     if item and tipo in TIPO_COMPETENCIA_KEYS:
@@ -409,6 +447,7 @@ def editar_competencia(item_id: int, tipo: str = Form(...), nombre: str = Form(.
         item.nivel_2 = nivel_2.strip() or None
         item.nivel_3 = nivel_3.strip() or None
         item.nivel_4 = nivel_4.strip() or None
+        item.conductas_no_deseadas = (conductas_no_deseadas.strip() or None) if tipo == "valor" else None
         db.commit()
     return RedirectResponse("/rrhh/parametrizacion/competencias", status_code=303)
 
@@ -627,8 +666,9 @@ def cambiar_mi_password(request: Request, actual: str = Form(...), nueva: str = 
     user.password_hash = hash_password(nueva)
     user.must_change_password = False
     db.commit()
-    return templates.TemplateResponse(request, "rrhh_mi_cuenta.html",
-        _ctx(request, user, error=None, ok="Contraseña actualizada correctamente.", forzado=False))
+    # Punto 1 del pedido: después de cambiar la contraseña, va a la pantalla
+    # de entrada (menú + imagen de MICELIO), no se queda en Mi cuenta.
+    return RedirectResponse("/rrhh", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -659,6 +699,30 @@ def personal_list(request: Request, empresa_id: str = "", unidad_id: str = "", q
     ))
 
 
+@router.get("/rrhh/personal/export.xlsx")
+def personal_export(empresa_id: str = "", unidad_id: str = "", q: str = "", estado: str = "",
+                     db: Session = Depends(get_db),
+                     user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+    """Punto 2 del pedido: descargar a Excel según el filtro activo en
+    Personal (mismos parámetros que personal_list), o todos si no hay filtro."""
+    from .export_xlsx import build_export
+    query = db.query(Employee)
+    if empresa_id:
+        query = query.filter(Employee.empresa_id == int(empresa_id))
+    if unidad_id:
+        query = query.join(Empresa, Employee.empresa_id == Empresa.id).filter(Empresa.unidad_negocio_id == int(unidad_id))
+    if estado:
+        query = query.filter(Employee.estado == estado)
+    if q:
+        query = query.filter(Employee.nombre_completo.ilike(f"%{q}%"))
+    empleados = query.order_by(Employee.nombre_completo).all()
+    path = build_export(db, employees=empleados)
+    return FileResponse(
+        path, filename="Base de Datos Maestra (Portal RRHH).xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @router.get("/rrhh/personal/nuevo", response_class=HTMLResponse)
 def personal_nuevo_form(request: Request, db: Session = Depends(get_db),
                          user: User = Depends(require_role("administrador", "opeoka"))):
@@ -681,6 +745,27 @@ def personal_nuevo_crear(nombre_completo: str = Form(...), email: str = Form("")
     return RedirectResponse(f"/rrhh/personal/{emp.id}/ficha", status_code=303)
 
 
+@router.post("/rrhh/personal/nueva-seleccion")
+def personal_nueva_seleccion(nombre_completo: str = Form(...), email: str = Form(""), empresa_id: str = Form(""),
+                              db: Session = Depends(get_db),
+                              user: User = Depends(require_role("administrador", "opeoka"))):
+    """Punto 2 del pedido: segunda forma de dar de alta a un trabajador —
+    genera el enlace de Selección (/f/{token}) para que la propia persona
+    llene su ficha (con menos secciones que la ficha completa; ver
+    formulario.html), en vez de que RR.HH. la cargue directo."""
+    empresa = db.query(Empresa).get(int(empresa_id)) if empresa_id else None
+    emp = Employee(
+        nombre_completo=nombre_completo.strip(), email=email.strip() or None,
+        empresa_id=empresa.id if empresa else None, empresa=empresa.nombre if empresa else None,
+        estado="activo", status=STATUS_PENDIENTE,
+    )
+    db.add(emp)
+    db.commit()
+    db.refresh(emp)
+    _ensure_documents(db, emp)
+    return RedirectResponse(f"/rrhh/personal?enlace={emp.token}", status_code=303)
+
+
 def _check_own_or_staff(user: User, employee_id: int):
     if is_staff(user):
         return
@@ -698,6 +783,22 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
     ultima_marca = emp.asistencia[0] if emp.asistencia else None
     puede_marcar_entrada = not ultima_marca or ultima_marca.tipo == "salida"
+
+    # Punto 2 del pedido: cuando la ficha se llenó por Selección (el propio
+    # trabajador), avisar qué datos de completar RR.HH./Administrador todavía
+    # faltan (Sección IV completa, fecha de afiliación/seguro, cuenta CTS).
+    f = emp.ficha_data or {}
+    faltan_datos = []
+    if emp.ficha_data:
+        if not (f.get("cargo") or "").strip():
+            faltan_datos.append("Cargo / Datos Laborales (Sección IV)")
+        if not (f.get("fecha_afiliacion") or "").strip():
+            faltan_datos.append("Fecha de Afiliación (Sección VI)")
+        if not (f.get("seguro") or "").strip():
+            faltan_datos.append("Seguro (Sección VI)")
+        if not (f.get("cuenta_cts") or "").strip():
+            faltan_datos.append("Cuenta CTS (Sección V)")
+
     return templates.TemplateResponse(request, "rrhh_personal_detalle.html", _ctx(
         request, user, e=emp, empresas=empresas, attachment_types=ATTACHMENT_TYPES,
         attachment_labels=ATTACHMENT_LABELS, tipos_bitacora=TIPOS_BITACORA,
@@ -708,8 +809,34 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         experiencia=emp.experiencia_data or [], capacitaciones=emp.capacitaciones_data or [],
         etapas_onboarding=ETAPAS_ONBOARDING, estados_onboarding=ESTADOS_ONBOARDING,
         etapa_onboarding_labels=dict(ETAPAS_ONBOARDING), estado_onboarding_labels=dict(ESTADOS_ONBOARDING),
+        faltan_datos=faltan_datos, renovaciones=emp.renovaciones_contrato,
         active="personal",
     ))
+
+
+@router.post("/rrhh/personal/{employee_id}/renovar-contrato")
+def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...), tipo_contrato: str = Form(""),
+                      notas: str = Form(""), db: Session = Depends(get_db),
+                      user: User = Depends(require_role("administrador", "opeoka"))):
+    """Punto 2.5 del pedido: al renovar el contrato, el campo fecha_contrato
+    de la ficha se actualiza, pero queda un registro permanente de cada
+    renovación (fecha anterior, fecha nueva, tipo, quién la registró)."""
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    ficha = dict(emp.ficha_data or {})
+    anterior = ficha.get("fecha_contrato") or ""
+    db.add(ContratoRenovacion(
+        employee_id=emp.id, fecha_contrato_anterior=anterior or None,
+        fecha_contrato_nueva=nueva_fecha_contrato, tipo_contrato=tipo_contrato.strip() or None,
+        notas=notas.strip() or None, registrado_por=user.nombre_completo,
+    ))
+    ficha["fecha_contrato"] = nueva_fecha_contrato
+    if tipo_contrato.strip():
+        ficha["tipo_contrato"] = tipo_contrato.strip()
+    emp.ficha_data = ficha
+    db.commit()
+    return RedirectResponse(f"/rrhh/personal/{employee_id}#laboral", status_code=303)
 
 
 @router.get("/rrhh/personal/{employee_id}/ficha", response_class=HTMLResponse)
@@ -744,7 +871,18 @@ async def personal_ficha_guardar(employee_id: int, request: Request, db: Session
     if not emp:
         raise HTTPException(404)
     payload = await request.json()
-    emp.ficha_data = payload.get("ficha", {})
+    ficha_nueva = payload.get("ficha", {})
+
+    # Punto 2 del pedido: no puede haber dos trabajadores con el mismo tipo
+    # y número de documento de identidad.
+    if _documento_duplicado(db, ficha_nueva.get("tipo_documento"), ficha_nueva.get("numero_documento"),
+                             excluir_employee_id=employee_id):
+        return JSONResponse({
+            "ok": False,
+            "error": "Ya existe otro trabajador registrado con ese mismo tipo y número de documento de identidad.",
+        }, status_code=400)
+
+    emp.ficha_data = ficha_nueva
 
     # Mismo cálculo que en el flujo de Selección (main.py): el código de
     # trabajador lo genera el sistema, no se escribe a mano.

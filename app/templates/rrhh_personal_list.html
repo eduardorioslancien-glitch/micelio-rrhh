@@ -3,27 +3,52 @@
 <head>
 <meta charset="utf-8">
 <title>Administración de Personal — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
 
+  {% if request.query_params.get('enlace') %}
+  <div class="card">
+    <p><strong>Enlace de Selección generado.</strong> Compártelo con la persona para que complete su ficha
+      (algunos datos, como los de la Sección IV y la cuenta CTS, los completa RR.HH. después, desde su ficha):</p>
+    <div class="link-box">{{ request.url_for('formulario', token=request.query_params.get('enlace')) }}</div>
+  </div>
+  {% endif %}
+
   <div class="card">
     <h2>Base de datos maestra de personal ({{ empleados|length }})</h2>
+    {% if user.rol in ['administrador','opeoka'] %}
+    <details style="margin-bottom:16px;">
+      <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">+ Generar enlace de Selección</summary>
+      <form method="post" action="/rrhh/personal/nueva-seleccion" class="inline-form" style="margin-top:10px;">
+        <div class="field"><label>Nombre completo</label><input type="text" name="nombre_completo" required></div>
+        <div class="field"><label>Correo</label><input type="email" name="email"></div>
+        <div class="field">
+          <label>Empresa</label>
+          <select name="empresa_id">
+            <option value="">— Sin asignar —</option>
+            {% for emp2 in empresas %}<option value="{{ emp2.id }}">{{ emp2.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <button class="btn small" type="submit">Generar enlace</button>
+      </form>
+    </details>
+    {% endif %}
     <form method="get" action="/rrhh/personal" class="inline-form" style="margin-bottom:16px;">
       <div class="field"><label>Buscar</label><input type="text" name="q" value="{{ f_q }}" placeholder="Nombre…"></div>
       <div class="field">
         <label>Unidad de Negocio</label>
-        <select name="unidad_id">
+        <select name="unidad_id" id="filtro_unidad" onchange="filtrarEmpresasPorUnidad()">
           <option value="">— Todas —</option>
           {% for u in unidades %}<option value="{{ u.id }}" {{ 'selected' if f_unidad == u.id|string else '' }}>{{ u.nombre }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
         <label>Empresa</label>
-        <select name="empresa_id">
+        <select name="empresa_id" id="filtro_empresa">
           <option value="">— Todas —</option>
-          {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
+          {% for e in empresas %}<option value="{{ e.id }}" data-unidad="{{ e.unidad_negocio_id or '' }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
@@ -35,8 +60,12 @@
         </select>
       </div>
       <button class="btn secondary" type="submit">Filtrar</button>
+      <a class="btn secondary" style="margin-left:auto;"
+         href="/rrhh/personal/export.xlsx?empresa_id={{ f_empresa }}&unidad_id={{ f_unidad }}&q={{ f_q }}&estado={{ f_estado }}">
+        Descargar Excel {{ '(según filtro)' if (f_empresa or f_unidad or f_q or f_estado) else '(todos)' }}
+      </a>
       {% if user.rol in ['administrador','opeoka'] %}
-      <a class="btn" href="/rrhh/personal/nuevo" style="margin-left:auto;">+ Agregar trabajador</a>
+      <a class="btn" href="/rrhh/personal/nuevo">+ Agregar trabajador</a>
       {% endif %}
     </form>
 
@@ -66,5 +95,23 @@
   </div>
 
 </div>
+<script>
+  // Filtra las opciones de Empresa según la Unidad de Negocio elegida, para
+  // que no se puedan combinar una Unidad y una Empresa que no correspondan
+  // entre sí (eso hacía parecer que el filtro "no funcionaba").
+  function filtrarEmpresasPorUnidad() {
+    const unidad = document.getElementById("filtro_unidad").value;
+    const selEmpresa = document.getElementById("filtro_empresa");
+    let seleccionSigueValida = false;
+    Array.from(selEmpresa.options).forEach(opt => {
+      if (!opt.value) { opt.hidden = false; return; }
+      const visible = !unidad || opt.dataset.unidad === unidad;
+      opt.hidden = !visible;
+      if (visible && opt.selected) seleccionSigueValida = true;
+    });
+    if (!seleccionSigueValida) selEmpresa.value = "";
+  }
+  filtrarEmpresasPorUnidad();
+</script>
 </body>
 </html>

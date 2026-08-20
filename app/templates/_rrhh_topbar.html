@@ -32,14 +32,14 @@
 
   <a class="nav-top-link {{ 'active' if active == 'dashboard' else '' }}" href="/rrhh/dashboard">Dashboard</a>
 
-  {% set administracion_activos = ('personal', 'asistencia', 'parametrizacion', 'usuarios', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco') %}
+  {% set administracion_activos = ('personal', 'asistencia', 'parametrizacion', 'usuarios', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo') %}
   <details class="nav-group" {{ 'open' if active in administracion_activos else '' }}>
     <summary>Administración</summary>
     <div class="nav-children">
       <a href="/rrhh/personal" class="{{ 'active' if active == 'personal' else '' }}">Personal</a>
       <a href="/rrhh/asistencia" class="{{ 'active' if active == 'asistencia' else '' }}">Control de Asistencia</a>
       {% if user.rol == 'administrador' %}
-      {% set parametrizacion_activos = ('parametrizacion', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco') %}
+      {% set parametrizacion_activos = ('parametrizacion', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'usuarios') %}
       <details class="nav-group nested" {{ 'open' if active in parametrizacion_activos else '' }}>
         <summary>Parámetros</summary>
         <div class="nav-children">
@@ -51,9 +51,10 @@
           <a href="/rrhh/parametrizacion/cargos" class="{{ 'active' if active == 'cargos' else '' }}">Cargos y Funciones</a>
           <a href="/rrhh/parametrizacion/catalogo/sede" class="{{ 'active' if active == 'sede' else '' }}">Sedes</a>
           <a href="/rrhh/parametrizacion/catalogo/banco" class="{{ 'active' if active == 'banco' else '' }}">Bancos</a>
+          <a href="/rrhh/parametrizacion/catalogo/centro_costo" class="{{ 'active' if active == 'centro_costo' else '' }}">Centros de Costo</a>
+          <a href="/rrhh/usuarios" class="{{ 'active' if active == 'usuarios' else '' }}">Usuarios del Sistema</a>
         </div>
       </details>
-      <a href="/rrhh/usuarios" class="{{ 'active' if active == 'usuarios' else '' }}">Usuarios del Sistema</a>
       {% endif %}
     </div>
   </details>
