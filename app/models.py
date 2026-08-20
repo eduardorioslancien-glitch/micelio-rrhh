@@ -183,16 +183,36 @@ def gen_token():
 
 
 # ---------------------------------------------------------------------------
-# Estructura organizacional
+# Estructura organizacional: Holding -> Unidad de Negocio -> Empresa -> Línea
+# de Producto. Personal (Employee) solo referencia directamente a Empresa;
+# el Holding y la Unidad de Negocio se resuelven solos subiendo la cadena
+# (Empresa.unidad_negocio -> UnidadNegocio.holding), así que basta con
+# asignarle una empresa a alguien para ya saber a qué unidad y holding
+# pertenece (punto 10 del pedido).
 # ---------------------------------------------------------------------------
+class Holding(Base):
+    __tablename__ = "holdings"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(120), unique=True, nullable=False)
+    descripcion = Column(String(300), nullable=True)
+    logo_path = Column(String(500), nullable=True)  # PNG del logo del holding
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    unidades_negocio = relationship("UnidadNegocio", back_populates="holding")
+
+
 class UnidadNegocio(Base):
     __tablename__ = "unidades_negocio"
 
     id = Column(Integer, primary_key=True)
     nombre = Column(String(120), unique=True, nullable=False)
     descripcion = Column(String(300), nullable=True)
+    holding_id = Column(Integer, ForeignKey("holdings.id"), nullable=True)
     activo = Column(Boolean, default=True)
 
+    holding = relationship("Holding", back_populates="unidades_negocio")
     empresas = relationship("Empresa", back_populates="unidad_negocio")
 
 
@@ -207,11 +227,34 @@ class Empresa(Base):
     unidad_negocio_id = Column(Integer, ForeignKey("unidades_negocio.id"), nullable=True)
     representante_legal = Column(String(200), nullable=True)
     firma_representante_path = Column(String(500), nullable=True)  # PNG de la firma, sin fondo
+    logo_path = Column(String(500), nullable=True)  # PNG del logo de la empresa
+    # Punto 14 del pedido (todavía sin flujo de correo armado): datos de
+    # contacto para pedir la aprobación de una renovación de contrato.
+    gerente_nombre = Column(String(200), nullable=True)
+    gerente_email = Column(String(200), nullable=True)
+    jefe_rrhh_nombre = Column(String(200), nullable=True)
+    jefe_rrhh_email = Column(String(200), nullable=True)
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     unidad_negocio = relationship("UnidadNegocio", back_populates="empresas")
     empleados = relationship("Employee", back_populates="empresa_rel")
+    lineas_producto = relationship("LineaProducto", back_populates="empresa", cascade="all, delete-orphan")
+
+
+class LineaProducto(Base):
+    """Línea de Producto — nivel más bajo de la estructura organizacional,
+    dentro de una Empresa (una empresa puede tener una o varias)."""
+    __tablename__ = "lineas_producto"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(150), nullable=False)
+    descripcion = Column(String(300), nullable=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    empresa = relationship("Empresa", back_populates="lineas_producto")
 
 
 class Catalogo(Base):
@@ -223,6 +266,7 @@ class Catalogo(Base):
     id = Column(Integer, primary_key=True)
     tipo = Column(String(20), nullable=False)  # uno de CATALOGO_TIPO_KEYS
     nombre = Column(String(150), nullable=False)
+    logo_path = Column(String(500), nullable=True)  # PNG del logo (por ahora solo se usa en tipo="area")
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -470,6 +514,8 @@ class ContratoRenovacion(Base):
 
     fecha_contrato_anterior = Column(String(20), nullable=True)  # "YYYY-MM-DD" o vacío si no había
     fecha_contrato_nueva = Column(String(20), nullable=False)
+    fecha_fin_contrato_anterior = Column(String(20), nullable=True)
+    fecha_fin_contrato_nueva = Column(String(20), nullable=True)
     tipo_contrato = Column(String(60), nullable=True)
     notas = Column(Text, nullable=True)
     registrado_por = Column(String(200), nullable=True)
@@ -578,6 +624,51 @@ class EncuestaRespuesta(Base):
 
     campana = relationship("EncuestaCampana", back_populates="respuestas")
     evaluado = relationship("Employee")
+
+
+AMBITOS_ANUNCIO = [
+    ("holding", "Todo el Holding"),
+    ("unidad", "Una Unidad de Negocio"),
+    ("empresa", "Una Empresa"),
+]
+AMBITO_ANUNCIO_KEYS = [a[0] for a in AMBITOS_ANUNCIO]
+
+
+class Anuncio(Base):
+    """Anuncio de Clima y Cultura (punto 4 del pedido): puede publicarse para
+    todo el Holding, para una Unidad de Negocio o para una Empresa puntual —
+    lo que determina a quién se le muestra en la pantalla de inicio."""
+    __tablename__ = "anuncios"
+
+    id = Column(Integer, primary_key=True)
+    titulo = Column(String(200), nullable=False)
+    cuerpo = Column(Text, nullable=False)
+    ambito = Column(String(20), nullable=False, default="holding")  # uno de AMBITO_ANUNCIO_KEYS
+    holding_id = Column(Integer, ForeignKey("holdings.id"), nullable=True)
+    unidad_negocio_id = Column(Integer, ForeignKey("unidades_negocio.id"), nullable=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=True)
+    autor = Column(String(200), nullable=True)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    holding = relationship("Holding")
+    unidad_negocio = relationship("UnidadNegocio")
+    empresa = relationship("Empresa")
+
+
+class SaludoCumpleanos(Base):
+    """Saludo de cumpleaños que otro usuario deja en la tarjeta de alguien en
+    la pantalla de inicio (punto 3 del pedido: "puedan otros usuarios agregar
+    su propio saludo")."""
+    __tablename__ = "saludos_cumpleanos"
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)  # a quién se saluda
+    autor = Column(String(200), nullable=False)  # nombre de quien saluda
+    mensaje = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    employee = relationship("Employee")
 
 
 class AuditLog(Base):

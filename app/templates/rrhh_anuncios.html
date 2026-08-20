@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anuncios — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=5">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Anuncios</h2>
+    <p class="muted">Se muestran en la pantalla de inicio de todos a quienes les corresponda según el ámbito
+      elegido (todo el Holding, una Unidad de Negocio, o una Empresa puntual).</p>
+    <table>
+      <tr><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Estado</th><th></th></tr>
+      {% for a in anuncios %}
+      <tr>
+        <td><strong>{{ a.titulo }}</strong><br><span class="muted">{{ a.cuerpo[:80] }}{{ '…' if a.cuerpo|length > 80 else '' }}</span></td>
+        <td class="muted">
+          {% if a.ambito == 'holding' %}Todo el Holding{% if a.holding %} ({{ a.holding.nombre }}){% endif %}
+          {% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '—' }}
+          {% else %}{{ a.empresa.nombre if a.empresa else '—' }}
+          {% endif %}
+        </td>
+        <td class="muted">{{ a.autor or '—' }}</td>
+        <td class="muted">{{ a.created_at.strftime('%d/%m/%Y') }}</td>
+        <td><span class="badge {{ 'firmado' if a.activo else 'pendiente' }}">{{ 'activo' if a.activo else 'inactivo' }}</span></td>
+        <td style="display:flex; gap:6px;">
+          <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/toggle" style="display:inline;">
+            <button class="btn small secondary" type="submit">{{ 'Desactivar' if a.activo else 'Activar' }}</button>
+          </form>
+          <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar este anuncio? No se puede deshacer.');">
+            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Todavía no hay anuncios publicados.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Publicar anuncio</h3>
+    <form method="post" action="/rrhh/clima/anuncios/nuevo" id="form-anuncio">
+      <div class="grid2">
+        <div class="field"><label>Título</label><input type="text" name="titulo" required></div>
+        <div class="field">
+          <label>Ámbito</label>
+          <select name="ambito" id="ambito" onchange="ajustarAmbito()" required>
+            {% for k, lbl in ambitos %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field" id="campo_holding" style="display:none;">
+        <label>Holding</label>
+        <select name="holding_id">
+          <option value="">— Todos los holdings —</option>
+          {% for h in holdings %}<option value="{{ h.id }}">{{ h.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" id="campo_unidad" style="display:none;">
+        <label>Unidad de Negocio</label>
+        <select name="unidad_negocio_id">
+          <option value="">Seleccionar…</option>
+          {% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" id="campo_empresa" style="display:none;">
+        <label>Empresa</label>
+        <select name="empresa_id">
+          <option value="">Seleccionar…</option>
+          {% for e in empresas %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Mensaje</label><textarea name="cuerpo" rows="4" required></textarea></div>
+      <button class="btn" type="submit">Publicar</button>
+    </form>
+  </div>
+
+<script>
+  function ajustarAmbito() {
+    const v = document.getElementById("ambito").value;
+    document.getElementById("campo_holding").style.display = v === "holding" ? "block" : "none";
+    document.getElementById("campo_unidad").style.display = v === "unidad" ? "block" : "none";
+    document.getElementById("campo_empresa").style.display = v === "empresa" ? "block" : "none";
+  }
+  ajustarAmbito();
+</script>
+</div>
+</body>
+</html>

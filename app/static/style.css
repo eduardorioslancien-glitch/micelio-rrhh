@@ -273,6 +273,23 @@ canvas.sigpad {
   background: #05070a; border-radius: 8px; margin-top: 4px;
 }
 .home-hero img { max-width: 70%; max-height: 78vh; object-fit: contain; }
+.home-banner {
+  display: flex; align-items: center; justify-content: center;
+  background: #05070a; border-radius: 8px; padding: 14px; margin-bottom: 16px;
+}
+.home-banner img { max-height: 90px; max-width: 100%; object-fit: contain; }
+.birthday-today-card { background: linear-gradient(135deg, var(--light2), white); border: 1px solid var(--border); }
+.birthday-today { display: flex; gap: 16px; align-items: center; }
+.birthday-today-info { flex: 1; }
+.birthday-saludos { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 6px; }
+.birthday-saludo { font-size: 13px; background: var(--light2); border-radius: 6px; padding: 6px 10px; }
+.grid2-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.anuncio-item { padding: 10px 0; border-bottom: 1px solid var(--light); }
+.anuncio-item:last-child { border-bottom: none; }
+@media (max-width: 900px) {
+  .grid2-cards { grid-template-columns: 1fr; }
+  .birthday-today { flex-direction: column; align-items: flex-start; }
+}
 .alert-error {
   background: var(--red-bg); color: var(--red); border: 1px solid var(--red);
   padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;

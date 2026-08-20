@@ -20,7 +20,8 @@ from .database import get_db
 from . import kpis as kpis_module
 from .models import (
     EncuestaCampana, EncuestaRespuesta, Employee, User,
-    ESTADOS_ENCUESTA, RELACIONES_ENCUESTA,
+    Anuncio, Holding, UnidadNegocio, Empresa,
+    ESTADOS_ENCUESTA, RELACIONES_ENCUESTA, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
 from .auth import require_role
 from .rrhh import _ctx
@@ -124,6 +125,65 @@ async def encuesta_agregar_respuesta(campana_id: int, request: Request, db: Sess
     ))
     db.commit()
     return RedirectResponse(f"/rrhh/clima/encuestas/{campana_id}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Anuncios (punto 4 del pedido): por Holding, por Unidad de Negocio o por
+# Empresa — determina a quién se le muestra en la pantalla de inicio (news).
+# ---------------------------------------------------------------------------
+@router.get("/rrhh/clima/anuncios", response_class=HTMLResponse)
+def anuncios_list(request: Request, db: Session = Depends(get_db),
+                   user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+    anuncios = db.query(Anuncio).order_by(Anuncio.created_at.desc()).all()
+    holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
+    unidades = db.query(UnidadNegocio).filter(UnidadNegocio.activo == True).order_by(UnidadNegocio.nombre).all()  # noqa: E712
+    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    return templates.TemplateResponse(request, "rrhh_anuncios.html", _ctx(
+        request, user, anuncios=anuncios, ambitos=AMBITOS_ANUNCIO,
+        holdings=holdings, unidades=unidades, empresas=empresas, active="anuncios",
+    ))
+
+
+@router.post("/rrhh/clima/anuncios/nuevo")
+def anuncios_crear(titulo: str = Form(...), cuerpo: str = Form(...), ambito: str = Form(...),
+                    holding_id: str = Form(""), unidad_negocio_id: str = Form(""), empresa_id: str = Form(""),
+                    db: Session = Depends(get_db),
+                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+    if ambito not in AMBITO_ANUNCIO_KEYS:
+        raise HTTPException(400, "Ámbito inválido.")
+    if ambito == "unidad" and not unidad_negocio_id:
+        raise HTTPException(400, "Elige la unidad de negocio.")
+    if ambito == "empresa" and not empresa_id:
+        raise HTTPException(400, "Elige la empresa.")
+    db.add(Anuncio(
+        titulo=titulo.strip(), cuerpo=cuerpo.strip(), ambito=ambito,
+        holding_id=int(holding_id) if (ambito == "holding" and holding_id) else None,
+        unidad_negocio_id=int(unidad_negocio_id) if ambito == "unidad" else None,
+        empresa_id=int(empresa_id) if ambito == "empresa" else None,
+        autor=user.nombre_completo,
+    ))
+    db.commit()
+    return RedirectResponse("/rrhh/clima/anuncios", status_code=303)
+
+
+@router.post("/rrhh/clima/anuncios/{anuncio_id}/toggle")
+def anuncios_toggle(anuncio_id: int, db: Session = Depends(get_db),
+                     user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+    a = db.query(Anuncio).get(anuncio_id)
+    if a:
+        a.activo = not a.activo
+        db.commit()
+    return RedirectResponse("/rrhh/clima/anuncios", status_code=303)
+
+
+@router.post("/rrhh/clima/anuncios/{anuncio_id}/eliminar")
+def anuncios_eliminar(anuncio_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+    a = db.query(Anuncio).get(anuncio_id)
+    if a:
+        db.delete(a)
+        db.commit()
+    return RedirectResponse("/rrhh/clima/anuncios", status_code=303)
 
 
 # ---------------------------------------------------------------------------

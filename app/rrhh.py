@@ -16,10 +16,11 @@ from .database import get_db
 from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion,
+    Holding, LineaProducto, Anuncio, SaludoCumpleanos,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
-    STATUS_PENDIENTE,
+    STATUS_PENDIENTE, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
 from .auth import (
     get_current_user, require_login, require_role, hash_password, verify_password,
@@ -119,12 +120,35 @@ def logout(request: Request):
 # Dashboard / entrada
 # ---------------------------------------------------------------------------
 @router.get("/rrhh", response_class=HTMLResponse)
-def rrhh_home(request: Request, user: User = Depends(require_login)):
-    # Punto 1 del pedido: la pantalla de entrada (recién logueado, o recién
-    # cambiada la contraseña) solo muestra el menú lateral y la imagen de
-    # MICELIO — sin listas ni tarjetas. El Dashboard de KPIs sigue existiendo
-    # aparte, como su propia opción de menú.
-    return templates.TemplateResponse(request, "rrhh_home.html", _ctx(request, user, active="home"))
+def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_login)):
+    # Punto 3 del pedido: pantalla de inicio tipo "noticias" — cumpleaños de
+    # la semana (con foto y saludo de RR.HH. para el/los de hoy, donde otros
+    # pueden dejar su propio saludo) y los anuncios de Clima y Cultura que le
+    # correspondan a este usuario según su ámbito.
+    empresa_id = user.employee.empresa_id if (user.rol == "usuario" and user.employee) else None
+    cumple_hoy, cumple_semana = _cumpleanos_de_la_semana(db, empresa_id=empresa_id)
+    for item in cumple_hoy:
+        item["mensaje_rrhh"] = _mensaje_cumple_rrhh(item["employee"])
+        item["saludos"] = db.query(SaludoCumpleanos).filter(
+            SaludoCumpleanos.employee_id == item["employee"].id
+        ).order_by(SaludoCumpleanos.created_at.desc()).all()
+    anuncios = _anuncios_visibles(db, user)
+    return templates.TemplateResponse(request, "rrhh_home.html", _ctx(
+        request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios, active="home",
+    ))
+
+
+@router.post("/rrhh/saludos/{employee_id}")
+def agregar_saludo_cumpleanos(employee_id: int, mensaje: str = Form(...),
+                               db: Session = Depends(get_db), user: User = Depends(require_login)):
+    mensaje = mensaje.strip()
+    if not mensaje:
+        raise HTTPException(400, "El saludo no puede estar vacío.")
+    if not db.query(Employee).get(employee_id):
+        raise HTTPException(404)
+    db.add(SaludoCumpleanos(employee_id=employee_id, autor=user.nombre_completo, mensaje=mensaje))
+    db.commit()
+    return RedirectResponse("/rrhh", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +174,10 @@ def _unidad_tiene_empresas(db: Session, unidad_id: int) -> bool:
     return db.query(Empresa).filter(Empresa.unidad_negocio_id == unidad_id).count() > 0
 
 
+def _holding_tiene_unidades(db: Session, holding_id: int) -> bool:
+    return db.query(UnidadNegocio).filter(UnidadNegocio.holding_id == holding_id).count() > 0
+
+
 def _competencia_en_uso(db: Session, competencia_id: int) -> bool:
     """True si algún Cargo la exige como requisito."""
     return db.query(CargoRequisitoCompetencia).filter(
@@ -168,13 +196,159 @@ def _cargo_en_uso(db: Session, cargo_id: int, cargo_nombre: str) -> bool:
     return False
 
 
+SALUDOS_CUMPLEANOS_RRHH = [
+    "¡Feliz cumpleaños, {nombre}! Todo el equipo de Recursos Humanos te desea un día espectacular, rodeado de "
+    "quienes más quieres. ¡Que este nuevo año te traiga muchos éxitos!",
+    "Hoy es un día especial para ti, {nombre}. Desde Recursos Humanos te mandamos un fuerte abrazo y las mejores "
+    "energías para este nuevo año de vida. ¡Feliz cumpleaños!",
+    "{nombre}, ¡feliz cumpleaños! Gracias por ser parte de este equipo — esperamos que tengas un día tan grande "
+    "como tú. Un cariñoso saludo de Recursos Humanos.",
+    "En Recursos Humanos queremos celebrar contigo, {nombre}. ¡Feliz cumpleaños! Que se cumplan todas tus metas "
+    "este nuevo año.",
+    "¡Feliz vuelta al sol, {nombre}! Que tengas un día lleno de alegría y buenos momentos. Con cariño, tu equipo "
+    "de Recursos Humanos.",
+    "{nombre}, hoy celebramos contigo un año más de vida. ¡Feliz cumpleaños! Gracias por tu aporte al equipo. "
+    "Un abrazo de Recursos Humanos.",
+]
+
+
+def _mensaje_cumple_rrhh(employee: Employee) -> str:
+    primer_nombre = (employee.nombre_completo or "").split()[0] if employee.nombre_completo else ""
+    plantilla = SALUDOS_CUMPLEANOS_RRHH[employee.id % len(SALUDOS_CUMPLEANOS_RRHH)]
+    return plantilla.format(nombre=primer_nombre or employee.nombre_completo)
+
+
+def _fecha_nacimiento(employee: Employee):
+    f = (employee.ficha_data or {}).get("fecha_nacimiento") or ""
+    try:
+        return datetime.datetime.strptime(f, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _cumpleanos_de_la_semana(db: Session, empresa_id: int = None):
+    """Punto 3 del pedido: cumpleaños de la semana (lunes a domingo actual),
+    separando el/los de hoy. Si se pasa empresa_id, se acota a esa empresa
+    (para el rol 'usuario', que solo debería ver a sus propios compañeros);
+    sin empresa_id, es para RR.HH./administrador, que ve a todo el personal."""
+    hoy = datetime.date.today()
+    lunes = hoy - datetime.timedelta(days=hoy.weekday())
+    dias_semana = [lunes + datetime.timedelta(days=i) for i in range(7)]
+
+    query = db.query(Employee).filter(Employee.estado == "activo")
+    if empresa_id:
+        query = query.filter(Employee.empresa_id == empresa_id)
+
+    hoy_lista, semana_lista = [], []
+    for e in query.all():
+        nac = _fecha_nacimiento(e)
+        if not nac:
+            continue
+        for dia in dias_semana:
+            if nac.month == dia.month and nac.day == dia.day:
+                item = {"employee": e, "fecha": dia}
+                (hoy_lista if dia == hoy else semana_lista).append(item)
+                break
+    semana_lista.sort(key=lambda i: i["fecha"])
+    return hoy_lista, semana_lista
+
+
+def _anuncios_visibles(db: Session, user: User, limite: int = 12):
+    """Punto 4 del pedido: RR.HH./administrador ve todos los anuncios (los
+    publica y gestiona); un usuario de autoservicio ('usuario') solo ve los
+    de su propio ámbito (su empresa, la unidad de negocio de su empresa, o
+    "todo el holding" — incluyendo los anuncios de holding sin uno
+    específico elegido, que se toman como "para todo el grupo")."""
+    from .models import Anuncio
+    query = db.query(Anuncio).filter(Anuncio.activo == True)  # noqa: E712
+    if is_staff(user):
+        return query.order_by(Anuncio.created_at.desc()).limit(limite).all()
+
+    empresa = user.employee.empresa_rel if user.employee else None
+    unidad_id = empresa.unidad_negocio_id if empresa else None
+    holding_id = empresa.unidad_negocio.holding_id if (empresa and empresa.unidad_negocio) else None
+
+    visibles = []
+    for a in query.order_by(Anuncio.created_at.desc()).all():
+        if a.ambito == "holding" and (a.holding_id is None or a.holding_id == holding_id):
+            visibles.append(a)
+        elif a.ambito == "unidad" and unidad_id and a.unidad_negocio_id == unidad_id:
+            visibles.append(a)
+        elif a.ambito == "empresa" and empresa and a.empresa_id == empresa.id:
+            visibles.append(a)
+        if len(visibles) >= limite:
+            break
+    return visibles
+
+
+def _organigrama_de(db: Session, employee: Employee):
+    """Punto 11 del pedido: a partir del Cargo de la persona (ficha_data.cargo)
+    y su empresa, resuelve quién es su jefe y quiénes son sus subordinados —
+    buscando, dentro de la MISMA empresa, a las personas activas cuyo cargo
+    sea el que corresponde según la jerarquía de Cargos y Funciones (MOF).
+    Es un cálculo en vivo (no se guarda), así que nunca queda desincronizado
+    si alguien cambia de cargo o de empresa."""
+    ficha = employee.ficha_data or {}
+    cargo_nombre = (ficha.get("cargo") or "").strip()
+    if not cargo_nombre or not employee.empresa_id:
+        return {"jefe": None, "jefe_cargo": None, "subordinados": []}
+    cargo = db.query(Cargo).filter(Cargo.nombre == cargo_nombre).first()
+    if not cargo:
+        return {"jefe": None, "jefe_cargo": None, "subordinados": []}
+
+    companeros_activos = db.query(Employee).filter(
+        Employee.empresa_id == employee.empresa_id,
+        Employee.estado == "activo",
+        Employee.id != employee.id,
+    ).all()
+
+    jefe = None
+    jefe_cargo = cargo.reporta_a.nombre if cargo.reporta_a else None
+    if jefe_cargo:
+        jefe = next((c for c in companeros_activos if (c.ficha_data or {}).get("cargo") == jefe_cargo), None)
+
+    nombres_subordinados_cargo = {c.nombre for c in cargo.subordinados}
+    subordinados = [c for c in companeros_activos if (c.ficha_data or {}).get("cargo") in nombres_subordinados_cargo]
+
+    return {"jefe": jefe, "jefe_cargo": jefe_cargo, "subordinados": subordinados}
+
+
+def _contratos_no_indefinidos(db: Session, dias_max: int = None):
+    """Puntos 12 y 13 del pedido: trabajadores activos con contrato distinto
+    de 'Plazo Indeterminado' y con fecha de vencimiento cargada, ordenados
+    del más próximo a vencer al más lejano. Si se pasa dias_max, solo
+    devuelve los que vencen dentro de esa cantidad de días (puede incluir
+    los ya vencidos, para que no se pierdan de vista)."""
+    hoy = datetime.date.today()
+    resultado = []
+    for e in db.query(Employee).filter(Employee.estado == "activo").all():
+        f = e.ficha_data or {}
+        tipo_contrato = (f.get("tipo_contrato") or "").strip()
+        fecha_fin_str = (f.get("fecha_fin_contrato") or "").strip()
+        if not tipo_contrato or tipo_contrato == "Plazo Indeterminado" or not fecha_fin_str:
+            continue
+        try:
+            fecha_fin = datetime.datetime.strptime(fecha_fin_str, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        dias_restantes = (fecha_fin - hoy).days
+        if dias_max is not None and dias_restantes > dias_max:
+            continue
+        resultado.append({
+            "employee": e, "tipo_contrato": tipo_contrato,
+            "fecha_fin_contrato": fecha_fin, "dias_restantes": dias_restantes,
+        })
+    resultado.sort(key=lambda r: r["fecha_fin_contrato"])
+    return resultado
+
+
 def _catalogo_en_uso(db: Session, tipo: str, nombre: str) -> bool:
     """True si algún trabajador (activo o cesado) tiene este valor guardado
     en su ficha — no es una FK real (ficha_data es JSON de texto libre), pero
     igual bloqueamos el borrado para no perder de vista que sigue en uso."""
     campos = {
         "area": ["area"], "gerencia": ["gerencia"], "sede": ["sede"],
-        "banco": ["banco_haberes", "banco_cts"],
+        "banco": ["banco_haberes", "banco_cts"], "centro_costo": ["centro_costos"],
     }.get(tipo, [])
     if not campos:
         return False
@@ -192,31 +366,112 @@ def parametrizacion(request: Request, user: User = Depends(require_role("adminis
     ))
 
 
+@router.get("/rrhh/parametrizacion/holdings", response_class=HTMLResponse)
+def holdings_list(request: Request, error: str = "", db: Session = Depends(get_db),
+                   user: User = Depends(require_role("administrador"))):
+    holdings = db.query(Holding).order_by(Holding.nombre).all()
+    bloqueados = {h.id: _holding_tiene_unidades(db, h.id) for h in holdings}
+    return templates.TemplateResponse(request, "rrhh_holdings.html", _ctx(
+        request, user, holdings=holdings, bloqueados=bloqueados, error=error, active="holdings",
+    ))
+
+
+@router.post("/rrhh/parametrizacion/holding")
+def crear_holding(nombre: str = Form(...), descripcion: str = Form(""),
+                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    db.add(Holding(nombre=nombre.strip(), descripcion=descripcion.strip() or None))
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/holdings", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/holding/{holding_id}/editar")
+def editar_holding(holding_id: int, nombre: str = Form(...), descripcion: str = Form(""),
+                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    h = db.query(Holding).get(holding_id)
+    if h:
+        h.nombre = nombre.strip()
+        h.descripcion = descripcion.strip() or None
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/holdings", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/holding/{holding_id}/logo")
+async def subir_logo_holding(holding_id: int, logo: UploadFile = File(...), db: Session = Depends(get_db),
+                              user: User = Depends(require_role("administrador"))):
+    h = db.query(Holding).get(holding_id)
+    if not h:
+        raise HTTPException(404)
+    dest = os.path.join(FIRMAS_EMPRESA_DIR, f"holding_{holding_id}.png")
+    content = await logo.read()
+    with open(dest, "wb") as f:
+        f.write(content)
+    h.logo_path = dest
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/holdings", status_code=303)
+
+
+@router.get("/rrhh/parametrizacion/holding/{holding_id}/logo")
+def ver_logo_holding(holding_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
+    h = db.query(Holding).get(holding_id)
+    if not h or not h.logo_path or not os.path.exists(h.logo_path):
+        raise HTTPException(404)
+    return FileResponse(h.logo_path, media_type="image/png")
+
+
+@router.post("/rrhh/parametrizacion/holding/{holding_id}/toggle")
+def toggle_holding(holding_id: int, db: Session = Depends(get_db),
+                    user: User = Depends(require_role("administrador"))):
+    h = db.query(Holding).get(holding_id)
+    if h:
+        if h.activo and _holding_tiene_unidades(db, holding_id):
+            return RedirectResponse(_con_error("/rrhh/parametrizacion/holdings",
+                "No se puede desactivar: todavía tiene unidades de negocio asignadas."), status_code=303)
+        h.activo = not h.activo
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/holdings", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/holding/{holding_id}/eliminar")
+def eliminar_holding(holding_id: int, db: Session = Depends(get_db),
+                      user: User = Depends(require_role("administrador"))):
+    h = db.query(Holding).get(holding_id)
+    if h:
+        if _holding_tiene_unidades(db, holding_id):
+            return RedirectResponse(_con_error("/rrhh/parametrizacion/holdings",
+                "No se puede eliminar: todavía tiene unidades de negocio asignadas."), status_code=303)
+        db.delete(h)
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/holdings", status_code=303)
+
+
 @router.get("/rrhh/parametrizacion/unidades", response_class=HTMLResponse)
 def unidades_list(request: Request, error: str = "", db: Session = Depends(get_db),
                    user: User = Depends(require_role("administrador"))):
     unidades = db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
+    holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     bloqueadas = {u.id: _unidad_tiene_empresas(db, u.id) for u in unidades}
     return templates.TemplateResponse(request, "rrhh_unidades.html", _ctx(
-        request, user, unidades=unidades, bloqueadas=bloqueadas, error=error, active="unidades",
+        request, user, unidades=unidades, holdings=holdings, bloqueadas=bloqueadas, error=error, active="unidades",
     ))
 
 
 @router.post("/rrhh/parametrizacion/unidad")
-def crear_unidad(nombre: str = Form(...), descripcion: str = Form(""),
+def crear_unidad(nombre: str = Form(...), descripcion: str = Form(""), holding_id: str = Form(""),
                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
-    db.add(UnidadNegocio(nombre=nombre.strip(), descripcion=descripcion.strip() or None))
+    db.add(UnidadNegocio(nombre=nombre.strip(), descripcion=descripcion.strip() or None,
+                          holding_id=int(holding_id) if holding_id else None))
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/unidades", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/unidad/{unidad_id}/editar")
-def editar_unidad(unidad_id: int, nombre: str = Form(...), descripcion: str = Form(""),
+def editar_unidad(unidad_id: int, nombre: str = Form(...), descripcion: str = Form(""), holding_id: str = Form(""),
                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     u = db.query(UnidadNegocio).get(unidad_id)
     if u:
         u.nombre = nombre.strip()
         u.descripcion = descripcion.strip() or None
+        u.holding_id = int(holding_id) if holding_id else None
         db.commit()
     return RedirectResponse("/rrhh/parametrizacion/unidades", status_code=303)
 
@@ -263,11 +518,15 @@ def empresas_list(request: Request, error: str = "", db: Session = Depends(get_d
 def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: str = Form(""),
                    unidad_negocio_id: int = Form(...), regimen_laboral: str = Form(""),
                    representante_legal: str = Form(""),
+                   gerente_nombre: str = Form(""), gerente_email: str = Form(""),
+                   jefe_rrhh_nombre: str = Form(""), jefe_rrhh_email: str = Form(""),
                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     db.add(Empresa(
         nombre=nombre.strip(), razon_social=razon_social.strip() or None, ruc=ruc.strip() or None,
         unidad_negocio_id=unidad_negocio_id, regimen_laboral=regimen_laboral or None,
         representante_legal=representante_legal.strip() or None,
+        gerente_nombre=gerente_nombre.strip() or None, gerente_email=gerente_email.strip() or None,
+        jefe_rrhh_nombre=jefe_rrhh_nombre.strip() or None, jefe_rrhh_email=jefe_rrhh_email.strip() or None,
     ))
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
@@ -277,6 +536,8 @@ def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: st
 def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str = Form(""), ruc: str = Form(""),
                     unidad_negocio_id: int = Form(...), regimen_laboral: str = Form(""),
                     representante_legal: str = Form(""),
+                    gerente_nombre: str = Form(""), gerente_email: str = Form(""),
+                    jefe_rrhh_nombre: str = Form(""), jefe_rrhh_email: str = Form(""),
                     db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     e = db.query(Empresa).get(empresa_id)
     if e:
@@ -286,6 +547,10 @@ def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str =
         e.unidad_negocio_id = unidad_negocio_id
         e.regimen_laboral = regimen_laboral or None
         e.representante_legal = representante_legal.strip() or None
+        e.gerente_nombre = gerente_nombre.strip() or None
+        e.gerente_email = gerente_email.strip() or None
+        e.jefe_rrhh_nombre = jefe_rrhh_nombre.strip() or None
+        e.jefe_rrhh_email = jefe_rrhh_email.strip() or None
         db.commit()
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
 
@@ -303,6 +568,29 @@ async def subir_firma_empresa(empresa_id: int, firma: UploadFile = File(...), db
     e.firma_representante_path = dest
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/empresa/{empresa_id}/logo")
+async def subir_logo_empresa(empresa_id: int, logo: UploadFile = File(...), db: Session = Depends(get_db),
+                              user: User = Depends(require_role("administrador"))):
+    e = db.query(Empresa).get(empresa_id)
+    if not e:
+        raise HTTPException(404)
+    dest = os.path.join(FIRMAS_EMPRESA_DIR, f"logo_empresa_{empresa_id}.png")
+    content = await logo.read()
+    with open(dest, "wb") as f:
+        f.write(content)
+    e.logo_path = dest
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
+
+
+@router.get("/rrhh/parametrizacion/empresa/{empresa_id}/logo")
+def ver_logo_empresa(empresa_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
+    e = db.query(Empresa).get(empresa_id)
+    if not e or not e.logo_path or not os.path.exists(e.logo_path):
+        raise HTTPException(404)
+    return FileResponse(e.logo_path, media_type="image/png")
 
 
 @router.get("/rrhh/parametrizacion/empresa/{empresa_id}/firma")
@@ -339,6 +627,57 @@ def eliminar_empresa(empresa_id: int, db: Session = Depends(get_db),
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
 
 
+@router.get("/rrhh/parametrizacion/lineas-producto", response_class=HTMLResponse)
+def lineas_producto_list(request: Request, error: str = "", db: Session = Depends(get_db),
+                          user: User = Depends(require_role("administrador"))):
+    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    lineas = db.query(LineaProducto).join(Empresa).order_by(Empresa.nombre, LineaProducto.nombre).all()
+    return templates.TemplateResponse(request, "rrhh_lineas_producto.html", _ctx(
+        request, user, empresas=empresas, lineas=lineas, error=error, active="lineas_producto",
+    ))
+
+
+@router.post("/rrhh/parametrizacion/linea-producto")
+def crear_linea_producto(nombre: str = Form(...), descripcion: str = Form(""), empresa_id: int = Form(...),
+                          db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    db.add(LineaProducto(nombre=nombre.strip(), descripcion=descripcion.strip() or None, empresa_id=empresa_id))
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/lineas-producto", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/linea-producto/{linea_id}/editar")
+def editar_linea_producto(linea_id: int, nombre: str = Form(...), descripcion: str = Form(""),
+                           empresa_id: int = Form(...), db: Session = Depends(get_db),
+                           user: User = Depends(require_role("administrador"))):
+    lp = db.query(LineaProducto).get(linea_id)
+    if lp:
+        lp.nombre = nombre.strip()
+        lp.descripcion = descripcion.strip() or None
+        lp.empresa_id = empresa_id
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/lineas-producto", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/linea-producto/{linea_id}/toggle")
+def toggle_linea_producto(linea_id: int, db: Session = Depends(get_db),
+                           user: User = Depends(require_role("administrador"))):
+    lp = db.query(LineaProducto).get(linea_id)
+    if lp:
+        lp.activo = not lp.activo
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/lineas-producto", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/linea-producto/{linea_id}/eliminar")
+def eliminar_linea_producto(linea_id: int, db: Session = Depends(get_db),
+                             user: User = Depends(require_role("administrador"))):
+    lp = db.query(LineaProducto).get(linea_id)
+    if lp:
+        db.delete(lp)
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/lineas-producto", status_code=303)
+
+
 @router.get("/rrhh/parametrizacion/catalogo/{tipo}", response_class=HTMLResponse)
 def catalogo_list(request: Request, tipo: str, error: str = "", db: Session = Depends(get_db),
                    user: User = Depends(require_role("administrador"))):
@@ -371,6 +710,31 @@ def editar_item_catalogo(item_id: int, nombre: str = Form(...), db: Session = De
         db.commit()
         return RedirectResponse(f"/rrhh/parametrizacion/catalogo/{item.tipo}", status_code=303)
     return RedirectResponse("/rrhh/parametrizacion", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/catalogo/{item_id}/logo")
+async def subir_logo_catalogo(item_id: int, logo: UploadFile = File(...), db: Session = Depends(get_db),
+                               user: User = Depends(require_role("administrador"))):
+    """Punto 5 del pedido: por ahora solo se usa desde Áreas, pero queda
+    disponible para cualquier catálogo por si más adelante hace falta."""
+    item = db.query(Catalogo).get(item_id)
+    if not item:
+        raise HTTPException(404)
+    dest = os.path.join(FIRMAS_EMPRESA_DIR, f"catalogo_{item_id}.png")
+    content = await logo.read()
+    with open(dest, "wb") as f:
+        f.write(content)
+    item.logo_path = dest
+    db.commit()
+    return RedirectResponse(f"/rrhh/parametrizacion/catalogo/{item.tipo}", status_code=303)
+
+
+@router.get("/rrhh/parametrizacion/catalogo/{item_id}/logo")
+def ver_logo_catalogo(item_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
+    item = db.query(Catalogo).get(item_id)
+    if not item or not item.logo_path or not os.path.exists(item.logo_path):
+        raise HTTPException(404)
+    return FileResponse(item.logo_path, media_type="image/png")
 
 
 @router.post("/rrhh/parametrizacion/catalogo/{item_id}/toggle")
@@ -810,28 +1174,37 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         etapas_onboarding=ETAPAS_ONBOARDING, estados_onboarding=ESTADOS_ONBOARDING,
         etapa_onboarding_labels=dict(ETAPAS_ONBOARDING), estado_onboarding_labels=dict(ESTADOS_ONBOARDING),
         faltan_datos=faltan_datos, renovaciones=emp.renovaciones_contrato,
+        organigrama=_organigrama_de(db, emp),
         active="personal",
     ))
 
 
 @router.post("/rrhh/personal/{employee_id}/renovar-contrato")
-def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...), tipo_contrato: str = Form(""),
+def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...),
+                      nueva_fecha_fin_contrato: str = Form(""), tipo_contrato: str = Form(""),
                       notas: str = Form(""), db: Session = Depends(get_db),
                       user: User = Depends(require_role("administrador", "opeoka"))):
-    """Punto 2.5 del pedido: al renovar el contrato, el campo fecha_contrato
-    de la ficha se actualiza, pero queda un registro permanente de cada
-    renovación (fecha anterior, fecha nueva, tipo, quién la registró)."""
+    """Punto 2.5 del pedido: al renovar el contrato, los campos fecha_contrato
+    y fecha_fin_contrato de la ficha se actualizan, pero queda un registro
+    permanente de cada renovación (fechas anteriores y nuevas, tipo, quién la
+    registró)."""
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
     ficha = dict(emp.ficha_data or {})
     anterior = ficha.get("fecha_contrato") or ""
+    fin_anterior = ficha.get("fecha_fin_contrato") or ""
     db.add(ContratoRenovacion(
         employee_id=emp.id, fecha_contrato_anterior=anterior or None,
-        fecha_contrato_nueva=nueva_fecha_contrato, tipo_contrato=tipo_contrato.strip() or None,
+        fecha_contrato_nueva=nueva_fecha_contrato,
+        fecha_fin_contrato_anterior=fin_anterior or None,
+        fecha_fin_contrato_nueva=nueva_fecha_fin_contrato.strip() or None,
+        tipo_contrato=tipo_contrato.strip() or None,
         notas=notas.strip() or None, registrado_por=user.nombre_completo,
     ))
     ficha["fecha_contrato"] = nueva_fecha_contrato
+    if nueva_fecha_fin_contrato.strip():
+        ficha["fecha_fin_contrato"] = nueva_fecha_fin_contrato.strip()
     if tipo_contrato.strip():
         ficha["tipo_contrato"] = tipo_contrato.strip()
     emp.ficha_data = ficha
@@ -1114,10 +1487,22 @@ def asistencia_manual(employee_id: int = Form(...), tipo: str = Form(...), fecha
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, dias: int = 30, db: Session = Depends(get_db),
-              user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+              user: User = Depends(require_role("administrador"))):
     data = kpis_module.resumen_dashboard(db, dias=dias)
     max_empresa = max([c for _, c in data["headcount_empresa"]], default=0) or 1
     max_unidad = max([c for _, c in data["headcount_unidad"]], default=0) or 1
     return templates.TemplateResponse(request, "rrhh_dashboard.html", _ctx(
-        request, user, data=data, max_empresa=max_empresa, max_unidad=max_unidad, active="dashboard",
+        request, user, data=data, max_empresa=max_empresa, max_unidad=max_unidad,
+        contratos_por_vencer=_contratos_no_indefinidos(db, dias_max=30), active="dashboard",
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Contratos / Renovaciones (puntos 12 y 13 del pedido)
+# ---------------------------------------------------------------------------
+@router.get("/rrhh/contratos", response_class=HTMLResponse)
+def contratos_list(request: Request, db: Session = Depends(get_db),
+                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+    return templates.TemplateResponse(request, "rrhh_contratos.html", _ctx(
+        request, user, contratos=_contratos_no_indefinidos(db), active="contratos",
     ))

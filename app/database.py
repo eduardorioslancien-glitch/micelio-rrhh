@@ -28,6 +28,15 @@ def init_db():
 # base de datos real cada vez que el modelo gana un campo.
 _MIGRACIONES_COLUMNAS = [
     ("competencias", "conductas_no_deseadas", "TEXT"),
+    ("unidades_negocio", "holding_id", "INTEGER"),
+    ("empresas", "logo_path", "VARCHAR(500)"),
+    ("empresas", "gerente_nombre", "VARCHAR(200)"),
+    ("empresas", "gerente_email", "VARCHAR(200)"),
+    ("empresas", "jefe_rrhh_nombre", "VARCHAR(200)"),
+    ("empresas", "jefe_rrhh_email", "VARCHAR(200)"),
+    ("catalogos", "logo_path", "VARCHAR(500)"),
+    ("contrato_renovaciones", "fecha_fin_contrato_anterior", "VARCHAR(20)"),
+    ("contrato_renovaciones", "fecha_fin_contrato_nueva", "VARCHAR(20)"),
 ]
 
 
@@ -38,6 +47,35 @@ def _run_migraciones_livianas():
             if columna not in existentes:
                 conn.exec_driver_sql(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo_sql}")
                 conn.commit()
+        _backfill_holding_por_defecto(conn)
+
+
+def _backfill_holding_por_defecto(conn):
+    """Estructura organizacional nueva (Holding arriba de Unidad de Negocio):
+    las instalaciones que ya tenían Unidades de Negocio quedarían sin
+    Holding — se les crea uno por defecto ("DIGETEL GROUP") y se las asigna
+    ahí, para no dejar huérfana la estructura existente."""
+    huerfanas = conn.exec_driver_sql(
+        "SELECT COUNT(*) FROM unidades_negocio WHERE holding_id IS NULL"
+    ).scalar()
+    if not huerfanas:
+        return
+    holding_id = conn.exec_driver_sql(
+        "SELECT id FROM holdings WHERE nombre = 'DIGETEL GROUP'"
+    ).scalar()
+    if not holding_id:
+        conn.exec_driver_sql(
+            "INSERT INTO holdings (nombre, descripcion, activo, created_at) "
+            "VALUES ('DIGETEL GROUP', 'Holding por defecto (creado automáticamente).', 1, CURRENT_TIMESTAMP)"
+        )
+        conn.commit()
+        holding_id = conn.exec_driver_sql(
+            "SELECT id FROM holdings WHERE nombre = 'DIGETEL GROUP'"
+        ).scalar()
+    conn.exec_driver_sql(
+        f"UPDATE unidades_negocio SET holding_id = {holding_id} WHERE holding_id IS NULL"
+    )
+    conn.commit()
 
 
 def get_db():

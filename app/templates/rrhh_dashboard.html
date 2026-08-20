@@ -55,6 +55,29 @@
   </div>
 
   <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">Contratos a vencer en los próximos 30 días</h2>
+      <a class="btn small secondary" href="/rrhh/contratos">Ver todos los contratos</a>
+    </div>
+    <table style="margin-top:10px;">
+      <tr><th>Trabajador</th><th>Empresa</th><th>Tipo de Contrato</th><th>Vence</th><th>Días</th></tr>
+      {% for c in contratos_por_vencer %}
+      <tr>
+        <td><a href="/rrhh/personal/{{ c.employee.id }}">{{ c.employee.nombre_completo }}</a></td>
+        <td class="muted">{{ c.employee.empresa_rel.nombre if c.employee.empresa_rel else "—" }}</td>
+        <td class="muted">{{ c.tipo_contrato }}</td>
+        <td>{{ c.fecha_fin_contrato.strftime('%d/%m/%Y') }}</td>
+        <td><span class="badge {{ 'cancelado' if c.dias_restantes < 0 else ('abierto' if c.dias_restantes <= 15 else 'pendiente') }}">
+          {{ 'vencido hace ' + (c.dias_restantes * -1)|string + ' días' if c.dias_restantes < 0 else c.dias_restantes|string + ' días' }}
+        </span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Ningún contrato vence en los próximos 30 días.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
     <h2>Headcount por Empresa</h2>
     {% for nombre, count in data.headcount_empresa %}
     <div class="bar-row">

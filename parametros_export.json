@@ -1,29 +1,41 @@
 {
+  "holdings": [
+    {
+      "nombre": "DIGETEL GROUP",
+      "descripcion": "Holding por defecto (creado automáticamente).",
+      "activo": true
+    }
+  ],
   "unidades_negocio": [
     {
       "nombre": "Enjambre",
       "descripcion": "Implementación de la operatividad, apoyo a UM Servicios.",
-      "activo": true
+      "activo": true,
+      "holding_nombre": "DIGETEL GROUP"
     },
     {
       "nombre": "Evolution",
       "descripcion": "Consecución de técnicos y cuadrillas para UM Servicios.",
-      "activo": true
+      "activo": true,
+      "holding_nombre": "DIGETEL GROUP"
     },
     {
       "nombre": "UM Digital",
       "descripcion": "Aplicaciones y desarrollo tecnológico del grupo.",
-      "activo": true
+      "activo": true,
+      "holding_nombre": "DIGETEL GROUP"
     },
     {
       "nombre": "UM Infraestructura",
       "descripcion": "Venta e implementación de infraestructura para redes de fibra óptica.",
-      "activo": true
+      "activo": true,
+      "holding_nombre": "DIGETEL GROUP"
     },
     {
       "nombre": "UM Servicios",
       "descripcion": "Servicios de fibra óptica.",
-      "activo": true
+      "activo": true,
+      "holding_nombre": "DIGETEL GROUP"
     }
   ],
   "empresas": [
@@ -33,6 +45,10 @@
       "ruc": null,
       "regimen_laboral": "Régimen General",
       "representante_legal": "Juan Pérez Gómez",
+      "gerente_nombre": null,
+      "gerente_email": null,
+      "jefe_rrhh_nombre": null,
+      "jefe_rrhh_email": null,
       "activo": true,
       "unidad_negocio_nombre": "UM Servicios"
     },
@@ -42,6 +58,10 @@
       "ruc": null,
       "regimen_laboral": "Régimen General",
       "representante_legal": null,
+      "gerente_nombre": null,
+      "gerente_email": null,
+      "jefe_rrhh_nombre": null,
+      "jefe_rrhh_email": null,
       "activo": true,
       "unidad_negocio_nombre": "Enjambre"
     },
@@ -51,6 +71,10 @@
       "ruc": null,
       "regimen_laboral": "Régimen General",
       "representante_legal": null,
+      "gerente_nombre": null,
+      "gerente_email": null,
+      "jefe_rrhh_nombre": null,
+      "jefe_rrhh_email": null,
       "activo": true,
       "unidad_negocio_nombre": "Evolution"
     },
@@ -60,6 +84,10 @@
       "ruc": null,
       "regimen_laboral": "Régimen General",
       "representante_legal": "José Marquez",
+      "gerente_nombre": null,
+      "gerente_email": null,
+      "jefe_rrhh_nombre": null,
+      "jefe_rrhh_email": null,
       "activo": false,
       "unidad_negocio_nombre": "UM Infraestructura"
     },
@@ -69,10 +97,15 @@
       "ruc": null,
       "regimen_laboral": "Régimen General",
       "representante_legal": null,
+      "gerente_nombre": null,
+      "gerente_email": null,
+      "jefe_rrhh_nombre": null,
+      "jefe_rrhh_email": null,
       "activo": true,
       "unidad_negocio_nombre": "UM Servicios"
     }
   ],
+  "lineas_producto": [],
   "catalogos": [
     {
       "tipo": "area",

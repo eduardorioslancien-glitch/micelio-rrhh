@@ -333,10 +333,11 @@ def _doc_ficha(fields):
         ["Gerencia", g("gerencia"), "Cargo", g("cargo")],
         ["Sede", g("sede"), "Centro de Costos", g("centro_costos")],
         ["Jefe Inmediato", g("jefe_inmediato"), "Fecha de Ingreso", g("fecha_ingreso")],
-        ["Fecha de Contrato", g("fecha_contrato"), "Tipo de Contrato", g("tipo_contrato")],
-        ["Modalidad", g("modalidad"), "Horario", g("horario")],
-        ["Jornada", g("jornada"), "Turno", g("turno")],
-        ["Grupo Ocupacional", g("grupo_ocupacional"), "Asignación Familiar", g("asignacion_familiar")],
+        ["Fecha de Contrato", g("fecha_contrato"), "Fecha de Vencimiento", g("fecha_fin_contrato")],
+        ["Tipo de Contrato", g("tipo_contrato"), "Modalidad", g("modalidad")],
+        ["Horario", g("horario"), "Jornada", g("jornada")],
+        ["Turno", g("turno"), "Grupo Ocupacional", g("grupo_ocupacional")],
+        ["Asignación Familiar", g("asignacion_familiar"), "", ""],
         ["Remuneración (S/)", g("remuneracion"), "Bonificaciones (S/)", g("bonificaciones")],
     ]))
 

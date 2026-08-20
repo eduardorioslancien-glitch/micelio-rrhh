@@ -8,8 +8,78 @@
 <body>
 {% include "_rrhh_topbar.html" %}
 
-  <div class="home-hero">
+  <div class="home-banner">
     <img src="/static/micelio_art.png" alt="MICELIO">
+  </div>
+
+  {% if cumple_hoy %}
+  <div class="card birthday-today-card">
+    <h2>🎉 Hoy cumple años</h2>
+    {% for item in cumple_hoy %}
+    {% set e = item.employee %}
+    <div class="birthday-today">
+      {% if e.foto_path %}<img class="avatar" style="width:72px; height:72px;" src="/rrhh/personal/{{ e.id }}/foto">
+      {% else %}<div class="avatar-placeholder" style="width:72px; height:72px; font-size:26px;">{{ e.nombre_completo[0] }}</div>{% endif %}
+      <div class="birthday-today-info">
+        <h3 style="margin:0 0 4px;">{{ e.nombre_completo }}</h3>
+        <p class="muted" style="margin:0 0 6px;">{{ e.empresa_rel.nombre if e.empresa_rel else "" }}{% if (e.ficha_data or {}).get('cargo') %} · {{ (e.ficha_data or {}).get('cargo') }}{% endif %}</p>
+        <p style="margin:0;">{{ item.mensaje_rrhh }}</p>
+      </div>
+    </div>
+
+    {% if item.saludos %}
+    <div class="birthday-saludos">
+      {% for s in item.saludos %}
+      <div class="birthday-saludo"><strong>{{ s.autor }}:</strong> {{ s.mensaje }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/rrhh/saludos/{{ e.id }}" class="inline-form" style="margin-top:10px;">
+      <div class="field" style="flex:3;"><input type="text" name="mensaje" placeholder="Déjale tu saludo…" required></div>
+      <button class="btn small secondary" type="submit">Saludar</button>
+    </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="grid2-cards">
+    <div class="card">
+      <h2>Cumpleaños de la semana</h2>
+      {% if cumple_semana %}
+      <table>
+        <tr><th>Día</th><th>Trabajador</th><th>Empresa</th></tr>
+        {% for item in cumple_semana %}
+        <tr>
+          <td class="muted">{{ ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'][item.fecha.weekday()] }} {{ item.fecha.strftime('%d/%m') }}</td>
+          <td><a href="/rrhh/personal/{{ item.employee.id }}">{{ item.employee.nombre_completo }}</a></td>
+          <td class="muted">{{ item.employee.empresa_rel.nombre if item.employee.empresa_rel else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <p class="muted">Nadie más cumple años esta semana.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Anuncios</h2>
+      {% if anuncios %}
+      {% for a in anuncios %}
+      <div class="anuncio-item">
+        <h3 style="margin:0 0 4px;">{{ a.titulo }}</h3>
+        <p class="muted" style="margin:0 0 6px; font-size:12px;">
+          {{ a.created_at.strftime('%d/%m/%Y') }} ·
+          {% if a.ambito == 'holding' %}Todo el Holding{% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '' }}{% else %}{{ a.empresa.nombre if a.empresa else '' }}{% endif %}
+        </p>
+        <p style="margin:0; white-space:pre-line;">{{ a.cuerpo }}</p>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="muted">No hay anuncios publicados por ahora.</p>
+      {% endif %}
+    </div>
   </div>
 
 </div>

@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Sincroniza los catálogos de Parámetros — Unidades de Negocio, Empresas,
-Principios/Valores/Competencias, Áreas, Gerencias, Cargos y Funciones,
-Sedes, Bancos, Centros de Costo — desde una base de datos hacia otra
-(pensado para: laptop de Eduardo -> servidor de producción).
+Sincroniza los catálogos de Parámetros — Holdings, Unidades de Negocio,
+Empresas, Líneas de Producto, Principios/Valores/Competencias, Áreas,
+Gerencias, Cargos y Funciones, Sedes, Bancos, Centros de Costo — desde una
+base de datos hacia otra (pensado para: laptop de Eduardo -> servidor de
+producción). No sincroniza logos/firmas (son archivos binarios, se suben
+directo en cada entorno desde Parametrización).
 
 Solo toca estas tablas de estructura organizacional; nunca toca Personal,
 Selección, Usuarios ni ningún dato de un trabajador. Hace upsert por nombre
@@ -31,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
-    UnidadNegocio, Empresa, Catalogo, Competencia, Cargo, CargoRequisitoCompetencia,
+    Holding, UnidadNegocio, Empresa, LineaProducto, Catalogo, Competencia, Cargo, CargoRequisitoCompetencia,
 )
 
 DEFAULT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parametros_export.json")
@@ -41,18 +43,34 @@ def export_data(out_path: str):
     db = SessionLocal()
     try:
         data = {
+            "holdings": [
+                {"nombre": h.nombre, "descripcion": h.descripcion, "activo": h.activo}
+                for h in db.query(Holding).order_by(Holding.nombre).all()
+            ],
             "unidades_negocio": [
-                {"nombre": u.nombre, "descripcion": u.descripcion, "activo": u.activo}
+                {
+                    "nombre": u.nombre, "descripcion": u.descripcion, "activo": u.activo,
+                    "holding_nombre": u.holding.nombre if u.holding else None,
+                }
                 for u in db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
             ],
             "empresas": [
                 {
                     "nombre": e.nombre, "razon_social": e.razon_social, "ruc": e.ruc,
                     "regimen_laboral": e.regimen_laboral, "representante_legal": e.representante_legal,
+                    "gerente_nombre": e.gerente_nombre, "gerente_email": e.gerente_email,
+                    "jefe_rrhh_nombre": e.jefe_rrhh_nombre, "jefe_rrhh_email": e.jefe_rrhh_email,
                     "activo": e.activo,
                     "unidad_negocio_nombre": e.unidad_negocio.nombre if e.unidad_negocio else None,
                 }
                 for e in db.query(Empresa).order_by(Empresa.nombre).all()
+            ],
+            "lineas_producto": [
+                {
+                    "nombre": lp.nombre, "descripcion": lp.descripcion, "activo": lp.activo,
+                    "empresa_nombre": lp.empresa.nombre if lp.empresa else None,
+                }
+                for lp in db.query(LineaProducto).all()
             ],
             "catalogos": [
                 {"tipo": c.tipo, "nombre": c.nombre, "activo": c.activo}
@@ -102,7 +120,17 @@ def import_data(in_path: str):
 
     db = SessionLocal()
     try:
-        # 1. Unidades de Negocio
+        # 1. Holdings
+        for h in data.get("holdings", []):
+            obj = db.query(Holding).filter_by(nombre=h["nombre"]).first()
+            if not obj:
+                obj = Holding(nombre=h["nombre"])
+                db.add(obj)
+            obj.descripcion = h.get("descripcion")
+            obj.activo = h.get("activo", True)
+        db.commit()
+
+        # 2. Unidades de Negocio (resuelve holding_id por nombre)
         for u in data.get("unidades_negocio", []):
             obj = db.query(UnidadNegocio).filter_by(nombre=u["nombre"]).first()
             if not obj:
@@ -110,9 +138,13 @@ def import_data(in_path: str):
                 db.add(obj)
             obj.descripcion = u.get("descripcion")
             obj.activo = u.get("activo", True)
+            holding_nombre = u.get("holding_nombre")
+            if holding_nombre:
+                h = db.query(Holding).filter_by(nombre=holding_nombre).first()
+                obj.holding_id = h.id if h else None
         db.commit()
 
-        # 2. Empresas (resuelve unidad_negocio_id por nombre)
+        # 3. Empresas (resuelve unidad_negocio_id por nombre)
         for e in data.get("empresas", []):
             obj = db.query(Empresa).filter_by(nombre=e["nombre"]).first()
             if not obj:
@@ -122,6 +154,10 @@ def import_data(in_path: str):
             obj.ruc = e.get("ruc")
             obj.regimen_laboral = e.get("regimen_laboral")
             obj.representante_legal = e.get("representante_legal")
+            obj.gerente_nombre = e.get("gerente_nombre")
+            obj.gerente_email = e.get("gerente_email")
+            obj.jefe_rrhh_nombre = e.get("jefe_rrhh_nombre")
+            obj.jefe_rrhh_email = e.get("jefe_rrhh_email")
             obj.activo = e.get("activo", True)
             un_nombre = e.get("unidad_negocio_nombre")
             if un_nombre:
@@ -129,7 +165,22 @@ def import_data(in_path: str):
                 obj.unidad_negocio_id = un.id if un else None
         db.commit()
 
-        # 3. Catálogos (área, gerencia, sede, banco, centro_costo)
+        # 3b. Líneas de Producto (resuelve empresa_id por nombre)
+        for lp in data.get("lineas_producto", []):
+            empresa_nombre = lp.get("empresa_nombre")
+            empresa = db.query(Empresa).filter_by(nombre=empresa_nombre).first() if empresa_nombre else None
+            if not empresa:
+                print(f"  aviso: se omite línea de producto '{lp['nombre']}' (empresa '{empresa_nombre}' no encontrada)")
+                continue
+            obj = db.query(LineaProducto).filter_by(nombre=lp["nombre"], empresa_id=empresa.id).first()
+            if not obj:
+                obj = LineaProducto(nombre=lp["nombre"], empresa_id=empresa.id)
+                db.add(obj)
+            obj.descripcion = lp.get("descripcion")
+            obj.activo = lp.get("activo", True)
+        db.commit()
+
+        # 4. Catálogos (área, gerencia, sede, banco, centro_costo)
         for c in data.get("catalogos", []):
             obj = db.query(Catalogo).filter_by(tipo=c["tipo"], nombre=c["nombre"]).first()
             if not obj:

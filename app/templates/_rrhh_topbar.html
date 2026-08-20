@@ -30,21 +30,26 @@
   </details>
   {% else %}
 
+  {% if user.rol == 'administrador' %}
   <a class="nav-top-link {{ 'active' if active == 'dashboard' else '' }}" href="/rrhh/dashboard">Dashboard</a>
+  {% endif %}
 
-  {% set administracion_activos = ('personal', 'asistencia', 'parametrizacion', 'usuarios', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo') %}
+  {% set administracion_activos = ('personal', 'asistencia', 'contratos', 'parametrizacion', 'usuarios', 'holdings', 'unidades', 'empresas', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo') %}
   <details class="nav-group" {{ 'open' if active in administracion_activos else '' }}>
     <summary>Administración</summary>
     <div class="nav-children">
       <a href="/rrhh/personal" class="{{ 'active' if active == 'personal' else '' }}">Personal</a>
       <a href="/rrhh/asistencia" class="{{ 'active' if active == 'asistencia' else '' }}">Control de Asistencia</a>
+      <a href="/rrhh/contratos" class="{{ 'active' if active == 'contratos' else '' }}">Contratos / Renovaciones</a>
       {% if user.rol == 'administrador' %}
-      {% set parametrizacion_activos = ('parametrizacion', 'unidades', 'empresas', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'usuarios') %}
+      {% set parametrizacion_activos = ('parametrizacion', 'holdings', 'unidades', 'empresas', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'usuarios') %}
       <details class="nav-group nested" {{ 'open' if active in parametrizacion_activos else '' }}>
         <summary>Parámetros</summary>
         <div class="nav-children">
+          <a href="/rrhh/parametrizacion/holdings" class="{{ 'active' if active == 'holdings' else '' }}">Holdings</a>
           <a href="/rrhh/parametrizacion/unidades" class="{{ 'active' if active == 'unidades' else '' }}">Unidades de Negocio</a>
           <a href="/rrhh/parametrizacion/empresas" class="{{ 'active' if active == 'empresas' else '' }}">Empresas</a>
+          <a href="/rrhh/parametrizacion/lineas-producto" class="{{ 'active' if active == 'lineas_producto' else '' }}">Líneas de Producto</a>
           <a href="/rrhh/parametrizacion/competencias" class="{{ 'active' if active == 'competencias' else '' }}">Principios, Valores y Competencias</a>
           <a href="/rrhh/parametrizacion/catalogo/area" class="{{ 'active' if active == 'area' else '' }}">Áreas</a>
           <a href="/rrhh/parametrizacion/catalogo/gerencia" class="{{ 'active' if active == 'gerencia' else '' }}">Gerencias</a>
@@ -94,9 +99,10 @@
     </div>
   </details>
 
-  <details class="nav-group" {{ 'open' if active in ('encuestas', 'indicadores') else '' }}>
+  <details class="nav-group" {{ 'open' if active in ('encuestas', 'indicadores', 'anuncios') else '' }}>
     <summary>Clima y Cultura</summary>
     <div class="nav-children">
+      <a href="/rrhh/clima/anuncios" class="{{ 'active' if active == 'anuncios' else '' }}">Anuncios</a>
       <a href="/rrhh/clima/encuestas" class="{{ 'active' if active == 'encuestas' else '' }}">Encuesta 360</a>
       <a href="/rrhh/clima/indicadores" class="{{ 'active' if active == 'indicadores' else '' }}">Indicadores de Gestión</a>
     </div>

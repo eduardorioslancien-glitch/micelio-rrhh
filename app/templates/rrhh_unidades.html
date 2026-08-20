@@ -13,10 +13,11 @@
   <div class="card">
     <h2>Unidades de Negocio</h2>
     <table>
-      <tr><th>Nombre</th><th>Descripción</th><th>Empresas</th><th>Estado</th><th></th></tr>
+      <tr><th>Nombre</th><th>Holding</th><th>Descripción</th><th>Empresas</th><th>Estado</th><th></th></tr>
       {% for u in unidades %}
       <tr>
         <td><strong>{{ u.nombre }}</strong></td>
+        <td class="muted">{{ u.holding.nombre if u.holding else "—" }}</td>
         <td class="muted">{{ u.descripcion or "—" }}</td>
         <td>{{ u.empresas|length }}</td>
         <td><span class="badge {{ 'firmado' if u.activo else 'pendiente' }}">{{ 'activa' if u.activo else 'inactiva' }}</span></td>
@@ -25,6 +26,13 @@
             <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Editar</summary>
             <form method="post" action="/rrhh/parametrizacion/unidad/{{ u.id }}/editar" style="margin-top:8px;">
               <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ u.nombre }}" required></div>
+              <div class="field">
+                <label>Holding</label>
+                <select name="holding_id">
+                  <option value="">— Sin asignar —</option>
+                  {% for h in holdings %}<option value="{{ h.id }}" {{ 'selected' if u.holding_id == h.id else '' }}>{{ h.nombre }}</option>{% endfor %}
+                </select>
+              </div>
               <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ u.descripcion or '' }}"></div>
               <button class="btn small" type="submit">Guardar</button>
             </form>
@@ -43,13 +51,20 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="muted">Todavía no hay unidades de negocio registradas.</td></tr>
+      <tr><td colspan="6" class="muted">Todavía no hay unidades de negocio registradas.</td></tr>
       {% endfor %}
     </table>
 
     <h3 style="margin-top:22px;">Agregar unidad de negocio</h3>
     <form method="post" action="/rrhh/parametrizacion/unidad" class="inline-form">
       <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
+      <div class="field">
+        <label>Holding</label>
+        <select name="holding_id">
+          <option value="">— Sin asignar —</option>
+          {% for h in holdings %}<option value="{{ h.id }}">{{ h.nombre }}</option>{% endfor %}
+        </select>
+      </div>
       <div class="field" style="flex:2;"><label>Descripción</label><input type="text" name="descripcion"></div>
       <button class="btn" type="submit">Agregar</button>
     </form>

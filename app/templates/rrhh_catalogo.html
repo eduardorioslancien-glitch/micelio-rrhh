@@ -13,9 +13,15 @@
   <div class="card">
     <h2>{{ label }}s</h2>
     <table>
-      <tr><th>Nombre</th><th>Estado</th><th></th></tr>
+      <tr>{% if tipo == 'area' %}<th>Logo</th>{% endif %}<th>Nombre</th><th>Estado</th><th></th></tr>
       {% for item in items %}
       <tr>
+        {% if tipo == 'area' %}
+        <td>
+          {% if item.logo_path %}<img src="/rrhh/parametrizacion/catalogo/{{ item.id }}/logo" style="max-width:50px; max-height:30px;">
+          {% else %}<span class="muted" style="font-size:11px;">Sin logo</span>{% endif %}
+        </td>
+        {% endif %}
         <td><strong>{{ item.nombre }}</strong></td>
         <td><span class="badge {{ 'firmado' if item.activo else 'pendiente' }}">{{ 'activo' if item.activo else 'inactivo' }}</span></td>
         <td style="display:flex; gap:6px;">
@@ -25,6 +31,12 @@
               <input type="text" name="nombre" value="{{ item.nombre }}" required>
               <button class="btn small" type="submit">Guardar</button>
             </form>
+            {% if tipo == 'area' %}
+            <form method="post" action="/rrhh/parametrizacion/catalogo/{{ item.id }}/logo" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+              <input type="file" name="logo" accept=".png" required style="width:auto;">
+              <button class="btn small secondary" type="submit">Subir logo (PNG)</button>
+            </form>
+            {% endif %}
           </details>
           <form method="post" action="/rrhh/parametrizacion/catalogo/{{ item.id }}/toggle" style="display:inline;">
             <button class="btn small secondary" type="submit">{{ 'Desactivar' if item.activo else 'Activar' }}</button>
@@ -40,7 +52,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="3" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
+      <tr><td colspan="{{ 4 if tipo == 'area' else 3 }}" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
       {% endfor %}
     </table>
 

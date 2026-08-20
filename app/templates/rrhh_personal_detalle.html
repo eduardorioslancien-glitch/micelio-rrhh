@@ -129,8 +129,38 @@
       <tr><td><strong>Centro de Costos</strong></td><td>{{ f.get('centro_costos','—') }}</td></tr>
       <tr><td><strong>Tipo de contrato</strong></td><td>{{ f.get('tipo_contrato','—') }}</td></tr>
       <tr><td><strong>Fecha de contrato</strong></td><td>{{ f.get('fecha_contrato','—') }}</td></tr>
+      <tr><td><strong>Fecha de vencimiento</strong></td><td>{{ f.get('fecha_fin_contrato','—') }}</td></tr>
       <tr><td><strong>Fecha de ingreso</strong></td><td>{{ f.get('fecha_ingreso','—') }}</td></tr>
       <tr><td><strong>Jefe inmediato</strong></td><td>{{ f.get('jefe_inmediato','—') }}</td></tr>
+    </table>
+
+    <div class="section-title" style="margin-top:18px;">Organigrama (según Cargos y Funciones)</div>
+    <p class="muted" style="margin:4px 0 10px;">Se calcula solo, a partir del cargo de esta persona y de quién más
+      en la misma empresa tiene el cargo correspondiente — sirve para saber a quién debería llegarle una
+      evaluación de desempeño.</p>
+    <table>
+      <tr>
+        <td style="width:220px;"><strong>Reporta a</strong></td>
+        <td>
+          {% if organigrama.jefe %}
+          <a href="/rrhh/personal/{{ organigrama.jefe.id }}">{{ organigrama.jefe.nombre_completo }}</a> ({{ organigrama.jefe_cargo }})
+          {% elif organigrama.jefe_cargo %}
+          <span class="muted">Nadie con el cargo "{{ organigrama.jefe_cargo }}" está registrado todavía en esta empresa.</span>
+          {% else %}
+          <span class="muted">Este cargo no tiene un cargo superior definido en el MOF.</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Tiene a su cargo</strong></td>
+        <td>
+          {% if organigrama.subordinados %}
+          {% for s in organigrama.subordinados %}<a href="/rrhh/personal/{{ s.id }}">{{ s.nombre_completo }}</a>{{ ", " if not loop.last else "" }}{% endfor %}
+          {% else %}
+          <span class="muted">Nadie por ahora.</span>
+          {% endif %}
+        </td>
+      </tr>
     </table>
 
     {% if can_edit %}
@@ -139,6 +169,7 @@
         <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Renovar contrato</summary>
         <form method="post" action="/rrhh/personal/{{ e.id }}/renovar-contrato" class="inline-form" style="margin-top:10px;">
           <div class="field"><label>Nueva fecha de contrato</label><input type="date" name="nueva_fecha_contrato" required></div>
+          <div class="field"><label>Nueva fecha de vencimiento</label><input type="date" name="nueva_fecha_fin_contrato"></div>
           <div class="field">
             <label>Tipo de contrato</label>
             <select name="tipo_contrato">
@@ -154,11 +185,13 @@
 
       {% if renovaciones %}
       <table style="margin-top:14px;">
-        <tr><th>Fecha anterior</th><th>Fecha nueva</th><th>Tipo</th><th>Registrado por</th><th>Fecha de registro</th></tr>
+        <tr><th>Fecha anterior</th><th>Fecha nueva</th><th>Vencía</th><th>Vence ahora</th><th>Tipo</th><th>Registrado por</th><th>Fecha de registro</th></tr>
         {% for r in renovaciones %}
         <tr>
           <td class="muted">{{ r.fecha_contrato_anterior or '—' }}</td>
           <td>{{ r.fecha_contrato_nueva }}</td>
+          <td class="muted">{{ r.fecha_fin_contrato_anterior or '—' }}</td>
+          <td>{{ r.fecha_fin_contrato_nueva or '—' }}</td>
           <td class="muted">{{ r.tipo_contrato or '—' }}</td>
           <td class="muted">{{ r.registrado_por or '—' }}</td>
           <td class="muted">{{ r.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
