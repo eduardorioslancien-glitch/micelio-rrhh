@@ -9,6 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
+COPY sync_parametrizacion.py parametros_export.json ./
 
 # Carpetas de datos en tiempo de ejecución (la app también las crea sola al
 # arrancar, esto solo asegura que existan desde el primer build).
