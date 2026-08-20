@@ -682,6 +682,7 @@ class Anuncio(Base):
     id = Column(Integer, primary_key=True)
     titulo = Column(String(200), nullable=False)
     cuerpo = Column(Text, nullable=False)
+    imagen_path = Column(String(500), nullable=True)  # imagen referencial opcional
     ambito = Column(String(20), nullable=False, default="holding")  # uno de AMBITO_ANUNCIO_KEYS
     holding_id = Column(Integer, ForeignKey("holdings.id"), nullable=True)
     unidad_negocio_id = Column(Integer, ForeignKey("unidades_negocio.id"), nullable=True)

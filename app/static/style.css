@@ -277,7 +277,7 @@ canvas.sigpad {
   display: flex; align-items: center; justify-content: center;
   background: #05070a; border-radius: 8px; padding: 14px; margin-bottom: 16px;
 }
-.home-banner img { max-height: 90px; max-width: 100%; object-fit: contain; }
+.home-banner img { max-height: 4cm; max-width: 100%; width: auto; object-fit: contain; }
 .birthday-today-card { background: linear-gradient(135deg, var(--light2), white); border: 1px solid var(--border); }
 .birthday-today { display: flex; gap: 16px; align-items: center; }
 .birthday-today-info { flex: 1; }
@@ -286,6 +286,8 @@ canvas.sigpad {
 .grid2-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .anuncio-item { padding: 10px 0; border-bottom: 1px solid var(--light); }
 .anuncio-item:last-child { border-bottom: none; }
+.anuncio-card { margin-bottom: 14px; }
+.anuncio-imagen { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; }
 @media (max-width: 900px) {
   .grid2-cards { grid-template-columns: 1fr; }
   .birthday-today { flex-direction: column; align-items: flex-start; }

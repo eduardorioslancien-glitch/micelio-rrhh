@@ -14,6 +14,8 @@
 </div>
 
 <nav class="sidebar">
+  <a class="nav-top-link nav-home {{ 'active' if active == 'home' else '' }}" href="/rrhh">🏠 Inicio</a>
+
   {% if user.rol == 'usuario' %}
   {# Punto de acceso restringido: solo su propia ficha (Administración > Personal) y Capacitación. #}
   <a class="nav-top-link active" href="/rrhh/mi-perfil">Mi Ficha de Personal</a>

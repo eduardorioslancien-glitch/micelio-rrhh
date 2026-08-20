@@ -37,6 +37,7 @@ _MIGRACIONES_COLUMNAS = [
     ("catalogos", "logo_path", "VARCHAR(500)"),
     ("contrato_renovaciones", "fecha_fin_contrato_anterior", "VARCHAR(20)"),
     ("contrato_renovaciones", "fecha_fin_contrato_nueva", "VARCHAR(20)"),
+    ("anuncios", "imagen_path", "VARCHAR(500)"),
 ]
 
 

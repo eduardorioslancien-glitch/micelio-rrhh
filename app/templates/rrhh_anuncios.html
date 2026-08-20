@@ -13,9 +13,12 @@
     <p class="muted">Se muestran en la pantalla de inicio de todos a quienes les corresponda según el ámbito
       elegido (todo el Holding, una Unidad de Negocio, o una Empresa puntual).</p>
     <table>
-      <tr><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Estado</th><th></th></tr>
+      <tr><th></th><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Estado</th><th></th></tr>
       {% for a in anuncios %}
       <tr>
+        <td>
+          {% if a.imagen_path %}<img src="/rrhh/clima/anuncios/{{ a.id }}/imagen" style="max-width:60px; max-height:40px; object-fit:cover;">{% endif %}
+        </td>
         <td><strong>{{ a.titulo }}</strong><br><span class="muted">{{ a.cuerpo[:80] }}{{ '…' if a.cuerpo|length > 80 else '' }}</span></td>
         <td class="muted">
           {% if a.ambito == 'holding' %}Todo el Holding{% if a.holding %} ({{ a.holding.nombre }}){% endif %}
@@ -37,12 +40,12 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="muted">Todavía no hay anuncios publicados.</td></tr>
+      <tr><td colspan="7" class="muted">Todavía no hay anuncios publicados.</td></tr>
       {% endfor %}
     </table>
 
     <h3 style="margin-top:22px;">Publicar anuncio</h3>
-    <form method="post" action="/rrhh/clima/anuncios/nuevo" id="form-anuncio">
+    <form method="post" action="/rrhh/clima/anuncios/nuevo" id="form-anuncio" enctype="multipart/form-data">
       <div class="grid2">
         <div class="field"><label>Título</label><input type="text" name="titulo" required></div>
         <div class="field">
@@ -73,6 +76,7 @@
           {% for e in empresas %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}
         </select>
       </div>
+      <div class="field"><label>Imagen referencial (opcional)</label><input type="file" name="imagen" accept="image/*"></div>
       <div class="field"><label>Mensaje</label><textarea name="cuerpo" rows="4" required></textarea></div>
       <button class="btn" type="submit">Publicar</button>
     </form>

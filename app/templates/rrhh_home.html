@@ -44,43 +44,40 @@
   </div>
   {% endif %}
 
-  <div class="grid2-cards">
-    <div class="card">
-      <h2>Cumpleaños de la semana</h2>
-      {% if cumple_semana %}
-      <table>
-        <tr><th>Día</th><th>Trabajador</th><th>Empresa</th></tr>
-        {% for item in cumple_semana %}
-        <tr>
-          <td class="muted">{{ ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'][item.fecha.weekday()] }} {{ item.fecha.strftime('%d/%m') }}</td>
-          <td><a href="/rrhh/personal/{{ item.employee.id }}">{{ item.employee.nombre_completo }}</a></td>
-          <td class="muted">{{ item.employee.empresa_rel.nombre if item.employee.empresa_rel else "—" }}</td>
-        </tr>
-        {% endfor %}
-      </table>
-      {% else %}
-      <p class="muted">Nadie más cumple años esta semana.</p>
-      {% endif %}
-    </div>
-
-    <div class="card">
-      <h2>Anuncios</h2>
-      {% if anuncios %}
-      {% for a in anuncios %}
-      <div class="anuncio-item">
-        <h3 style="margin:0 0 4px;">{{ a.titulo }}</h3>
-        <p class="muted" style="margin:0 0 6px; font-size:12px;">
-          {{ a.created_at.strftime('%d/%m/%Y') }} ·
-          {% if a.ambito == 'holding' %}Todo el Holding{% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '' }}{% else %}{{ a.empresa.nombre if a.empresa else '' }}{% endif %}
-        </p>
-        <p style="margin:0; white-space:pre-line;">{{ a.cuerpo }}</p>
-      </div>
+  <div class="card">
+    <h2>Cumpleaños de la semana</h2>
+    {% if cumple_semana %}
+    <table>
+      <tr><th>Día</th><th>Trabajador</th><th>Empresa</th></tr>
+      {% for item in cumple_semana %}
+      <tr>
+        <td class="muted">{{ ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'][item.fecha.weekday()] }} {{ item.fecha.strftime('%d/%m') }}</td>
+        <td><a href="/rrhh/personal/{{ item.employee.id }}">{{ item.employee.nombre_completo }}</a></td>
+        <td class="muted">{{ item.employee.empresa_rel.nombre if item.employee.empresa_rel else "—" }}</td>
+      </tr>
       {% endfor %}
-      {% else %}
-      <p class="muted">No hay anuncios publicados por ahora.</p>
-      {% endif %}
-    </div>
+    </table>
+    {% else %}
+    <p class="muted">Nadie más cumple años esta semana.</p>
+    {% endif %}
   </div>
+
+  <h2 style="margin:20px 4px 4px;">Anuncios</h2>
+  {% if anuncios %}
+  {% for a in anuncios %}
+  <div class="card anuncio-card">
+    {% if a.imagen_path %}<img class="anuncio-imagen" src="/rrhh/clima/anuncios/{{ a.id }}/imagen" alt="{{ a.titulo }}">{% endif %}
+    <h3 style="margin:0 0 4px;">{{ a.titulo }}</h3>
+    <p class="muted" style="margin:0 0 8px; font-size:12px;">
+      {{ a.created_at.strftime('%d/%m/%Y') }} ·
+      {% if a.ambito == 'holding' %}Todo el Holding{% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '' }}{% else %}{{ a.empresa.nombre if a.empresa else '' }}{% endif %}
+    </p>
+    <p style="margin:0; white-space:pre-line;">{{ a.cuerpo }}</p>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="card"><p class="muted">No hay anuncios publicados por ahora.</p></div>
+  {% endif %}
 
 </div>
 </body>

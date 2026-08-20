@@ -11,7 +11,7 @@ responda por su cuenta queda como posible siguiente paso.
 import datetime
 import os
 
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -28,6 +28,8 @@ from .rrhh import _ctx
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+ANUNCIOS_IMG_DIR = os.path.join(BASE_DIR, "anuncios_imagenes")
+os.makedirs(ANUNCIOS_IMG_DIR, exist_ok=True)
 router = APIRouter()
 
 ESTADO_ENCUESTA_LABELS = dict(ESTADOS_ENCUESTA)
@@ -145,25 +147,48 @@ def anuncios_list(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/rrhh/clima/anuncios/nuevo")
-def anuncios_crear(titulo: str = Form(...), cuerpo: str = Form(...), ambito: str = Form(...),
-                    holding_id: str = Form(""), unidad_negocio_id: str = Form(""), empresa_id: str = Form(""),
-                    db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+async def anuncios_crear(titulo: str = Form(...), cuerpo: str = Form(...), ambito: str = Form(...),
+                          holding_id: str = Form(""), unidad_negocio_id: str = Form(""), empresa_id: str = Form(""),
+                          imagen: UploadFile = File(None),
+                          db: Session = Depends(get_db),
+                          user: User = Depends(require_role("administrador", "conta", "opeoka"))):
     if ambito not in AMBITO_ANUNCIO_KEYS:
         raise HTTPException(400, "Ámbito inválido.")
     if ambito == "unidad" and not unidad_negocio_id:
         raise HTTPException(400, "Elige la unidad de negocio.")
     if ambito == "empresa" and not empresa_id:
         raise HTTPException(400, "Elige la empresa.")
-    db.add(Anuncio(
+
+    anuncio = Anuncio(
         titulo=titulo.strip(), cuerpo=cuerpo.strip(), ambito=ambito,
         holding_id=int(holding_id) if (ambito == "holding" and holding_id) else None,
         unidad_negocio_id=int(unidad_negocio_id) if ambito == "unidad" else None,
         empresa_id=int(empresa_id) if ambito == "empresa" else None,
         autor=user.nombre_completo,
-    ))
+    )
+    db.add(anuncio)
     db.commit()
+    db.refresh(anuncio)
+
+    if imagen and imagen.filename:
+        ext = os.path.splitext(imagen.filename)[1].lower() or ".jpg"
+        dest = os.path.join(ANUNCIOS_IMG_DIR, f"{anuncio.id}{ext}")
+        content = await imagen.read()
+        with open(dest, "wb") as f:
+            f.write(content)
+        anuncio.imagen_path = dest
+        db.commit()
+
     return RedirectResponse("/rrhh/clima/anuncios", status_code=303)
+
+
+@router.get("/rrhh/clima/anuncios/{anuncio_id}/imagen")
+def anuncio_imagen(anuncio_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador", "conta", "opeoka", "usuario"))):
+    from fastapi.responses import FileResponse
+    a = db.query(Anuncio).get(anuncio_id)
+    if not a or not a.imagen_path or not os.path.exists(a.imagen_path):
+        raise HTTPException(404)
+    return FileResponse(a.imagen_path)
 
 
 @router.post("/rrhh/clima/anuncios/{anuncio_id}/toggle")
