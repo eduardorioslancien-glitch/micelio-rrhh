@@ -1,0 +1,673 @@
+{
+  "unidades_negocio": [
+    {
+      "nombre": "Enjambre",
+      "descripcion": "Implementación de la operatividad, apoyo a UM Servicios.",
+      "activo": true
+    },
+    {
+      "nombre": "Evolution",
+      "descripcion": "Consecución de técnicos y cuadrillas para UM Servicios.",
+      "activo": true
+    },
+    {
+      "nombre": "UM Digital",
+      "descripcion": "Aplicaciones y desarrollo tecnológico del grupo.",
+      "activo": true
+    },
+    {
+      "nombre": "UM Infraestructura",
+      "descripcion": "Venta e implementación de infraestructura para redes de fibra óptica.",
+      "activo": true
+    },
+    {
+      "nombre": "UM Servicios",
+      "descripcion": "Servicios de fibra óptica.",
+      "activo": true
+    }
+  ],
+  "empresas": [
+    {
+      "nombre": "Digetel",
+      "razon_social": null,
+      "ruc": null,
+      "regimen_laboral": "Régimen General",
+      "representante_legal": "Juan Pérez Gómez",
+      "activo": true,
+      "unidad_negocio_nombre": "UM Servicios"
+    },
+    {
+      "nombre": "Enjambre",
+      "razon_social": null,
+      "ruc": null,
+      "regimen_laboral": "Régimen General",
+      "representante_legal": null,
+      "activo": true,
+      "unidad_negocio_nombre": "Enjambre"
+    },
+    {
+      "nombre": "Evolution",
+      "razon_social": null,
+      "ruc": null,
+      "regimen_laboral": "Régimen General",
+      "representante_legal": null,
+      "activo": true,
+      "unidad_negocio_nombre": "Evolution"
+    },
+    {
+      "nombre": "Innova+",
+      "razon_social": null,
+      "ruc": null,
+      "regimen_laboral": "Régimen General",
+      "representante_legal": "José Marquez",
+      "activo": false,
+      "unidad_negocio_nombre": "UM Infraestructura"
+    },
+    {
+      "nombre": "Intecno",
+      "razon_social": null,
+      "ruc": null,
+      "regimen_laboral": "Régimen General",
+      "representante_legal": null,
+      "activo": true,
+      "unidad_negocio_nombre": "UM Servicios"
+    }
+  ],
+  "catalogos": [
+    {
+      "tipo": "area",
+      "nombre": "CX",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "GROWTH",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "LEGAL",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "OKA",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "RECURSOS HUMANOS",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "SISTEMAS",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "TESORERIA",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "BBVA Perú",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "BanBif",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco Falabella",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco GNB Perú",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco Pichincha",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco Ripley",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco Santander Perú",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco de Crédito del Perú (BCP)",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Banco de la Nación",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Citibank Perú",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Interbank",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Mibanco",
+      "activo": true
+    },
+    {
+      "tipo": "banco",
+      "nombre": "Scotiabank Perú",
+      "activo": true
+    },
+    {
+      "tipo": "centro_costo",
+      "nombre": "UMD",
+      "activo": true
+    },
+    {
+      "tipo": "centro_costo",
+      "nombre": "UMI",
+      "activo": true
+    },
+    {
+      "tipo": "centro_costo",
+      "nombre": "UMS",
+      "activo": true
+    },
+    {
+      "tipo": "gerencia",
+      "nombre": "GERENCIA GENERAL",
+      "activo": true
+    },
+    {
+      "tipo": "gerencia",
+      "nombre": "GERENCIA UM DIGITAL",
+      "activo": true
+    },
+    {
+      "tipo": "gerencia",
+      "nombre": "GERENCIA UM INFRAESTRUCTURA",
+      "activo": true
+    },
+    {
+      "tipo": "gerencia",
+      "nombre": "GERENCIA UM SERVICIOS",
+      "activo": true
+    },
+    {
+      "tipo": "gerencia",
+      "nombre": "GROWTH",
+      "activo": true
+    },
+    {
+      "tipo": "sede",
+      "nombre": "LIMA NORTE",
+      "activo": true
+    },
+    {
+      "tipo": "sede",
+      "nombre": "LIMA SUR",
+      "activo": true
+    }
+  ],
+  "competencias": [
+    {
+      "tipo": "competencia",
+      "nombre": "ADAPTABILIDAD",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "COMUNICACION",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "ETICA",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "GESTION DE CONFLICTOS",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "GESTION DE PROCESOS",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "ORIENTACION A RESULTADOS",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "Orientación al Cliente",
+      "descripcion": "Capacidad de identificar y satisfacer las necesidades del cliente interno y externo.",
+      "nivel_1": "Atiende consultas básicas sin anticipar necesidades.",
+      "nivel_2": "Identifica necesidades explícitas del cliente y responde adecuadamente.",
+      "nivel_3": "Anticipa necesidades no expresadas y propone soluciones.",
+      "nivel_4": "Diseña estrategias de servicio que elevan la experiencia del cliente en toda la organización.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "PLANIFICACION",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "RESOLUCION DE PROBLEMAS",
+      "descripcion": "Capacidad de mantener la calma y encontrar soluciones justas bajo situaciones de alta presión o conflicto.",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "TOMA DE DECISIONES",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "TRABAJO EN EQUIPO",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "APRENDIZAJE Y MEJORA CONTINUA",
+      "descripcion": "Toda desviación, error o experiencia significativa debe convertirse en aprendizaje y, cuando corresponda, elevar el estándar o mejorar el sistema. ¿Qué aprendemos de esto y qué debemos cambiar para evitar que vuelva a ocurrir?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "COLABORACION SISTEMICA",
+      "descripcion": "Buscamos optimizar el resultado de DG de manera integral, evitando decisiones que mejoren un área mientras generan un perjuicio mayor para otra o para el resultado global.  ¿A quién afecta esta decisión y qué impacto tendrá en el resultado de DG?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "DECISIONES BASADAS EN LA EXPERIENCIA",
+      "descripcion": "Las decisiones deben apoyarse en información y hechos relevantes, combinando datos con criterio, experiencia y responsabilidad humana. ¿Qué sabemos, qué evidencia tenemos y qué información nos falta?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "EXCELENCIA DESDE EL ORIGEN",
+      "descripcion": "Prevenir, hacer bien y asegurar la calidad desde el inicio genera mayor valor que corregir errores posteriormente. ¿Qué podemos hacer ahora para evitar que este error ocurra después?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "INNOVACION",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "ORIENTACION AL CLIENTE",
+      "descripcion": "Las decisiones deben generar valor para el cliente y considerar el impacto de nuestras acciones sobre su experiencia y confianza. ¿Qué valor generamos para el cliente con esta decisión y qué impacto tendrá en su experiencia?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "RESPONSABILIDAD POR EL RESULTADO",
+      "descripcion": "Cada persona responde por el resultado de sus decisiones y compromisos, no únicamente por ejecutar la tarea que le corresponde. ¿Estoy resolviendo el problema o simplemente cumpliendo con mi parte?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "principio",
+      "nombre": "SER INTEGROS",
+      "descripcion": "Actuamos de manera ética, legal, coherente y transparente. Una decisión correcta debe poder ser explicada y defendida frente a quienes puedan verse afectados. ¿Podemos explicar y defender esta decisión de manera abierta y honesta?",
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "APRENDIZAJE CONTINUO",
+      "descripcion": "Disposición permanente para adquirir conocimientos, desarrollar habilidades, aprender de la experiencia y transformar los aprendizajes en mejoras concretas para el desempeño individual y organizacional.",
+      "nivel_1": "Está dispuesto a aprender y recibe de manera positiva las indicaciones y retroalimentación. Adquiere los conocimientos necesarios para desempeñar adecuadamente su función.",
+      "nivel_2": "Busca activamente nuevos conocimientos y aplica lo aprendido para mejorar su desempeño. Solicita retroalimentación y aprende de sus errores.",
+      "nivel_3": "Se mantiene actualizado en temas relacionados con su función. Comparte conocimientos y propone nuevas formas de hacer las cosas a partir de lo aprendido.",
+      "nivel_4": "Se convierte en fuente de aprendizaje para otros. Promueve una cultura de aprendizaje, cuestiona constructivamente las prácticas existentes y transforma conocimientos en innovación y mejora organizacional.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "COLABORACION",
+      "descripcion": "Disposición para trabajar de manera coordinada y constructiva con otras personas, compartiendo información, conocimientos y recursos para alcanzar objetivos comunes, por encima de intereses exclusivamente individuales.",
+      "nivel_1": "Mantiene una actitud respetuosa y cumple con las responsabilidades que corresponden al trabajo en equipo. Brinda apoyo cuando se le solicita.",
+      "nivel_2": "Coopera activamente con sus compañeros, comparte información relevante y contribuye al cumplimiento de los objetivos del equipo.",
+      "nivel_3": "Facilita la integración entre personas y áreas. Ayuda a resolver dificultades, comparte conocimientos y prioriza los objetivos colectivos cuando corresponde.",
+      "nivel_4": "Construye equipos cohesionados y colaborativos. Conecta personas y áreas, genera sinergias y moviliza a otros hacia objetivos comunes, incluso en contextos de presión o conflicto.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "CONFIANZA",
+      "descripcion": "Capacidad de generar seguridad y credibilidad mediante el cumplimiento de compromisos, la coherencia entre lo que se dice y lo que se hace, el respeto hacia los demás y la confiabilidad en el manejo de información y situaciones.",
+      "nivel_1": "Cumple lo que promete, comunica información relevante y mantiene una relación respetuosa con compañeros, clientes y superiores.",
+      "nivel_2": "Es una persona en quien otros pueden confiar. Mantiene sus compromisos, actúa con coherencia y maneja adecuadamente la información que recibe.",
+      "nivel_3": "Genera confianza incluso en situaciones difíciles. Escucha, comunica con claridad, cumple acuerdos y contribuye a resolver conflictos preservando las relaciones.",
+      "nivel_4": "Es reconocido como una persona altamente confiable. Genera seguridad en equipos y clientes, fortalece relaciones de largo plazo y contribuye activamente a construir una cultura de confianza.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "EXCELENCIA",
+      "descripcion": "Orientación permanente a realizar el trabajo con altos estándares de calidad, buscando superar las expectativas, mejorar los resultados y generar valor para los clientes, compañeros y organización.",
+      "nivel_1": "Realiza sus funciones respetando los procedimientos y estándares establecidos. Se preocupa por entregar un trabajo correcto y sin errores evitables.",
+      "nivel_2": "Busca mejorar la calidad y eficiencia de su trabajo. Detecta errores, los corrige y procura entregar resultados que cumplan o superen las expectativas.",
+      "nivel_3": "Identifica oportunidades de mejora y propone soluciones que elevan la calidad, productividad o experiencia del cliente. No se conforma con resultados simplemente aceptables.",
+      "nivel_4": "Eleva los estándares de la organización. Inspira a otros a buscar mejores resultados, impulsa mejoras significativas y convierte la excelencia en una forma habitual de trabajar.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "INTEGRIDAD",
+      "descripcion": "Actuar de manera ética, coherente y responsable, haciendo lo correcto aun cuando no exista supervisión, respetando las normas, principios y valores de la organización y evitando cualquier conducta que pueda afectar la confianza o reputación institucional.",
+      "nivel_1": "Respeta las normas, procedimientos y políticas de la organización. Actúa correctamente y evita conductas que puedan perjudicar a la empresa o a otras personas.",
+      "nivel_2": "Mantiene una conducta ética y coherente aun cuando enfrenta presión o dificultades. Reconoce sus errores y actúa de acuerdo con los principios establecidos.",
+      "nivel_3": "Defiende los principios de la organización frente a situaciones complejas. Identifica riesgos éticos y actúa oportunamente para prevenir conductas inadecuadas.",
+      "nivel_4": "Es un referente ético dentro de la organización. Promueve activamente comportamientos íntegros, enfrenta situaciones incorrectas con criterio y fortalece una cultura basada en principios y valores.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "RESPONSABILIDAD",
+      "descripcion": "Capacidad de asumir las obligaciones, compromisos y resultados propios del puesto, cumpliendo con los acuerdos establecidos, utilizando adecuadamente los recursos de la organización y haciéndose cargo de las consecuencias de las propias decisiones y acciones.",
+      "nivel_1": "Cumple horarios, funciones, procedimientos y compromisos establecidos. Entrega sus tareas dentro de los plazos acordados. Informa oportunamente cuando no puede cumplir algo.",
+      "nivel_2": "Organiza y prioriza su trabajo de manera autónoma. Hace seguimiento a sus compromisos. Anticipa dificultades y busca soluciones antes de que afecten sus resultados.",
+      "nivel_3": "Asume responsabilidad por los resultados, no solamente por las tareas. Toma iniciativa ante problemas, propone soluciones y mantiene el compromiso aun bajo presión. Ayuda a otros a cumplir sus responsabilidades.",
+      "nivel_4": "Es reconocido como una persona altamente confiable y comprometida. Se anticipa a riesgos, asume desafíos adicionales y moviliza a otros hacia una cultura de cumplimiento, responsabilidad",
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "valor",
+      "nombre": "TRANSPARENCIA",
+      "descripcion": "Actuar y comunicar con claridad, honestidad y apertura, proporcionando información veraz y oportuna, especialmente cuando existen errores, dificultades, riesgos o situaciones que puedan afectar las decisiones de la organización.",
+      "nivel_1": "Proporciona información verdadera y cumple con los canales y procedimientos establecidos para comunicarla. No oculta deliberadamente errores o situaciones relevantes.",
+      "nivel_2": "Comunica de manera oportuna y clara avances, dificultades y resultados. Reconoce errores y proporciona la información necesaria para tomar decisiones adecuadas.",
+      "nivel_3": "Anticipa información relevante antes de que se convierta en un problema. Comunica situaciones difíciles con objetividad y propone alternativas para abordarlas.",
+      "nivel_4": "Genera un entorno donde las personas pueden comunicar problemas, errores y riesgos sin temor injustificado. Promueve una cultura de información abierta, responsable y orientada a la solución.",
+      "conductas_no_deseadas": null,
+      "activo": true
+    }
+  ],
+  "cargos": [
+    {
+      "nombre": "ASISTENTE DE TESORERIA",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "JEFE DE ADMIN. Y FINANZAS"
+    },
+    {
+      "nombre": "Analista de Recursos Humanos",
+      "descripcion": "Responsable de dar soporte administrativo al área de RRHH, procesos de selección y administración de personal.",
+      "funciones": [
+        "Gestionar el proceso de selección de personal",
+        "Mantener actualizada la base de datos de personal",
+        "Apoyar en la elaboración de reportes de RRHH"
+      ],
+      "responsabilidades": [
+        "Cumplir los plazos de los procesos de selección",
+        "Resguardar la confidencialidad de los datos de personal"
+      ],
+      "requisito_academico": "Bachiller en Administración, Psicología o carreras afines",
+      "requisito_experiencia": "Mínimo 1 año en posiciones similares",
+      "requisito_conocimientos": "Legislación laboral peruana, Excel intermedio",
+      "activo": true,
+      "reporta_a_nombre": "JEFE DE RECURSOS HUMANOS"
+    },
+    {
+      "nombre": "CALIDAD",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE DE GROWTH"
+    },
+    {
+      "nombre": "DOTACION",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE DE GROWTH"
+    },
+    {
+      "nombre": "GERENTE DE GROWTH",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE GENERAL"
+    },
+    {
+      "nombre": "GERENTE GENERAL",
+      "descripcion": "El Gerente General es la máxima autoridad ejecutiva responsable de dirigir, planificar y supervisar la operación global de la empresa. Su objetivo principal es garantizar la rentabilidad, el crecimiento sostenible y la competitividad de la organización en el mercado, reportando directamente a la Junta Directiva o al Directorio, y traduciendo la visión estratégica en resultados financieros y comerciales concretos.",
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "INVENTARIOS",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE DE GROWTH"
+    },
+    {
+      "nombre": "JEFE DE ADMIN. Y FINANZAS",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "JEFE DE RECURSOS HUMANOS",
+      "descripcion": "El Jefe de Recursos Humanos es el responsable de planificar, dirigir y coordinar las funciones del departamento de Capital Humano para maximizar el talento estratégico de la organización. Su objetivo principal es alinear las políticas de recursos humanos con las metas comerciales de la empresa, garantizando al mismo tiempo un ambiente laboral productivo, seguro y en cumplimiento con las normativas legales vigentes",
+      "funciones": [
+        "Políticas internas: Diseñar, implementar y actualizar el manual de procedimientos y políticas de la empresa.",
+        "Cumplimiento legal: Asegurar que todas las prácticas laborales cumplan con las leyes locales (contratos, jornadas, despidos, seguridad y salud en el trabajo).",
+        "Presupuesto: Elaborar y controlar el presupuesto anual del departamento de Recursos Humanos.",
+        "Reclutamiento: Supervisar los procesos de selección y contratación para asegurar la incorporación del talento idóneo.",
+        "Onboarding: Diseñar programas de inducción que faciliten la rápida adaptación de los nuevos empleados.",
+        "Planes de carrera: Crear estructuras de desarrollo profesional y sucesión para puestos clave."
+      ],
+      "responsabilidades": [],
+      "requisito_academico": "Licenciatura en Administración de Empresas, Psicología Organizacional, Relaciones Laborales, Derecho o carreras afines.\r\nDeseable contar con una Maestría o Diplomado en Gestión de Recursos Humanos o Dirección de Personas.",
+      "requisito_experiencia": "Mínimo de 3 a 5 años en posiciones de supervisión o jefatura dentro del área de RR.HH.",
+      "requisito_conocimientos": "Dominio avanzado de la legislación laboral vigente de la región.\r\nManejo de sistemas de gestión de RR.HH.\r\nManejo de indicadores clave de gestión (KPIs de capital humano)",
+      "activo": true,
+      "reporta_a_nombre": "GERENTE GENERAL"
+    },
+    {
+      "nombre": "SOPORTE TI",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE DE GROWTH"
+    },
+    {
+      "nombre": "VALORIZACION",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE DE GROWTH"
+    }
+  ],
+  "cargo_requisitos": [
+    {
+      "cargo_nombre": "Analista de Recursos Humanos",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "Orientación al Cliente",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "JEFE DE RECURSOS HUMANOS",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "Orientación al Cliente",
+      "nivel_requerido": 1
+    },
+    {
+      "cargo_nombre": "JEFE DE RECURSOS HUMANOS",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "nivel_requerido": 4
+    }
+  ]
+}
