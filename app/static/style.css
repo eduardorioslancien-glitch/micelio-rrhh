@@ -287,7 +287,7 @@ canvas.sigpad {
 .anuncio-item { padding: 10px 0; border-bottom: 1px solid var(--light); }
 .anuncio-item:last-child { border-bottom: none; }
 .anuncio-card { margin-bottom: 14px; }
-.anuncio-imagen { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; }
+.anuncio-imagen { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; background: var(--light2); border-radius: 6px; margin-bottom: 10px; }
 @media (max-width: 900px) {
   .grid2-cards { grid-template-columns: 1fr; }
   .birthday-today { flex-direction: column; align-items: flex-start; }
