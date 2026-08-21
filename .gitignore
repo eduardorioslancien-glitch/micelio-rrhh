@@ -19,11 +19,13 @@ app/uploads/*
 app/fotos/*
 app/signatures/*
 app/firmas_empresa/*
+app/anuncios_imagenes/*
 !app/generated/.gitkeep
 !app/uploads/.gitkeep
 !app/fotos/.gitkeep
 !app/signatures/.gitkeep
 !app/firmas_empresa/.gitkeep
+!app/anuncios_imagenes/.gitkeep
 
 ejemplos_generados_en_prueba/
 
