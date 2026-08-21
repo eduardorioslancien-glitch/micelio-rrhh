@@ -38,6 +38,8 @@ body {
   box-shadow: 0 1px 4px rgba(20,40,90,0.08);
   padding: 22px 26px;
   margin-bottom: 20px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 h2 { color: var(--navy-dark); font-size: 18px; margin-top: 0; }
 h3 { color: var(--navy-dark); font-size: 15px; }
