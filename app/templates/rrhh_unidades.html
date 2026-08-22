@@ -40,7 +40,7 @@
             </div>
           </details>
           <form method="post" action="/rrhh/parametrizacion/unidad/{{ u.id }}/toggle" style="display:inline;">
-            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if u.activo else 'Activar' }}"></button>
+            <button class="icon-btn {{ 'icon-btn-desactivar' if u.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if u.activo else 'Activar' }}"></button>
           </form>
           {% if not bloqueadas[u.id] %}
           <form method="post" action="/rrhh/parametrizacion/unidad/{{ u.id }}/eliminar" style="display:inline;"

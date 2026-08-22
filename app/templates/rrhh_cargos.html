@@ -25,7 +25,7 @@
         <td class="icon-btn-row">
           <a class="icon-btn icon-btn-editar" href="/rrhh/parametrizacion/cargo/{{ c.id }}" title="Editar / Abrir MOF"></a>
           <form method="post" action="/rrhh/parametrizacion/cargo/{{ c.id }}/toggle" style="display:inline;">
-            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if c.activo else 'Activar' }}"></button>
+            <button class="icon-btn {{ 'icon-btn-desactivar' if c.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if c.activo else 'Activar' }}"></button>
           </form>
           {% if not bloqueados[c.id] %}
           <form method="post" action="/rrhh/parametrizacion/cargo/{{ c.id }}/eliminar" style="display:inline;"

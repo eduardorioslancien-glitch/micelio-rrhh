@@ -28,7 +28,7 @@
         <td class="icon-btn-row">
           <a class="icon-btn icon-btn-editar" href="/rrhh/parametrizacion/empresa/{{ e.id }}/editar" title="Editar"></a>
           <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/toggle" style="display:inline;">
-            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if e.activo else 'Activar' }}"></button>
+            <button class="icon-btn {{ 'icon-btn-desactivar' if e.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if e.activo else 'Activar' }}"></button>
           </form>
           {% if not bloqueadas[e.id] %}
           <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/eliminar" style="display:inline;"

@@ -39,7 +39,7 @@
             </div>
           </details>
           <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/toggle" style="display:inline;">
-            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if lp.activo else 'Activar' }}"></button>
+            <button class="icon-btn {{ 'icon-btn-desactivar' if lp.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if lp.activo else 'Activar' }}"></button>
           </form>
           <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar {{ lp.nombre }}? No se puede deshacer.');">

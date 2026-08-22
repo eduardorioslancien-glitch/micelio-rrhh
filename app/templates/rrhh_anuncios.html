@@ -57,7 +57,7 @@
         {% if user.rol == 'administrador' %}
         <td class="icon-btn-row">
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/toggle" style="display:inline;">
-            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if a.activo else 'Activar' }}"></button>
+            <button class="icon-btn {{ 'icon-btn-desactivar' if a.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if a.activo else 'Activar' }}"></button>
           </form>
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar este anuncio? No se puede deshacer.');">
