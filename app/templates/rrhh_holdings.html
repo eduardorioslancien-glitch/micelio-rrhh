@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Holdings — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -27,7 +27,7 @@
         <td><span class="badge {{ 'firmado' if h.activo else 'pendiente' }}">{{ 'activo' if h.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
           <details>
-            <summary class="icon-btn" style="display:inline-flex;" title="Editar">✏️</summary>
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
             <div class="edit-popover">
               <div class="edit-popover-section">Datos</div>
               <form method="post" action="/rrhh/parametrizacion/holding/{{ h.id }}/editar">
@@ -43,12 +43,12 @@
             </div>
           </details>
           <form method="post" action="/rrhh/parametrizacion/holding/{{ h.id }}/toggle" style="display:inline;">
-            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if h.activo else 'Activar' }}">{{ '⏸️' if h.activo else '▶️' }}</button>
+            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if h.activo else 'Activar' }}"></button>
           </form>
           {% if not bloqueados[h.id] %}
           <form method="post" action="/rrhh/parametrizacion/holding/{{ h.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar este holding? No se puede deshacer.');">
-            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
           </form>
           {% else %}
           <span class="muted" style="font-size:11px;">Tiene unidades asignadas</span>

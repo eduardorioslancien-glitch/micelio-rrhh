@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Líneas de Producto — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -23,7 +23,7 @@
         <td><span class="badge {{ 'firmado' if lp.activo else 'pendiente' }}">{{ 'activa' if lp.activo else 'inactiva' }}</span></td>
         <td class="icon-btn-row">
           <details>
-            <summary class="icon-btn" style="display:inline-flex;" title="Editar">✏️</summary>
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
             <div class="edit-popover">
               <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/editar">
                 <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ lp.nombre }}" required></div>
@@ -39,11 +39,11 @@
             </div>
           </details>
           <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/toggle" style="display:inline;">
-            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if lp.activo else 'Activar' }}">{{ '⏸️' if lp.activo else '▶️' }}</button>
+            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if lp.activo else 'Activar' }}"></button>
           </form>
           <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar {{ lp.nombre }}? No se puede deshacer.');">
-            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
           </form>
         </td>
       </tr>

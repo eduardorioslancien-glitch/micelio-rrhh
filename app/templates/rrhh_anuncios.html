@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Anuncios — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -57,11 +57,11 @@
         {% if user.rol == 'administrador' %}
         <td class="icon-btn-row">
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/toggle" style="display:inline;">
-            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if a.activo else 'Activar' }}">{{ '⏸️' if a.activo else '▶️' }}</button>
+            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if a.activo else 'Activar' }}"></button>
           </form>
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar este anuncio? No se puede deshacer.');">
-            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
           </form>
         </td>
         {% endif %}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Principios, Valores y Competencias — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -23,7 +23,7 @@
         <td><span class="badge {{ 'firmado' if item.activo else 'pendiente' }}">{{ 'activo' if item.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
           <details>
-            <summary class="icon-btn" style="display:inline-flex;" title="Editar">✏️</summary>
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
             <div class="edit-popover" style="min-width:340px;">
               <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/editar">
                 <input type="hidden" name="tipo" value="{{ item.tipo }}">
@@ -41,11 +41,11 @@
             </div>
           </details>
           <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/toggle" style="display:inline;">
-            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if item.activo else 'Activar' }}">{{ '⏸️' if item.activo else '▶️' }}</button>
+            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if item.activo else 'Activar' }}"></button>
           </form>
           <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar {{ item.nombre }}? No se puede deshacer.');">
-            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
           </form>
         </td>
       </tr>

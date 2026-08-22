@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Empresas — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -26,14 +26,14 @@
         <td>{{ e.ruc or "—" }}</td>
         <td><span class="badge {{ 'firmado' if e.activo else 'pendiente' }}">{{ 'activa' if e.activo else 'inactiva' }}</span></td>
         <td class="icon-btn-row">
-          <a class="icon-btn" href="/rrhh/parametrizacion/empresa/{{ e.id }}/editar" title="Editar">✏️</a>
+          <a class="icon-btn icon-btn-editar" href="/rrhh/parametrizacion/empresa/{{ e.id }}/editar" title="Editar"></a>
           <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/toggle" style="display:inline;">
-            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if e.activo else 'Activar' }}">{{ '⏸️' if e.activo else '▶️' }}</button>
+            <button class="icon-btn icon-btn-toggle" type="submit" title="{{ 'Desactivar' if e.activo else 'Activar' }}"></button>
           </form>
           {% if not bloqueadas[e.id] %}
           <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar esta empresa? No se puede deshacer.');">
-            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
           </form>
           {% else %}
           <span class="muted" style="font-size:11px;">Tiene trabajadores activos</span>
@@ -80,7 +80,7 @@
       </div>
       <button class="btn" type="submit">Agregar empresa</button>
     </form>
-    <p class="hint">La firma y el logo se suben después de crear la empresa, desde "Editar" (✏️).</p>
+    <p class="hint">La firma y el logo se suben después de crear la empresa, desde "Editar".</p>
   </div>
 
 <script>
