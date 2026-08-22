@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ e.nombre }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=7">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/parametrizacion/empresas">&larr; Volver a Empresas</a>
+
+  {% if request.query_params.get('ok') %}<div class="alert-ok" style="margin-top:14px;">Guardado.</div>{% endif %}
+
+  <div class="card" style="margin-top:14px;">
+    <h2>{{ e.nombre }}</h2>
+    <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/editar">
+      <div class="section-title">Datos generales</div>
+      <div class="grid3">
+        <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ e.nombre }}" required></div>
+        <div class="field"><label>Razón Social</label><input type="text" name="razon_social" value="{{ e.razon_social or '' }}"></div>
+        <div class="field"><label>RUC</label><input type="text" name="ruc" value="{{ e.ruc or '' }}"></div>
+        <div class="field">
+          <label>Holding</label>
+          <select id="editar_holding_id">
+            <option value="">— Todos —</option>
+            {% for h in holdings %}<option value="{{ h.id }}" {{ 'selected' if e.unidad_negocio and e.unidad_negocio.holding_id == h.id else '' }}>{{ h.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Unidad de Negocio</label>
+          <select name="unidad_negocio_id" id="editar_unidad_negocio_id" required>
+            {% for u in unidades %}<option value="{{ u.id }}" data-holding="{{ u.holding_id or '' }}" {{ 'selected' if e.unidad_negocio_id == u.id else '' }}>{{ u.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Régimen Laboral</label>
+          <select name="regimen_laboral">
+            <option value="">Seleccionar…</option>
+            {% for r in regimenes %}<option {{ 'selected' if e.regimen_laboral == r else '' }}>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Representante Legal</label><input type="text" name="representante_legal" value="{{ e.representante_legal or '' }}"></div>
+      </div>
+
+      <div class="section-title">Contacto para renovaciones de contrato</div>
+      <div class="grid2">
+        <div class="field"><label>Gerente de la empresa</label><input type="text" name="gerente_nombre" value="{{ e.gerente_nombre or '' }}"></div>
+        <div class="field"><label>Correo del gerente</label><input type="email" name="gerente_email" value="{{ e.gerente_email or '' }}"></div>
+        <div class="field"><label>Jefe de RR.HH. de la empresa</label><input type="text" name="jefe_rrhh_nombre" value="{{ e.jefe_rrhh_nombre or '' }}"></div>
+        <div class="field"><label>Correo del jefe de RR.HH.</label><input type="email" name="jefe_rrhh_email" value="{{ e.jefe_rrhh_email or '' }}"></div>
+      </div>
+
+      <button class="btn" type="submit" style="margin-top:10px;">Guardar cambios</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="margin-top:0;">Logo de la empresa</div>
+    <div style="display:flex; align-items:center; gap:18px;">
+      {% if e.logo_path %}<img src="/rrhh/parametrizacion/empresa/{{ e.id }}/logo" style="max-width:140px; max-height:80px; object-fit:contain; border:1px solid var(--border); border-radius:6px; padding:6px;">
+      {% else %}<span class="muted">Todavía no tiene logo.</span>{% endif %}
+      <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/logo" enctype="multipart/form-data" style="display:flex; gap:8px; align-items:center;">
+        <input type="file" name="logo" accept=".png,.jpg,.jpeg" required>
+        <button class="btn small secondary" type="submit">Subir logo (PNG o JPG)</button>
+      </form>
+    </div>
+
+    <div class="section-title">Firma del representante legal</div>
+    <p class="muted" style="margin-top:-6px;">Se imprime en los documentos legales que firma el trabajador (Declaración Jurada, Autorización de Datos, etc.) — debe ser un PNG sin fondo.</p>
+    <div style="display:flex; align-items:center; gap:18px;">
+      {% if e.firma_representante_path %}<img src="/rrhh/parametrizacion/empresa/{{ e.id }}/firma" style="max-width:140px; max-height:80px; object-fit:contain; border:1px solid var(--border); border-radius:6px; padding:6px;">
+      {% else %}<span class="muted">Todavía no tiene firma cargada.</span>{% endif %}
+      <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/firma" enctype="multipart/form-data" style="display:flex; gap:8px; align-items:center;">
+        <input type="file" name="firma" accept=".png" required>
+        <button class="btn small secondary" type="submit">Subir firma (PNG sin fondo)</button>
+      </form>
+    </div>
+  </div>
+
+<script>
+  function filtrarUnidadPorHolding() {
+    const holding = document.getElementById("editar_holding_id").value;
+    const sel = document.getElementById("editar_unidad_negocio_id");
+    let siguevalida = false;
+    Array.from(sel.options).forEach(opt => {
+      const visible = !holding || opt.dataset.holding === holding;
+      opt.hidden = !visible;
+      if (visible && opt.selected) siguevalida = true;
+    });
+    if (!siguevalida) sel.value = "";
+  }
+  document.getElementById("editar_holding_id").addEventListener("change", filtrarUnidadPorHolding);
+  filtrarUnidadPorHolding();
+</script>
+</div>
+</body>
+</html>

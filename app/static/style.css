@@ -87,7 +87,34 @@ a.btn, button.btn {
 a.btn.secondary, button.btn.secondary {
   background: white; color: var(--navy); border: 1px solid var(--navy);
 }
-a.btn.small { padding: 5px 10px; font-size: 12px; }
+a.btn.small, button.btn.small { padding: 5px 10px; font-size: 12px; }
+/* Punto 7 del pedido: botones de acción (editar/activar/eliminar/etc.) como
+   ícono, con el texto de la acción como tooltip nativo (atributo title). */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: none;
+  border-radius: 6px; background: white; border: 1px solid var(--border);
+  color: var(--navy-dark); cursor: pointer; font-size: 15px; line-height: 1;
+  text-decoration: none; padding: 0;
+}
+.icon-btn:hover { background: var(--light2); border-color: var(--navy); }
+.icon-btn.danger { border-color: var(--red); color: var(--red); }
+.icon-btn.danger:hover { background: var(--red-bg); }
+.icon-btn-row { display: flex; gap: 6px; align-items: center; }
+/* Punto 8 del pedido: el desplegable de "Editar" en Parámetros se veía
+   desordenado (formularios y botones de subir archivo mezclados sin
+   separación) — este contenedor + títulos de sección lo ordenan. */
+.edit-popover {
+  margin-top: 8px; padding: 14px; min-width: 300px;
+  background: var(--light2); border: 1px solid var(--border); border-radius: 8px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.edit-popover-section {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--gray);
+  letter-spacing: .03em; border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: -2px;
+}
+.edit-popover-section:first-child { margin-top: 0; }
+.details-inline { position: relative; }
 input[type=text], input[type=email], input[type=date], input[type=password], select, textarea {
   width: 100%;
   padding: 9px 10px;
@@ -281,6 +308,9 @@ canvas.sigpad {
 }
 .home-banner img { max-height: 4cm; max-width: 100%; width: auto; object-fit: contain; }
 .birthday-today-card { background: linear-gradient(135deg, var(--light2), white); border: 1px solid var(--border); }
+.birthday-entry { margin-bottom: 26px; }
+.birthday-entry:last-child { margin-bottom: 0; }
+.birthday-entry-sep { margin-top: 26px; padding-top: 26px; border-top: 1px dashed var(--border); }
 .birthday-today { display: flex; gap: 16px; align-items: center; }
 .birthday-today-info { flex: 1; }
 .birthday-saludos { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 6px; }

@@ -8,18 +8,6 @@
   ],
   "unidades_negocio": [
     {
-      "nombre": "Enjambre",
-      "descripcion": "Implementación de la operatividad, apoyo a UM Servicios.",
-      "activo": true,
-      "holding_nombre": "DIGETEL GROUP"
-    },
-    {
-      "nombre": "Evolution",
-      "descripcion": "Consecución de técnicos y cuadrillas para UM Servicios.",
-      "activo": true,
-      "holding_nombre": "DIGETEL GROUP"
-    },
-    {
       "nombre": "UM Digital",
       "descripcion": "Aplicaciones y desarrollo tecnológico del grupo.",
       "activo": true,
@@ -41,29 +29,16 @@
   "empresas": [
     {
       "nombre": "Digetel",
-      "razon_social": null,
+      "razon_social": "Digetel Soluciones S.A.C.",
       "ruc": null,
-      "regimen_laboral": "Régimen General",
-      "representante_legal": "Juan Pérez Gómez",
-      "gerente_nombre": null,
-      "gerente_email": null,
-      "jefe_rrhh_nombre": null,
-      "jefe_rrhh_email": null,
+      "regimen_laboral": "Pequeña Empresa (MYPE)",
+      "representante_legal": "Ana Hernandez",
+      "gerente_nombre": "Ana Hernandez",
+      "gerente_email": "erios@digetelgroup.com",
+      "jefe_rrhh_nombre": "Eduardo Ríos Lancién",
+      "jefe_rrhh_email": "EduardoRiosLancien@gmail.com",
       "activo": true,
       "unidad_negocio_nombre": "UM Servicios"
-    },
-    {
-      "nombre": "Enjambre",
-      "razon_social": null,
-      "ruc": null,
-      "regimen_laboral": "Régimen General",
-      "representante_legal": null,
-      "gerente_nombre": null,
-      "gerente_email": null,
-      "jefe_rrhh_nombre": null,
-      "jefe_rrhh_email": null,
-      "activo": true,
-      "unidad_negocio_nombre": "Enjambre"
     },
     {
       "nombre": "Evolution",
@@ -76,40 +51,78 @@
       "jefe_rrhh_nombre": null,
       "jefe_rrhh_email": null,
       "activo": true,
-      "unidad_negocio_nombre": "Evolution"
-    },
-    {
-      "nombre": "Innova+",
-      "razon_social": null,
-      "ruc": null,
-      "regimen_laboral": "Régimen General",
-      "representante_legal": "José Marquez",
-      "gerente_nombre": null,
-      "gerente_email": null,
-      "jefe_rrhh_nombre": null,
-      "jefe_rrhh_email": null,
-      "activo": false,
-      "unidad_negocio_nombre": "UM Infraestructura"
+      "unidad_negocio_nombre": "UM Digital"
     },
     {
       "nombre": "Intecno",
       "razon_social": null,
       "ruc": null,
-      "regimen_laboral": "Régimen General",
-      "representante_legal": null,
-      "gerente_nombre": null,
-      "gerente_email": null,
-      "jefe_rrhh_nombre": null,
-      "jefe_rrhh_email": null,
+      "regimen_laboral": "Microempresa (MYPE)",
+      "representante_legal": "Carlos Vidal",
+      "gerente_nombre": "Carlos Vidal",
+      "gerente_email": "erios@digetelgroup.com",
+      "jefe_rrhh_nombre": "Eduardo Ríos Lancién",
+      "jefe_rrhh_email": "EduardoRiosLancien@gmail.com",
       "activo": true,
       "unidad_negocio_nombre": "UM Servicios"
     }
   ],
-  "lineas_producto": [],
+  "lineas_producto": [
+    {
+      "nombre": "ENJAMBRE",
+      "descripcion": "Plataforma de Producción de Ultima Milla.",
+      "activo": true,
+      "empresa_nombre": "Digetel"
+    },
+    {
+      "nombre": "MAN",
+      "descripcion": "Reclutamiento y Selección de Tecnicos de Ultima Milla.",
+      "activo": true,
+      "empresa_nombre": "Evolution"
+    },
+    {
+      "nombre": "VENTAS IA",
+      "descripcion": "Proyecto de Ventas Inteligentes",
+      "activo": true,
+      "empresa_nombre": "Evolution"
+    },
+    {
+      "nombre": "INSTALACIONES WIN",
+      "descripcion": "Instalaciones de Fibra Optica con Win en Digetel",
+      "activo": true,
+      "empresa_nombre": "Digetel"
+    },
+    {
+      "nombre": "INSTALACIONES CLARO",
+      "descripcion": "Instalaciones de Fibra Optica con Claro en Intecno",
+      "activo": true,
+      "empresa_nombre": "Intecno"
+    }
+  ],
   "catalogos": [
     {
       "tipo": "area",
+      "nombre": "ADMINISTRACION Y FINANZAS",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "CALIDAD",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "COMERCIAL",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "CX",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "DOTACION",
       "activo": true
     },
     {
@@ -119,7 +132,17 @@
     },
     {
       "tipo": "area",
+      "nombre": "INVENTARIOS",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "LEGAL",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "MARKETING",
       "activo": true
     },
     {
@@ -129,17 +152,32 @@
     },
     {
       "tipo": "area",
+      "nombre": "PRODUCTO",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "RECLUTAMIENTO",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "RECURSOS HUMANOS",
       "activo": true
     },
     {
       "tipo": "area",
-      "nombre": "SISTEMAS",
+      "nombre": "SOPORTE TI",
       "activo": true
     },
     {
       "tipo": "area",
       "nombre": "TESORERIA",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "VALORIZACION",
       "activo": true
     },
     {

@@ -11,9 +11,10 @@
   <div class="card">
     <h2>Anuncios</h2>
     <p class="muted">Se muestran en la pantalla de inicio de todos a quienes les corresponda según el ámbito
-      elegido (todo el Holding, una Unidad de Negocio, o una Empresa puntual).</p>
+      elegido (todo el Holding, una Unidad de Negocio, o una Empresa puntual). Solo Administrador puede
+      publicar, desactivar o eliminar anuncios.</p>
     <table>
-      <tr><th></th><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Estado</th><th></th></tr>
+      <tr><th></th><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Vistas</th><th>Me gusta</th><th>Estado</th>{% if user.rol == 'administrador' %}<th></th>{% endif %}</tr>
       {% for a in anuncios %}
       <tr>
         <td>
@@ -28,22 +29,49 @@
         </td>
         <td class="muted">{{ a.autor or '—' }}</td>
         <td class="muted">{{ a.created_at.strftime('%d/%m/%Y') }}</td>
+        <td>
+          <details>
+            <summary style="cursor:pointer;">👁 {{ vistas_por_anuncio.get(a.id, [])|length }}</summary>
+            <div class="edit-popover" style="max-height:200px; overflow-y:auto;">
+              {% for v in vistas_por_anuncio.get(a.id, []) %}
+              <div style="font-size:12px;">{{ v.user.nombre_completo }} <span class="muted">— {{ v.viewed_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
+              {% else %}
+              <span class="muted" style="font-size:12px;">Nadie lo ha visto todavía.</span>
+              {% endfor %}
+            </div>
+          </details>
+        </td>
+        <td>
+          <details>
+            <summary style="cursor:pointer;">💙 {{ likes_por_anuncio.get(a.id, [])|length }}</summary>
+            <div class="edit-popover" style="max-height:200px; overflow-y:auto;">
+              {% for l in likes_por_anuncio.get(a.id, []) %}
+              <div style="font-size:12px;">{{ l.user.nombre_completo }} <span class="muted">— {{ l.created_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
+              {% else %}
+              <span class="muted" style="font-size:12px;">Nadie le dio me gusta todavía.</span>
+              {% endfor %}
+            </div>
+          </details>
+        </td>
         <td><span class="badge {{ 'firmado' if a.activo else 'pendiente' }}">{{ 'activo' if a.activo else 'inactivo' }}</span></td>
-        <td style="display:flex; gap:6px;">
+        {% if user.rol == 'administrador' %}
+        <td class="icon-btn-row">
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/toggle" style="display:inline;">
-            <button class="btn small secondary" type="submit">{{ 'Desactivar' if a.activo else 'Activar' }}</button>
+            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if a.activo else 'Activar' }}">{{ '⏸️' if a.activo else '▶️' }}</button>
           </form>
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar este anuncio? No se puede deshacer.');">
-            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
           </form>
         </td>
+        {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="7" class="muted">Todavía no hay anuncios publicados.</td></tr>
+      <tr><td colspan="9" class="muted">Todavía no hay anuncios publicados.</td></tr>
       {% endfor %}
     </table>
 
+    {% if user.rol == 'administrador' %}
     <h3 style="margin-top:22px;">Publicar anuncio</h3>
     <form method="post" action="/rrhh/clima/anuncios/nuevo" id="form-anuncio" enctype="multipart/form-data">
       <div class="grid2">
@@ -80,6 +108,7 @@
       <div class="field"><label>Mensaje</label><textarea name="cuerpo" rows="4" required></textarea></div>
       <button class="btn" type="submit">Publicar</button>
     </form>
+    {% endif %}
   </div>
 
 <script>
@@ -89,7 +118,7 @@
     document.getElementById("campo_unidad").style.display = v === "unidad" ? "block" : "none";
     document.getElementById("campo_empresa").style.display = v === "empresa" ? "block" : "none";
   }
-  ajustarAmbito();
+  if (document.getElementById("ambito")) ajustarAmbito();
 </script>
 </div>
 </body>

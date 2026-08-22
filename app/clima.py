@@ -20,10 +20,10 @@ from .database import get_db
 from . import kpis as kpis_module
 from .models import (
     EncuestaCampana, EncuestaRespuesta, Employee, User,
-    Anuncio, Holding, UnidadNegocio, Empresa,
+    Anuncio, Holding, UnidadNegocio, Empresa, AnuncioVista, AnuncioLike,
     ESTADOS_ENCUESTA, RELACIONES_ENCUESTA, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
-from .auth import require_role
+from .auth import require_role, require_login
 from .rrhh import _ctx
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -140,9 +140,17 @@ def anuncios_list(request: Request, db: Session = Depends(get_db),
     holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     unidades = db.query(UnidadNegocio).filter(UnidadNegocio.activo == True).order_by(UnidadNegocio.nombre).all()  # noqa: E712
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    # Punto 4 del pedido: vistas/likes — el detalle de quién solo se arma acá
+    # (ruta restringida a administrador/conta/opeoka), nunca se le manda al
+    # resto de los usuarios.
+    vistas_por_anuncio, likes_por_anuncio = {}, {}
+    for a in anuncios:
+        vistas_por_anuncio[a.id] = db.query(AnuncioVista).filter(AnuncioVista.anuncio_id == a.id).order_by(AnuncioVista.viewed_at.desc()).all()
+        likes_por_anuncio[a.id] = db.query(AnuncioLike).filter(AnuncioLike.anuncio_id == a.id).order_by(AnuncioLike.created_at.desc()).all()
     return templates.TemplateResponse(request, "rrhh_anuncios.html", _ctx(
         request, user, anuncios=anuncios, ambitos=AMBITOS_ANUNCIO,
-        holdings=holdings, unidades=unidades, empresas=empresas, active="anuncios",
+        holdings=holdings, unidades=unidades, empresas=empresas,
+        vistas_por_anuncio=vistas_por_anuncio, likes_por_anuncio=likes_por_anuncio, active="anuncios",
     ))
 
 
@@ -151,7 +159,7 @@ async def anuncios_crear(titulo: str = Form(...), cuerpo: str = Form(...), ambit
                           holding_id: str = Form(""), unidad_negocio_id: str = Form(""), empresa_id: str = Form(""),
                           imagen: UploadFile = File(None),
                           db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                          user: User = Depends(require_role("administrador"))):
     if ambito not in AMBITO_ANUNCIO_KEYS:
         raise HTTPException(400, "Ámbito inválido.")
     if ambito == "unidad" and not unidad_negocio_id:
@@ -193,7 +201,7 @@ def anuncio_imagen(anuncio_id: int, db: Session = Depends(get_db), user: User = 
 
 @router.post("/rrhh/clima/anuncios/{anuncio_id}/toggle")
 def anuncios_toggle(anuncio_id: int, db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                     user: User = Depends(require_role("administrador"))):
     a = db.query(Anuncio).get(anuncio_id)
     if a:
         a.activo = not a.activo
@@ -201,9 +209,25 @@ def anuncios_toggle(anuncio_id: int, db: Session = Depends(get_db),
     return RedirectResponse("/rrhh/clima/anuncios", status_code=303)
 
 
+@router.post("/rrhh/clima/anuncios/{anuncio_id}/like")
+def anuncios_like_toggle(anuncio_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
+    """Punto 4 del pedido: cualquiera puede dar/quitar "me gusta"; solo
+    administrador/conta/opeoka ven quién lo dio (ver anuncios_list)."""
+    if not db.query(Anuncio).get(anuncio_id):
+        raise HTTPException(404)
+    existente = db.query(AnuncioLike).filter(
+        AnuncioLike.anuncio_id == anuncio_id, AnuncioLike.user_id == user.id).first()
+    if existente:
+        db.delete(existente)
+    else:
+        db.add(AnuncioLike(anuncio_id=anuncio_id, user_id=user.id))
+    db.commit()
+    return RedirectResponse("/rrhh", status_code=303)
+
+
 @router.post("/rrhh/clima/anuncios/{anuncio_id}/eliminar")
 def anuncios_eliminar(anuncio_id: int, db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                       user: User = Depends(require_role("administrador"))):
     a = db.query(Anuncio).get(anuncio_id)
     if a:
         db.delete(a)

@@ -16,7 +16,7 @@ from .database import get_db
 from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion,
-    Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion,
+    Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -168,8 +168,23 @@ def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depe
             SaludoCumpleanos.employee_id == item["employee"].id
         ).order_by(SaludoCumpleanos.created_at.desc()).all()
     anuncios = _anuncios_visibles(db, user)
+    # Punto 4 del pedido: se marca "visto" la primera vez que a este usuario
+    # le aparece el anuncio en su pantalla de inicio; y se arma el contador
+    # de "me gusta" (más si este usuario ya lo dio) para el corazón.
+    likes_usuario = {r.anuncio_id for r in db.query(AnuncioLike).filter(AnuncioLike.user_id == user.id).all()}
+    conteos = {}
+    for a in anuncios:
+        if not db.query(AnuncioVista).filter(AnuncioVista.anuncio_id == a.id, AnuncioVista.user_id == user.id).first():
+            db.add(AnuncioVista(anuncio_id=a.id, user_id=user.id))
+        conteos[a.id] = {
+            "vistas": db.query(AnuncioVista).filter(AnuncioVista.anuncio_id == a.id).count(),
+            "likes": db.query(AnuncioLike).filter(AnuncioLike.anuncio_id == a.id).count(),
+            "le_gusta": a.id in likes_usuario,
+        }
+    db.commit()
     return templates.TemplateResponse(request, "rrhh_home.html", _ctx(
-        request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios, active="home",
+        request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios,
+        conteos_anuncio=conteos, active="home",
     ))
 
 
@@ -542,9 +557,10 @@ def empresas_list(request: Request, error: str = "", db: Session = Depends(get_d
                    user: User = Depends(require_role("administrador"))):
     empresas = db.query(Empresa).order_by(Empresa.nombre).all()
     unidades = db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
+    holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     bloqueadas = {e.id: _empresa_tiene_activos(db, e.id) for e in empresas}
     return templates.TemplateResponse(request, "rrhh_empresas.html", _ctx(
-        request, user, empresas=empresas, unidades=unidades, regimenes=REGIMENES_LABORALES,
+        request, user, empresas=empresas, unidades=unidades, holdings=holdings, regimenes=REGIMENES_LABORALES,
         bloqueadas=bloqueadas, error=error, active="empresas",
     ))
 
@@ -567,6 +583,20 @@ def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: st
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
 
 
+@router.get("/rrhh/parametrizacion/empresa/{empresa_id}/editar", response_class=HTMLResponse)
+def editar_empresa_form(request: Request, empresa_id: int, db: Session = Depends(get_db),
+                         user: User = Depends(require_role("administrador"))):
+    e = db.query(Empresa).get(empresa_id)
+    if not e:
+        raise HTTPException(404)
+    holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
+    unidades = db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
+    return templates.TemplateResponse(request, "rrhh_empresa_editar.html", _ctx(
+        request, user, e=e, holdings=holdings, unidades=unidades, regimenes=REGIMENES_LABORALES,
+        active="empresas",
+    ))
+
+
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/editar")
 def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str = Form(""), ruc: str = Form(""),
                     unidad_negocio_id: int = Form(...), regimen_laboral: str = Form(""),
@@ -587,7 +617,7 @@ def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str =
         e.jefe_rrhh_nombre = jefe_rrhh_nombre.strip() or None
         e.jefe_rrhh_email = jefe_rrhh_email.strip() or None
         db.commit()
-    return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
+    return RedirectResponse(f"/rrhh/parametrizacion/empresa/{empresa_id}/editar?ok=1", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/firma")
@@ -602,7 +632,7 @@ async def subir_firma_empresa(empresa_id: int, firma: UploadFile = File(...), db
         f.write(content)
     e.firma_representante_path = dest
     db.commit()
-    return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
+    return RedirectResponse(f"/rrhh/parametrizacion/empresa/{empresa_id}/editar?ok=1", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/logo")
@@ -617,7 +647,7 @@ async def subir_logo_empresa(empresa_id: int, logo: UploadFile = File(...), db: 
         f.write(content)
     e.logo_path = dest
     db.commit()
-    return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
+    return RedirectResponse(f"/rrhh/parametrizacion/empresa/{empresa_id}/editar?ok=1", status_code=303)
 
 
 @router.get("/rrhh/parametrizacion/empresa/{empresa_id}/logo")
@@ -1122,22 +1152,15 @@ def personal_export(empresa_id: str = "", unidad_id: str = "", q: str = "", esta
     )
 
 
-@router.get("/rrhh/personal/nuevo", response_class=HTMLResponse)
-def personal_nuevo_form(request: Request, db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador", "opeoka"))):
-    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
-    return templates.TemplateResponse(request, "rrhh_personal_nuevo.html", _ctx(request, user, empresas=empresas, active="personal"))
-
-
 @router.post("/rrhh/personal/nuevo")
-def personal_nuevo_crear(nombre_completo: str = Form(...), email: str = Form(""), empresa_id: str = Form(""),
-                          db: Session = Depends(get_db), user: User = Depends(require_role("administrador", "opeoka"))):
-    empresa = db.query(Empresa).get(int(empresa_id)) if empresa_id else None
-    emp = Employee(
-        nombre_completo=nombre_completo.strip(), email=email.strip() or None,
-        empresa_id=empresa.id if empresa else None, empresa=empresa.nombre if empresa else None,
-        estado="activo", status="completo",
-    )
+def personal_nuevo_crear(db: Session = Depends(get_db),
+                          user: User = Depends(require_role("administrador", "opeoka"))):
+    """Punto 9.2 del pedido: "Agregar trabajador" ya no pasa por un mini
+    formulario de nombre/correo/empresa — crea el registro en blanco y va
+    directo a la ficha completa, donde se llena todo desde cero (el nombre
+    se termina de definir ahí, en la Sección I). Es POST (no GET) para que
+    un simple link/prefetch del navegador no cree trabajadores fantasma."""
+    emp = Employee(nombre_completo="(Nuevo trabajador)", estado="activo", status="completo")
     db.add(emp)
     db.commit()
     db.refresh(emp)

@@ -20,16 +20,18 @@
         <td>{% if u.employee %}<a href="/rrhh/personal/{{ u.employee.id }}">{{ u.employee.nombre_completo }}</a>{% else %}—{% endif %}</td>
         <td class="muted">{{ u.last_login_at.strftime('%d/%m/%Y %H:%M') if u.last_login_at else 'nunca' }}</td>
         <td><span class="badge {{ 'firmado' if u.activo else 'pendiente' }}">{{ 'activo' if u.activo else 'inactivo' }}</span></td>
-        <td>
+        <td class="icon-btn-row">
           <form method="post" action="/rrhh/usuarios/{{ u.id }}/toggle" style="display:inline;">
-            <button class="btn small secondary" type="submit" {{ 'disabled' if u.id == user.id else '' }}>{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if u.activo else 'Activar' }}" {{ 'disabled' if u.id == user.id else '' }}>{{ '⏸️' if u.activo else '▶️' }}</button>
           </form>
           <details style="display:inline-block;">
-            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Resetear contraseña</summary>
-            <form method="post" action="/rrhh/usuarios/{{ u.id }}/reset-password" style="margin-top:6px;">
-              <input type="password" name="nueva_password" placeholder="Nueva contraseña" required style="width:160px;">
-              <button class="btn small" type="submit">Guardar</button>
-            </form>
+            <summary class="icon-btn" style="display:inline-flex;" title="Resetear contraseña">🔑</summary>
+            <div class="edit-popover">
+              <form method="post" action="/rrhh/usuarios/{{ u.id }}/reset-password">
+                <input type="password" name="nueva_password" placeholder="Nueva contraseña" required>
+                <button class="btn small" type="submit" style="margin-top:8px;">Guardar</button>
+              </form>
+            </div>
           </details>
         </td>
       </tr>

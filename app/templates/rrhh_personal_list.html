@@ -35,39 +35,43 @@
       </form>
     </details>
     {% endif %}
-    <form method="get" action="/rrhh/personal" class="inline-form" style="margin-bottom:16px;">
-      <div class="field"><label>Buscar</label><input type="text" name="q" value="{{ f_q }}" placeholder="Nombre…"></div>
-      <div class="field">
-        <label>Unidad de Negocio</label>
-        <select name="unidad_id" id="filtro_unidad" onchange="filtrarEmpresasPorUnidad()">
-          <option value="">— Todas —</option>
-          {% for u in unidades %}<option value="{{ u.id }}" {{ 'selected' if f_unidad == u.id|string else '' }}>{{ u.nombre }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>Empresa</label>
-        <select name="empresa_id" id="filtro_empresa">
-          <option value="">— Todas —</option>
-          {% for e in empresas %}<option value="{{ e.id }}" data-unidad="{{ e.unidad_negocio_id or '' }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>Estado</label>
-        <select name="estado">
-          <option value="">— Todos —</option>
-          <option value="activo" {{ 'selected' if f_estado == 'activo' else '' }}>Activo</option>
-          <option value="cesado" {{ 'selected' if f_estado == 'cesado' else '' }}>Cesado</option>
-        </select>
-      </div>
-      <button class="btn secondary" type="submit">Filtrar</button>
+    <div class="inline-form" style="margin-bottom:16px; align-items:flex-end;">
+      <form method="get" action="/rrhh/personal" class="inline-form" style="margin:0;">
+        <div class="field"><label>Buscar</label><input type="text" name="q" value="{{ f_q }}" placeholder="Nombre…"></div>
+        <div class="field">
+          <label>Unidad de Negocio</label>
+          <select name="unidad_id" id="filtro_unidad" onchange="filtrarEmpresasPorUnidad()">
+            <option value="">— Todas —</option>
+            {% for u in unidades %}<option value="{{ u.id }}" {{ 'selected' if f_unidad == u.id|string else '' }}>{{ u.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Empresa</label>
+          <select name="empresa_id" id="filtro_empresa">
+            <option value="">— Todas —</option>
+            {% for e in empresas %}<option value="{{ e.id }}" data-unidad="{{ e.unidad_negocio_id or '' }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select name="estado">
+            <option value="">— Todos —</option>
+            <option value="activo" {{ 'selected' if f_estado == 'activo' else '' }}>Activo</option>
+            <option value="cesado" {{ 'selected' if f_estado == 'cesado' else '' }}>Cesado</option>
+          </select>
+        </div>
+        <button class="btn secondary" type="submit">Filtrar</button>
+      </form>
       <a class="btn secondary" style="margin-left:auto;"
          href="/rrhh/personal/export.xlsx?empresa_id={{ f_empresa }}&unidad_id={{ f_unidad }}&q={{ f_q }}&estado={{ f_estado }}">
         Descargar Excel {{ '(según filtro)' if (f_empresa or f_unidad or f_q or f_estado) else '(todos)' }}
       </a>
       {% if user.rol in ['administrador','opeoka'] %}
-      <a class="btn" href="/rrhh/personal/nuevo">+ Agregar trabajador</a>
+      <form method="post" action="/rrhh/personal/nuevo" style="margin:0;">
+        <button class="btn" type="submit">+ Agregar trabajador</button>
+      </form>
       {% endif %}
-    </form>
+    </div>
 
     <table>
       <tr>
@@ -86,7 +90,7 @@
         <td>{{ (e.ficha_data or {}).get('cargo','—') }}</td>
         {% if can_planilla %}<td>{{ (e.ficha_data or {}).get('remuneracion','—') }}</td>{% endif %}
         <td><span class="badge {{ 'firmado' if e.estado == 'activo' else 'cancelado' }}">{{ 'Activo' if e.estado == 'activo' else 'Cesado' }}</span></td>
-        <td><a class="btn small secondary" href="/rrhh/personal/{{ e.id }}">Ver ficha</a></td>
+        <td><a class="icon-btn" href="/rrhh/personal/{{ e.id }}" title="Ver ficha">👁️</a></td>
       </tr>
       {% else %}
       <tr><td colspan="7" class="muted">No hay trabajadores registrados con estos filtros.</td></tr>

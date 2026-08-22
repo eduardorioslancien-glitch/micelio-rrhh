@@ -696,6 +696,36 @@ class Anuncio(Base):
     empresa = relationship("Empresa")
 
 
+class AnuncioVista(Base):
+    """Registro de que un usuario vio un Anuncio (punto 4 del pedido). Se
+    marca sola la primera vez que el anuncio le aparece a alguien en la
+    pantalla de inicio. Solo administrador puede ver el detalle de quién vio
+    qué; a los demás usuarios como mucho se les muestra el número total."""
+    __tablename__ = "anuncio_vistas"
+
+    id = Column(Integer, primary_key=True)
+    anuncio_id = Column(Integer, ForeignKey("anuncios.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    viewed_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    anuncio = relationship("Anuncio")
+    user = relationship("User")
+
+
+class AnuncioLike(Base):
+    """"Me gusta" de un usuario a un Anuncio — cualquiera puede darlo/quitarlo;
+    solo administrador ve quién lo dio (punto 4 del pedido)."""
+    __tablename__ = "anuncio_likes"
+
+    id = Column(Integer, primary_key=True)
+    anuncio_id = Column(Integer, ForeignKey("anuncios.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    anuncio = relationship("Anuncio")
+    user = relationship("User")
+
+
 class SaludoCumpleanos(Base):
     """Saludo de cumpleaños que otro usuario deja en la tarjeta de alguien en
     la pantalla de inicio (punto 3 del pedido: "puedan otros usuarios agregar

@@ -21,27 +21,29 @@
         <td class="muted">{{ lp.empresa.nombre if lp.empresa else "—" }}</td>
         <td class="muted">{{ lp.descripcion or "—" }}</td>
         <td><span class="badge {{ 'firmado' if lp.activo else 'pendiente' }}">{{ 'activa' if lp.activo else 'inactiva' }}</span></td>
-        <td style="display:flex; gap:6px;">
+        <td class="icon-btn-row">
           <details>
-            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Editar</summary>
-            <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/editar" style="margin-top:8px; min-width:260px;">
-              <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ lp.nombre }}" required></div>
-              <div class="field">
-                <label>Empresa</label>
-                <select name="empresa_id" required>
-                  {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if lp.empresa_id == e.id else '' }}>{{ e.nombre }}</option>{% endfor %}
-                </select>
-              </div>
-              <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ lp.descripcion or '' }}"></div>
-              <button class="btn small" type="submit">Guardar</button>
-            </form>
+            <summary class="icon-btn" style="display:inline-flex;" title="Editar">✏️</summary>
+            <div class="edit-popover">
+              <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/editar">
+                <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ lp.nombre }}" required></div>
+                <div class="field">
+                  <label>Empresa</label>
+                  <select name="empresa_id" required>
+                    {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if lp.empresa_id == e.id else '' }}>{{ e.nombre }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ lp.descripcion or '' }}"></div>
+                <button class="btn small" type="submit">Guardar</button>
+              </form>
+            </div>
           </details>
           <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/toggle" style="display:inline;">
-            <button class="btn small secondary" type="submit">{{ 'Desactivar' if lp.activo else 'Activar' }}</button>
+            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if lp.activo else 'Activar' }}">{{ '⏸️' if lp.activo else '▶️' }}</button>
           </form>
           <form method="post" action="/rrhh/parametrizacion/linea-producto/{{ lp.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar {{ lp.nombre }}? No se puede deshacer.');">
-            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
           </form>
         </td>
       </tr>

@@ -10,9 +10,27 @@
 
   <div style="display:flex; justify-content:space-between; align-items:center;">
     {% if user.rol != 'usuario' %}<a class="btn secondary" href="/rrhh/personal">&larr; Volver al listado</a>{% else %}<span></span>{% endif %}
-    {% if user.rol in ('administrador', 'opeoka') %}
-    <a class="btn" href="/rrhh/personal/{{ e.id }}/ficha">{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}</a>
-    {% endif %}
+    <div style="display:flex; gap:8px; align-items:center;">
+      {% if user.rol == 'administrador' and e.estado == 'activo' %}
+      <details class="details-inline">
+        <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Dar de baja</summary>
+        <div class="edit-popover" style="position:absolute; right:0; z-index:5;">
+          <form method="post" action="/rrhh/personal/{{ e.id }}/baja">
+            <div class="field"><label>Fecha de baja</label><input type="date" name="fecha_baja" required></div>
+            <div class="field"><label>Motivo</label><input type="text" name="motivo_baja" required></div>
+            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Confirmar baja</button>
+          </form>
+        </div>
+      </details>
+      {% elif user.rol == 'administrador' %}
+      <form method="post" action="/rrhh/personal/{{ e.id }}/reactivar">
+        <button class="btn small secondary" type="submit">Reactivar</button>
+      </form>
+      {% endif %}
+      {% if user.rol in ('administrador', 'opeoka') %}
+      <a class="btn" href="/rrhh/personal/{{ e.id }}/ficha">{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}</a>
+      {% endif %}
+    </div>
   </div>
 
   {% if faltan_datos %}
@@ -57,20 +75,8 @@
         </div>
         <button class="btn small secondary" type="submit">Guardar</button>
       </form>
-      {% if e.estado == 'activo' %}
-      <details style="margin-top:10px;">
-        <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Dar de baja</summary>
-        <form method="post" action="/rrhh/personal/{{ e.id }}/baja" class="inline-form" style="margin-top:8px;">
-          <div class="field"><label>Fecha de baja</label><input type="date" name="fecha_baja" required></div>
-          <div class="field" style="flex:2;"><label>Motivo</label><input type="text" name="motivo_baja" required></div>
-          <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Confirmar baja</button>
-        </form>
-      </details>
-      {% else %}
+      {% if e.estado != 'activo' %}
       <p class="muted" style="margin-top:10px;">Cesado el {{ e.fecha_baja.strftime('%d/%m/%Y') if e.fecha_baja else '—' }} — {{ e.motivo_baja }}</p>
-      <form method="post" action="/rrhh/personal/{{ e.id }}/reactivar" style="margin-top:6px;">
-        <button class="btn small secondary" type="submit">Reactivar</button>
-      </form>
       {% endif %}
     </div>
     {% endif %}

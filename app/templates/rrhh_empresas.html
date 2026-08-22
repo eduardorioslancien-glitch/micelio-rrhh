@@ -13,75 +13,35 @@
   <div class="card">
     <h2>Empresas</h2>
     <table>
-      <tr><th>Logo</th><th>Firma</th><th>Nombre</th><th>Representante Legal</th><th>Unidad de Negocio</th><th>RUC</th><th>Trabajadores</th><th>Estado</th><th></th></tr>
+      <tr><th>Logo</th><th>Nombre</th><th>Representante Legal</th><th>Unidad de Negocio</th><th>RUC</th><th>Estado</th><th></th></tr>
       {% for e in empresas %}
       <tr>
         <td>
-          {% if e.logo_path %}<img src="/rrhh/parametrizacion/empresa/{{ e.id }}/logo" style="max-width:60px; max-height:34px;">
+          {% if e.logo_path %}<img src="/rrhh/parametrizacion/empresa/{{ e.id }}/logo" style="max-width:60px; max-height:34px; object-fit:contain;">
           {% else %}<span class="muted" style="font-size:11px;">Sin logo</span>{% endif %}
-        </td>
-        <td>
-          {% if e.firma_representante_path %}<img src="/rrhh/parametrizacion/empresa/{{ e.id }}/firma" style="max-width:70px; max-height:34px;">
-          {% else %}<span class="muted" style="font-size:11px;">Sin firma</span>{% endif %}
         </td>
         <td><strong>{{ e.nombre }}</strong><br><span class="muted">{{ e.razon_social or "" }}</span></td>
         <td>{{ e.representante_legal or "—" }}</td>
         <td>{{ e.unidad_negocio.nombre if e.unidad_negocio else "—" }}</td>
         <td>{{ e.ruc or "—" }}</td>
-        <td>{{ e.empleados|length }}</td>
         <td><span class="badge {{ 'firmado' if e.activo else 'pendiente' }}">{{ 'activa' if e.activo else 'inactiva' }}</span></td>
-        <td style="display:flex; gap:6px;">
-          <details>
-            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Editar</summary>
-            <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/editar" style="margin-top:8px; min-width:260px;">
-              <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ e.nombre }}" required></div>
-              <div class="field"><label>Razón Social</label><input type="text" name="razon_social" value="{{ e.razon_social or '' }}"></div>
-              <div class="field"><label>RUC</label><input type="text" name="ruc" value="{{ e.ruc or '' }}"></div>
-              <div class="field">
-                <label>Unidad de Negocio</label>
-                <select name="unidad_negocio_id" required>
-                  {% for u in unidades %}<option value="{{ u.id }}" {{ 'selected' if e.unidad_negocio_id == u.id else '' }}>{{ u.nombre }}</option>{% endfor %}
-                </select>
-              </div>
-              <div class="field">
-                <label>Régimen Laboral</label>
-                <select name="regimen_laboral">
-                  <option value="">Seleccionar…</option>
-                  {% for r in regimenes %}<option {{ 'selected' if e.regimen_laboral == r else '' }}>{{ r }}</option>{% endfor %}
-                </select>
-              </div>
-              <div class="field"><label>Representante Legal</label><input type="text" name="representante_legal" value="{{ e.representante_legal or '' }}"></div>
-              <div class="section-title" style="margin:14px 0 8px;">Contacto para renovaciones de contrato</div>
-              <div class="field"><label>Gerente de la empresa</label><input type="text" name="gerente_nombre" value="{{ e.gerente_nombre or '' }}"></div>
-              <div class="field"><label>Correo del gerente</label><input type="email" name="gerente_email" value="{{ e.gerente_email or '' }}"></div>
-              <div class="field"><label>Jefe de RR.HH. de la empresa</label><input type="text" name="jefe_rrhh_nombre" value="{{ e.jefe_rrhh_nombre or '' }}"></div>
-              <div class="field"><label>Correo del jefe de RR.HH.</label><input type="email" name="jefe_rrhh_email" value="{{ e.jefe_rrhh_email or '' }}"></div>
-              <button class="btn small" type="submit">Guardar</button>
-            </form>
-            <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/firma" enctype="multipart/form-data" style="margin-top:10px; display:flex; gap:8px; align-items:center;">
-              <input type="file" name="firma" accept=".png" required style="width:auto;">
-              <button class="btn small secondary" type="submit">Subir firma (PNG)</button>
-            </form>
-            <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/logo" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-              <input type="file" name="logo" accept=".png" required style="width:auto;">
-              <button class="btn small secondary" type="submit">Subir logo (PNG)</button>
-            </form>
-          </details>
+        <td class="icon-btn-row">
+          <a class="icon-btn" href="/rrhh/parametrizacion/empresa/{{ e.id }}/editar" title="Editar">✏️</a>
           <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/toggle" style="display:inline;">
-            <button class="btn small secondary" type="submit">{{ 'Desactivar' if e.activo else 'Activar' }}</button>
+            <button class="icon-btn" type="submit" title="{{ 'Desactivar' if e.activo else 'Activar' }}">{{ '⏸️' if e.activo else '▶️' }}</button>
           </form>
           {% if not bloqueadas[e.id] %}
           <form method="post" action="/rrhh/parametrizacion/empresa/{{ e.id }}/eliminar" style="display:inline;"
                 onsubmit="return confirm('¿Eliminar esta empresa? No se puede deshacer.');">
-            <button class="btn small" type="submit" style="background:var(--red); border-color:var(--red);">Eliminar</button>
+            <button class="icon-btn danger" type="submit" title="Eliminar">🗑️</button>
           </form>
           {% else %}
-          <span class="muted" style="font-size:11px; align-self:center;">Tiene trabajadores activos</span>
+          <span class="muted" style="font-size:11px;">Tiene trabajadores activos</span>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="9" class="muted">Todavía no hay empresas registradas.</td></tr>
+      <tr><td colspan="7" class="muted">Todavía no hay empresas registradas.</td></tr>
       {% endfor %}
     </table>
 
@@ -92,9 +52,17 @@
         <div class="field"><label>Razón Social</label><input type="text" name="razon_social"></div>
         <div class="field"><label>RUC</label><input type="text" name="ruc"></div>
         <div class="field">
+          <label>Holding</label>
+          <select id="nuevo_holding_id">
+            <option value="">— Todos —</option>
+            {% for h in holdings %}<option value="{{ h.id }}">{{ h.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
           <label>Unidad de Negocio</label>
-          <select name="unidad_negocio_id" required>
-            {% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}
+          <select name="unidad_negocio_id" id="nuevo_unidad_negocio_id" required>
+            <option value="">Seleccionar…</option>
+            {% for u in unidades %}<option value="{{ u.id }}" data-holding="{{ u.holding_id or '' }}">{{ u.nombre }}</option>{% endfor %}
           </select>
         </div>
         <div class="field">
@@ -112,9 +80,25 @@
       </div>
       <button class="btn" type="submit">Agregar empresa</button>
     </form>
-    <p class="hint">La firma y el logo (PNG sin fondo) se suben después de crear la empresa, desde "Editar".</p>
+    <p class="hint">La firma y el logo se suben después de crear la empresa, desde "Editar" (✏️).</p>
   </div>
 
+<script>
+  function filtrarUnidadPorHolding() {
+    const holding = document.getElementById("nuevo_holding_id").value;
+    const sel = document.getElementById("nuevo_unidad_negocio_id");
+    let siguevalida = false;
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value) { opt.hidden = false; return; }
+      const visible = !holding || opt.dataset.holding === holding;
+      opt.hidden = !visible;
+      if (visible && opt.selected) siguevalida = true;
+    });
+    if (!siguevalida) sel.value = "";
+  }
+  document.getElementById("nuevo_holding_id").addEventListener("change", filtrarUnidadPorHolding);
+  filtrarUnidadPorHolding();
+</script>
 </div>
 </body>
 </html>

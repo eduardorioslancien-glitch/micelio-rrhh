@@ -17,28 +17,30 @@
     <h2>🎉 Hoy cumple años</h2>
     {% for item in cumple_hoy %}
     {% set e = item.employee %}
-    <div class="birthday-today">
-      {% if e.foto_path %}<img class="avatar" style="width:72px; height:72px;" src="/rrhh/personal/{{ e.id }}/foto">
-      {% else %}<div class="avatar-placeholder" style="width:72px; height:72px; font-size:26px;">{{ e.nombre_completo[0] }}</div>{% endif %}
-      <div class="birthday-today-info">
-        <h3 style="margin:0 0 4px;">{{ e.nombre_completo }}</h3>
-        <p class="muted" style="margin:0 0 6px;">{{ e.empresa_rel.nombre if e.empresa_rel else "" }}{% if (e.ficha_data or {}).get('cargo') %} · {{ (e.ficha_data or {}).get('cargo') }}{% endif %}</p>
-        <p style="margin:0;">{{ item.mensaje_rrhh }}</p>
+    <div class="birthday-entry{{ '' if loop.first else ' birthday-entry-sep' }}">
+      <div class="birthday-today">
+        {% if e.foto_path %}<img class="avatar" style="width:72px; height:72px;" src="/rrhh/personal/{{ e.id }}/foto">
+        {% else %}<div class="avatar-placeholder" style="width:72px; height:72px; font-size:26px;">{{ e.nombre_completo[0] }}</div>{% endif %}
+        <div class="birthday-today-info">
+          <h3 style="margin:0 0 4px;">{{ e.nombre_completo }}</h3>
+          <p class="muted" style="margin:0 0 6px;">{{ e.empresa_rel.nombre if e.empresa_rel else "" }}{% if (e.ficha_data or {}).get('cargo') %} · {{ (e.ficha_data or {}).get('cargo') }}{% endif %}</p>
+          <p style="margin:0;">{{ item.mensaje_rrhh }}</p>
+        </div>
       </div>
-    </div>
 
-    {% if item.saludos %}
-    <div class="birthday-saludos">
-      {% for s in item.saludos %}
-      <div class="birthday-saludo"><strong>{{ s.autor }}:</strong> {{ s.mensaje }}</div>
-      {% endfor %}
-    </div>
-    {% endif %}
+      {% if item.saludos %}
+      <div class="birthday-saludos">
+        {% for s in item.saludos %}
+        <div class="birthday-saludo"><strong>{{ s.autor }}:</strong> {{ s.mensaje }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-    <form method="post" action="/rrhh/saludos/{{ e.id }}" class="inline-form" style="margin-top:10px;">
-      <div class="field" style="flex:3;"><input type="text" name="mensaje" placeholder="Déjale tu saludo…" required></div>
-      <button class="btn small secondary" type="submit">Saludar</button>
-    </form>
+      <form method="post" action="/rrhh/saludos/{{ e.id }}" class="inline-form" style="margin-top:10px;">
+        <div class="field" style="flex:3;"><input type="text" name="mensaje" placeholder="Déjale tu saludo…" required></div>
+        <button class="btn small secondary" type="submit">Saludar</button>
+      </form>
+    </div>
     {% endfor %}
   </div>
   {% endif %}
@@ -72,6 +74,13 @@
       {% if a.ambito == 'holding' %}Todo el Holding{% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '' }}{% else %}{{ a.empresa.nombre if a.empresa else '' }}{% endif %}
     </p>
     <p style="margin:0; white-space:pre-line;">{{ a.cuerpo }}</p>
+    {% set c = conteos_anuncio.get(a.id, {}) %}
+    <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/like" style="margin-top:12px;">
+      <button class="btn small secondary" type="submit" title="{{ 'Quitar me gusta' if c.get('le_gusta') else 'Me gusta' }}">
+        {{ '💙' if c.get('le_gusta') else '🤍' }} {{ c.get('likes', 0) }}
+      </button>
+      <span class="muted" style="font-size:12px; margin-left:8px;">👁 {{ c.get('vistas', 0) }} vistas</span>
+    </form>
   </div>
   {% endfor %}
   {% else %}
