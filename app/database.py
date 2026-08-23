@@ -38,6 +38,14 @@ _MIGRACIONES_COLUMNAS = [
     ("contrato_renovaciones", "fecha_fin_contrato_anterior", "VARCHAR(20)"),
     ("contrato_renovaciones", "fecha_fin_contrato_nueva", "VARCHAR(20)"),
     ("anuncios", "imagen_path", "VARCHAR(500)"),
+    ("cargos", "sueldo_base_sugerido", "FLOAT"),
+    ("cargos", "comision_sugerida", "FLOAT"),
+    ("cargos", "movilidad_sugerida", "FLOAT"),
+    ("cargos", "otros_ingresos_sugerido", "FLOAT"),
+    ("pedidos_personal", "sueldo_base_ofrecido", "FLOAT"),
+    ("pedidos_personal", "comision_ofrecida", "FLOAT"),
+    ("pedidos_personal", "movilidad_ofrecida", "FLOAT"),
+    ("pedidos_personal", "otros_ingresos_ofrecido", "FLOAT"),
 ]
 
 

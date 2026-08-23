@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Informe — {{ cargo.nombre }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=8">
+<style>
+  body { background: white; }
+  .informe { max-width: 900px; margin: 0 auto; padding: 30px 34px 60px; }
+  .informe h1 { color: var(--navy-dark); font-size: 22px; margin-bottom: 2px; }
+  .informe .subtitulo { color: var(--gray); font-size: 12px; margin-bottom: 24px; }
+  .informe .section-title { margin-top: 22px; }
+  .informe table { margin-top: 6px; }
+  .toolbar { max-width: 900px; margin: 16px auto 0; padding: 0 34px; display: flex; justify-content: flex-end; }
+  ul.lista-simple { margin: 6px 0 0; padding-left: 20px; }
+  ul.lista-simple li { margin-bottom: 4px; }
+  @media print {
+    .toolbar { display: none; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button class="btn" onclick="window.print()">Imprimir / Guardar como PDF</button>
+  </div>
+
+  <div class="informe">
+    <h1>{{ cargo.nombre }}</h1>
+    <div class="subtitulo">Informe de Cargo — Manual de Organización y Funciones · Generado el {{ generado_en.strftime('%d/%m/%Y %H:%M') }}</div>
+
+    {% if cargo.descripcion %}
+    <p>{{ cargo.descripcion }}</p>
+    {% endif %}
+
+    <div class="section-title">Jerarquía</div>
+    <table>
+      <tr><td style="width:220px;"><strong>Reporta a</strong></td><td>{{ cargo.reporta_a.nombre if cargo.reporta_a else "— Ninguno (máxima jerarquía) —" }}</td></tr>
+      <tr><td><strong>Le reportan (lidera a)</strong></td><td>{{ cargo.subordinados|map(attribute='nombre')|join(', ') if cargo.subordinados else "— Ninguno —" }}</td></tr>
+    </table>
+
+    <div class="section-title">Funciones</div>
+    {% if cargo.funciones %}
+    <ul class="lista-simple">{% for f in cargo.funciones %}<li>{{ f }}</li>{% endfor %}</ul>
+    {% else %}
+    <p class="muted">No hay funciones registradas.</p>
+    {% endif %}
+
+    <div class="section-title">Responsabilidades</div>
+    {% if cargo.responsabilidades %}
+    <ul class="lista-simple">{% for r in cargo.responsabilidades %}<li>{{ r }}</li>{% endfor %}</ul>
+    {% else %}
+    <p class="muted">No hay responsabilidades registradas.</p>
+    {% endif %}
+
+    <div class="section-title">Requisitos del Puesto</div>
+    <table>
+      <tr><td style="width:220px;"><strong>Formación académica</strong></td><td>{{ cargo.requisito_academico or "—" }}</td></tr>
+      <tr><td><strong>Experiencia</strong></td><td>{{ cargo.requisito_experiencia or "—" }}</td></tr>
+      <tr><td><strong>Conocimientos</strong></td><td>{{ cargo.requisito_conocimientos or "—" }}</td></tr>
+    </table>
+
+    <div class="section-title">Competencias Requeridas</div>
+    <table>
+      <tr><th>Competencia</th><th>Nivel Requerido</th></tr>
+      {% for r in cargo.requisitos_competencias %}
+      <tr><td>{{ r.competencia.nombre if r.competencia else "—" }}</td><td>{{ r.nivel_requerido }} / 4</td></tr>
+      {% else %}
+      <tr><td colspan="2" class="muted">Sin competencias asignadas.</td></tr>
+      {% endfor %}
+    </table>
+
+    <div class="section-title">Compensación de Referencia</div>
+    <table>
+      <tr><td style="width:220px;"><strong>Sueldo Base</strong></td><td>{{ "S/ %.2f"|format(cargo.sueldo_base_sugerido) if cargo.sueldo_base_sugerido is not none else "—" }}</td></tr>
+      <tr><td><strong>Comisión Variable</strong></td><td>{{ "S/ %.2f"|format(cargo.comision_sugerida) if cargo.comision_sugerida is not none else "—" }}</td></tr>
+      <tr><td><strong>Movilidad</strong></td><td>{{ "S/ %.2f"|format(cargo.movilidad_sugerida) if cargo.movilidad_sugerida is not none else "—" }}</td></tr>
+      <tr><td><strong>Otros Ingresos</strong></td><td>{{ "S/ %.2f"|format(cargo.otros_ingresos_sugerido) if cargo.otros_ingresos_sugerido is not none else "—" }}</td></tr>
+    </table>
+
+    <div class="section-title">Personal Actual en este Cargo ({{ ocupantes|length }})</div>
+    {% if ocupantes %}
+    <table>
+      <tr><th>Nombre</th><th>Empresa</th></tr>
+      {% for e in ocupantes %}
+      <tr><td>{{ e.nombre_completo }}</td><td class="muted">{{ e.empresa_rel.nombre if e.empresa_rel else "—" }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">Nadie ocupa actualmente este cargo.</p>
+    {% endif %}
+  </div>
+
+</body>
+</html>

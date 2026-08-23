@@ -914,6 +914,16 @@ def _lista_desde_textarea(texto: str) -> list:
     return [linea.strip() for linea in (texto or "").splitlines() if linea.strip()]
 
 
+def _monto_o_none(texto: str):
+    texto = (texto or "").strip()
+    if not texto:
+        return None
+    try:
+        return float(texto)
+    except ValueError:
+        return None
+
+
 @router.get("/rrhh/parametrizacion/cargos", response_class=HTMLResponse)
 def cargos_list(request: Request, error: str = "", db: Session = Depends(get_db),
                  user: User = Depends(require_role("administrador"))):
@@ -947,11 +957,34 @@ def cargo_detalle(request: Request, cargo_id: int, db: Session = Depends(get_db)
     ))
 
 
+@router.get("/rrhh/parametrizacion/cargo/{cargo_id}/informe", response_class=HTMLResponse)
+def cargo_informe(request: Request, cargo_id: int, db: Session = Depends(get_db),
+                   user: User = Depends(require_role("administrador"))):
+    """Punto 3 del pedido: informe completo e imprimible de un cargo (MOF +
+    jerarquía + competencias requeridas + compensación de referencia +
+    quiénes lo ocupan hoy)."""
+    cargo = db.query(Cargo).get(cargo_id)
+    if not cargo:
+        raise HTTPException(404)
+    ocupantes = (
+        db.query(Employee)
+        .filter(Employee.estado == "activo")
+        .all()
+    )
+    ocupantes = [e for e in ocupantes if (e.ficha_data or {}).get("cargo") == cargo.nombre]
+    return templates.TemplateResponse(request, "rrhh_cargo_informe.html", _ctx(
+        request, user, cargo=cargo, ocupantes=ocupantes,
+        generado_en=datetime.datetime.now(),
+    ))
+
+
 @router.post("/rrhh/parametrizacion/cargo/{cargo_id}/editar")
 def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form(""),
                   funciones: str = Form(""), responsabilidades: str = Form(""),
                   reporta_a_id: str = Form(""), requisito_academico: str = Form(""),
                   requisito_experiencia: str = Form(""), requisito_conocimientos: str = Form(""),
+                  sueldo_base_sugerido: str = Form(""), comision_sugerida: str = Form(""),
+                  movilidad_sugerida: str = Form(""), otros_ingresos_sugerido: str = Form(""),
                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     cargo = db.query(Cargo).get(cargo_id)
     if not cargo:
@@ -967,6 +1000,10 @@ def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form
     cargo.requisito_academico = requisito_academico.strip() or None
     cargo.requisito_experiencia = requisito_experiencia.strip() or None
     cargo.requisito_conocimientos = requisito_conocimientos.strip() or None
+    cargo.sueldo_base_sugerido = _monto_o_none(sueldo_base_sugerido)
+    cargo.comision_sugerida = _monto_o_none(comision_sugerida)
+    cargo.movilidad_sugerida = _monto_o_none(movilidad_sugerida)
+    cargo.otros_ingresos_sugerido = _monto_o_none(otros_ingresos_sugerido)
     db.commit()
     return RedirectResponse(f"/rrhh/parametrizacion/cargo/{cargo_id}", status_code=303)
 

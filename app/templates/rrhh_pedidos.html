@@ -30,7 +30,11 @@
       </tr>
       {% for p in pedidos %}
       <tr>
-        <td><strong>{{ p.cargo_solicitado }}</strong>{% if p.motivo %}<br><span class="muted">{{ p.motivo }}</span>{% endif %}</td>
+        <td>
+          <strong>{{ p.cargo_solicitado }}</strong>
+          {% if p.motivo %}<br><span class="muted">{{ p.motivo }}</span>{% endif %}
+          {% if p.sueldo_base_ofrecido is not none %}<br><span class="muted">Sueldo ofrecido: S/ {{ "%.2f"|format(p.sueldo_base_ofrecido) }}</span>{% endif %}
+        </td>
         <td>{{ p.empresa.nombre if p.empresa else "—" }}</td>
         <td>{{ p.area or "—" }}</td>
         <td>{{ p.cantidad }}</td>
@@ -54,10 +58,23 @@
     </table>
 
     <h3 style="margin-top:22px;">Registrar nuevo pedido</h3>
-    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo">
+    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo" id="form-pedido">
       <div class="grid3">
-        <div class="field"><label>Cargo Solicitado</label><input type="text" name="cargo_solicitado" required></div>
-        <div class="field"><label>Área</label><input type="text" name="area"></div>
+        <div class="field">
+          <label>Cargo Solicitado</label>
+          <select name="cargo_solicitado" id="cargo_solicitado" required onchange="sugerirCompensacion()">
+            <option value="">Seleccionar…</option>
+            {% for c in cargos %}<option value="{{ c.nombre }}">{{ c.nombre }}</option>{% endfor %}
+          </select>
+          {% if not cargos %}<p class="hint">Todavía no hay cargos en Parámetros &gt; Cargos y Funciones.</p>{% endif %}
+        </div>
+        <div class="field">
+          <label>Área</label>
+          <select name="area">
+            <option value="">Seleccionar…</option>
+            {% for a in areas %}<option>{{ a.nombre }}</option>{% endfor %}
+          </select>
+        </div>
         <div class="field">
           <label>Empresa</label>
           <select name="empresa_id">
@@ -80,14 +97,44 @@
             {% for u in urgencias %}<option>{{ u }}</option>{% endfor %}
           </select>
         </div>
-        <div class="field"><label>Solicitante (jefe/gerencia que lo pide)</label><input type="text" name="solicitante"></div>
-        <div class="field"><label>Fecha Requerida</label><input type="date" name="fecha_requerida"></div>
+        <div class="field">
+          <label>Solicitante (jefe/gerencia que lo pide)</label>
+          <select name="solicitante">
+            <option value="">Seleccionar…</option>
+            {% for emp in empleados %}<option value="{{ emp.nombre_completo }}">{{ emp.nombre_completo }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Fecha tope para cubrir la vacante</label>
+          <input type="date" name="fecha_requerida">
+        </div>
         <div class="field" style="grid-column:span 3;"><label>Observaciones</label><input type="text" name="observaciones"></div>
       </div>
-      <button class="btn" type="submit">Registrar pedido</button>
+
+      <div class="section-title">Compensación sugerida para este cargo</div>
+      <p class="hint">Se completa sola según el cargo elegido (Parámetros &gt; Cargos y Funciones). Ajústala si hace falta — al registrar el pedido, el solicitante da su OK a estos montos.</p>
+      <div class="grid4">
+        <div class="field"><label>Sueldo Base (S/)</label><input type="number" step="0.01" name="sueldo_base_ofrecido" id="sueldo_base_ofrecido"></div>
+        <div class="field"><label>Comisión Variable (S/)</label><input type="number" step="0.01" name="comision_ofrecida" id="comision_ofrecida"></div>
+        <div class="field"><label>Movilidad (S/)</label><input type="number" step="0.01" name="movilidad_ofrecida" id="movilidad_ofrecida"></div>
+        <div class="field"><label>Otros Ingresos (S/)</label><input type="number" step="0.01" name="otros_ingresos_ofrecido" id="otros_ingresos_ofrecido"></div>
+      </div>
+
+      <button class="btn" type="submit" style="margin-top:14px;">Registrar pedido</button>
     </form>
   </div>
 
 </div>
+<script>
+  const COMPENSACION_POR_CARGO = {{ compensacion_por_cargo | tojson }};
+  function sugerirCompensacion() {
+    const cargo = document.getElementById("cargo_solicitado").value;
+    const comp = COMPENSACION_POR_CARGO[cargo] || {};
+    document.getElementById("sueldo_base_ofrecido").value = comp.sueldo_base ?? "";
+    document.getElementById("comision_ofrecida").value = comp.comision ?? "";
+    document.getElementById("movilidad_ofrecida").value = comp.movilidad ?? "";
+    document.getElementById("otros_ingresos_ofrecido").value = comp.otros ?? "";
+  }
+</script>
 </body>
 </html>

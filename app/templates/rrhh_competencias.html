@@ -15,10 +15,10 @@
   <div class="card">
     <h2>{{ plural }}</h2>
     <table>
-      <tr><th>Nombre</th><th>Descripción</th><th>Estado</th><th></th></tr>
+      <tr><th style="width:220px;">Nombre</th><th>Descripción</th><th>Estado</th><th></th></tr>
       {% for item in items if item.tipo == tipo %}
       <tr>
-        <td><strong>{{ item.nombre }}</strong></td>
+        <td style="white-space:nowrap;"><strong>{{ item.nombre }}</strong></td>
         <td class="muted">{{ item.descripcion or "—" }}</td>
         <td><span class="badge {{ 'firmado' if item.activo else 'pendiente' }}">{{ 'activo' if item.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">

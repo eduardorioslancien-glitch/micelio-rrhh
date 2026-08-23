@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import (
-    PedidoPersonal, LeadCandidato, Empresa, Employee, User,
+    PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING,
 )
@@ -48,17 +48,39 @@ def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_d
         query = query.filter(PedidoPersonal.estado == estado)
     pedidos = query.order_by(PedidoPersonal.created_at.desc()).all()
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    cargos = db.query(Cargo).filter(Cargo.activo == True).order_by(Cargo.nombre).all()  # noqa: E712
+    areas = db.query(Catalogo).filter(Catalogo.tipo == "area", Catalogo.activo == True).order_by(Catalogo.nombre).all()  # noqa: E712
+    empleados = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
+    compensacion_por_cargo = {
+        c.nombre: {
+            "sueldo_base": c.sueldo_base_sugerido, "comision": c.comision_sugerida,
+            "movilidad": c.movilidad_sugerida, "otros": c.otros_ingresos_sugerido,
+        } for c in cargos
+    }
     return templates.TemplateResponse(request, "rrhh_pedidos.html", _ctx(
         request, user, pedidos=pedidos, empresas=empresas, estados=ESTADOS_PEDIDO,
         estado_labels=ESTADO_LABELS, motivos=MOTIVOS_PEDIDO, urgencias=URGENCIAS_PEDIDO,
+        cargos=cargos, areas=areas, empleados=empleados, compensacion_por_cargo=compensacion_por_cargo,
         f_estado=estado, active="pedidos",
     ))
+
+
+def _monto_o_none(texto: str):
+    texto = (texto or "").strip()
+    if not texto:
+        return None
+    try:
+        return float(texto)
+    except ValueError:
+        return None
 
 
 @router.post("/rrhh/reclutamiento/pedidos/nuevo")
 def pedidos_crear(cargo_solicitado: str = Form(...), area: str = Form(""), empresa_id: str = Form(""),
                    cantidad: int = Form(1), motivo: str = Form(""), urgencia: str = Form(""),
                    solicitante: str = Form(""), fecha_requerida: str = Form(""), observaciones: str = Form(""),
+                   sueldo_base_ofrecido: str = Form(""), comision_ofrecida: str = Form(""),
+                   movilidad_ofrecida: str = Form(""), otros_ingresos_ofrecido: str = Form(""),
                    db: Session = Depends(get_db),
                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
     db.add(PedidoPersonal(
@@ -66,6 +88,8 @@ def pedidos_crear(cargo_solicitado: str = Form(...), area: str = Form(""), empre
         empresa_id=int(empresa_id) if empresa_id else None, cantidad=max(cantidad, 1),
         motivo=motivo or None, urgencia=urgencia or None, solicitante=solicitante.strip() or None,
         fecha_requerida=_parse_fecha(fecha_requerida), observaciones=observaciones.strip() or None,
+        sueldo_base_ofrecido=_monto_o_none(sueldo_base_ofrecido), comision_ofrecida=_monto_o_none(comision_ofrecida),
+        movilidad_ofrecida=_monto_o_none(movilidad_ofrecida), otros_ingresos_ofrecido=_monto_o_none(otros_ingresos_ofrecido),
         registrado_por=user.nombre_completo,
     ))
     db.commit()

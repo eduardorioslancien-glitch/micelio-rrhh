@@ -41,7 +41,7 @@ import datetime
 import uuid
 
 from sqlalchemy import (
-    Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean
+    Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -313,6 +313,12 @@ class Cargo(Base):
     requisito_academico = Column(Text, nullable=True)
     requisito_experiencia = Column(Text, nullable=True)
     requisito_conocimientos = Column(Text, nullable=True)
+    # Compensación de referencia para este cargo — se sugiere automáticamente
+    # al registrar un Pedido de Personal para este cargo (punto 4.3 del pedido).
+    sueldo_base_sugerido = Column(Float, nullable=True)
+    comision_sugerida = Column(Float, nullable=True)
+    movilidad_sugerida = Column(Float, nullable=True)
+    otros_ingresos_sugerido = Column(Float, nullable=True)
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -595,6 +601,13 @@ class PedidoPersonal(Base):
     solicitante = Column(String(200), nullable=True)  # quién pide el personal (jefe/gerencia)
     fecha_solicitud = Column(DateTime, default=datetime.datetime.utcnow)
     fecha_requerida = Column(DateTime, nullable=True)
+    # Compensación sugerida por el cargo (ver Cargo.*_sugerido/a), copiada al
+    # crear el pedido y ajustable por el solicitante antes de registrar — el
+    # registrar el pedido con estos montos ES el "OK" del solicitante.
+    sueldo_base_ofrecido = Column(Float, nullable=True)
+    comision_ofrecida = Column(Float, nullable=True)
+    movilidad_ofrecida = Column(Float, nullable=True)
+    otros_ingresos_ofrecido = Column(Float, nullable=True)
     estado = Column(String(20), default="abierto")  # uno de ESTADO_PEDIDO_KEYS
     observaciones = Column(Text, nullable=True)
     registrado_por = Column(String(200), nullable=True)  # usuario de RR.HH. que lo cargó
