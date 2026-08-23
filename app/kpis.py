@@ -12,8 +12,32 @@ from sqlalchemy.orm import Session
 from .models import Employee, Empresa, UnidadNegocio, AsistenciaRegistro
 
 
+MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+
 def _dia_habil(d: datetime.date) -> bool:
     return d.weekday() < 5  # lunes(0)..viernes(4)
+
+
+def _parse_fecha(valor: str):
+    try:
+        return datetime.datetime.strptime(valor or "", "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _parse_monto(valor) -> float:
+    """Convierte valores tipo "S/ 1,200.50" (guardados como texto libre en la
+    ficha) a float; 0.0 si no se puede interpretar."""
+    if valor is None:
+        return 0.0
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    limpio = str(valor).replace("S/", "").replace(",", "").strip()
+    try:
+        return float(limpio)
+    except ValueError:
+        return 0.0
 
 
 def headcount_activo(db: Session) -> int:
@@ -83,6 +107,122 @@ def ausentismo_pct(db: Session, dias: int):
     return pct, esperados, sin_marcar
 
 
+def pct_activos(db: Session) -> float:
+    """% de activos sobre el total de trabajadores que ha pasado alguna vez
+    por la planilla (activos + cesados), como en el reporte de referencia."""
+    total = db.query(Employee).count()
+    if total == 0:
+        return 0.0
+    return round(headcount_activo(db) / total * 100, 1)
+
+
+def planilla_activa_soles(db: Session) -> float:
+    """Suma de la remuneración (ficha_data.remuneracion) de los trabajadores activos."""
+    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    return round(sum(_parse_monto((e.ficha_data or {}).get("remuneracion")) for e in activos), 2)
+
+
+def edad_promedio(db: Session):
+    """Edad promedio de los trabajadores activos con fecha de nacimiento registrada."""
+    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    hoy = datetime.date.today()
+    edades = []
+    for e in activos:
+        nac = _parse_fecha((e.ficha_data or {}).get("fecha_nacimiento"))
+        if nac:
+            edades.append((hoy - nac).days / 365.25)
+    if not edades:
+        return None
+    return round(sum(edades) / len(edades), 1)
+
+
+def _conteo_por_campo(db: Session, campo: str, solo_activos: bool = True, top: int = None):
+    """Cuenta trabajadores agrupados por un campo de ficha_data (p.ej. 'area',
+    'sexo', 'afp'), ordenado de mayor a menor. Ignora vacíos."""
+    query = db.query(Employee)
+    if solo_activos:
+        query = query.filter(Employee.estado == "activo")
+    conteo = {}
+    for e in query.all():
+        valor = (e.ficha_data or {}).get(campo)
+        if not valor:
+            continue
+        conteo[valor] = conteo.get(valor, 0) + 1
+    resultado = sorted(conteo.items(), key=lambda kv: kv[1], reverse=True)
+    return resultado[:top] if top else resultado
+
+
+def por_area(db: Session):
+    return _conteo_por_campo(db, "area")
+
+
+def por_sexo(db: Session):
+    return _conteo_por_campo(db, "sexo")
+
+
+def por_nacionalidad(db: Session):
+    total_con_dato = 0
+    conteo = _conteo_por_campo(db, "nacionalidad")
+    total_con_dato = sum(c for _, c in conteo)
+    if not total_con_dato:
+        return []
+    return [(pais, c, round(c / total_con_dato * 100, 1)) for pais, c in conteo]
+
+
+def por_sistema_pension(db: Session):
+    """(AFP, ONP, Sin dato) entre los trabajadores activos."""
+    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    afp = onp = sin_dato = 0
+    for e in activos:
+        sistema = (e.ficha_data or {}).get("sistema_pension")
+        if sistema == "AFP":
+            afp += 1
+        elif sistema == "ONP":
+            onp += 1
+        else:
+            sin_dato += 1
+    return [("AFP", afp), ("ONP", onp), ("Sin dato", sin_dato)]
+
+
+def por_afp(db: Session):
+    """Personas por administradora de AFP (solo entre quienes tienen sistema AFP)."""
+    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    conteo = {}
+    for e in activos:
+        f = e.ficha_data or {}
+        if f.get("sistema_pension") != "AFP":
+            continue
+        nombre = f.get("afp")
+        if not nombre or nombre == "No aplica":
+            continue
+        conteo[nombre] = conteo.get(nombre, 0) + 1
+    return sorted(conteo.items(), key=lambda kv: kv[1], reverse=True)
+
+
+def incorporaciones_por_mes(db: Session, meses: int = 24):
+    """Incorporaciones (altas) por mes calendario, últimos N meses, según
+    ficha_data.fecha_ingreso. Devuelve lista de (etiqueta 'ene 2025', cantidad)
+    en orden cronológico, incluyendo meses en cero."""
+    hoy = datetime.date.today()
+    periodos = []
+    y, m = hoy.year, hoy.month
+    for _ in range(meses):
+        periodos.append((y, m))
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    periodos.reverse()
+    conteo = {p: 0 for p in periodos}
+
+    for e in db.query(Employee).all():
+        ingreso = _parse_fecha((e.ficha_data or {}).get("fecha_ingreso"))
+        if ingreso and (ingreso.year, ingreso.month) in conteo:
+            conteo[(ingreso.year, ingreso.month)] += 1
+
+    return [(f"{MESES_ES[m - 1]} {y}", conteo[(y, m)]) for y, m in periodos]
+
+
 def resumen_dashboard(db: Session, dias: int = 30):
     aus_pct, aus_esp, aus_sin = ausentismo_pct(db, dias)
     return {
@@ -96,4 +236,13 @@ def resumen_dashboard(db: Session, dias: int = 30):
         "ausentismo_pct": aus_pct,
         "ausentismo_esperados": aus_esp,
         "ausentismo_sin_marcar": aus_sin,
+        "pct_activos": pct_activos(db),
+        "planilla_activa": planilla_activa_soles(db),
+        "edad_promedio": edad_promedio(db),
+        "por_area": por_area(db),
+        "por_sexo": por_sexo(db),
+        "por_nacionalidad": por_nacionalidad(db),
+        "por_sistema_pension": por_sistema_pension(db),
+        "por_afp": por_afp(db),
+        "incorporaciones_por_mes": incorporaciones_por_mes(db, 24),
     }

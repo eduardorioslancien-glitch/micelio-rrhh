@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>Dashboard — MICELIO</title>
 <link rel="stylesheet" href="/static/style.css?v=8">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -52,6 +53,79 @@
         <div class="kpi-sub">{{ data.ausentismo_sin_marcar }} de {{ data.ausentismo_esperados }} días-trabajador hábiles sin marcar entrada en los últimos {{ data.dias }} días</div>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Resumen general</h2>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.pct_activos }}%</div>
+        <div class="kpi-label">% Activos</div>
+        <div class="kpi-sub">sobre el total histórico de trabajadores</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">S/ {{ "{:,.0f}".format(data.planilla_activa) }}</div>
+        <div class="kpi-label">Planilla activa</div>
+        <div class="kpi-sub">suma de remuneraciones registradas de activos</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">{{ data.edad_promedio if data.edad_promedio is not none else "—" }}</div>
+        <div class="kpi-label">Edad promedio</div>
+        <div class="kpi-sub">de trabajadores activos con fecha de nacimiento registrada</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Dotación por Área</h2>
+    {% if data.por_area %}
+    <div style="position:relative; height:280px;"><canvas id="chartArea"></canvas></div>
+    {% else %}
+    <p class="muted">Ningún trabajador activo tiene el campo "Área" registrado todavía.</p>
+    {% endif %}
+  </div>
+
+  <div class="grid2-cards">
+    <div class="card">
+      <h2>Composición por Sexo</h2>
+      {% if data.por_sexo %}
+      <div style="position:relative; height:240px;"><canvas id="chartSexo"></canvas></div>
+      {% else %}
+      <p class="muted">Sin datos de sexo registrados.</p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h2>Sistema Previsional</h2>
+      <div style="position:relative; height:240px;"><canvas id="chartPrevisional"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Personas por AFP</h2>
+    {% if data.por_afp %}
+    <div style="position:relative; height:260px;"><canvas id="chartAfp"></canvas></div>
+    {% else %}
+    <p class="muted">Ningún trabajador activo tiene AFP registrada.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Nacionalidad</h2>
+    {% for pais, count, pct in data.por_nacionalidad %}
+    <div class="bar-row">
+      <div class="bar-label">{{ pais }} ({{ count }})</div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ pct }}%;"></div></div>
+      <div class="bar-count" style="width:56px;">{{ pct }}%</div>
+    </div>
+    {% else %}
+    <p class="muted">Sin datos de nacionalidad registrados.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>Incorporaciones por mes — últimos 24 meses</h2>
+    <p class="muted" style="margin-top:-6px;">Trabajadores cuya fecha de ingreso (ficha laboral) cae en cada mes.</p>
+    <div style="position:relative; height:280px;"><canvas id="chartIncorporaciones"></canvas></div>
   </div>
 
   <div class="card">
@@ -104,5 +178,57 @@
   </div>
 
 </div>
+
+<script>
+  const NAVY = "#1c3a5e", NAVY_LIGHT = "#3d6d99", GOLD = "#c9a24b";
+  const PALETTE = [NAVY, GOLD, NAVY_LIGHT, "#8a9baa", "#6d8fae", "#e0c17a", "#4f6b82", "#b8c4cc"];
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.plugins.legend.labels.boxWidth = 12;
+
+  const porArea = {{ data.por_area | tojson }};
+  if (porArea.length) {
+    new Chart(document.getElementById("chartArea"), {
+      type: "bar",
+      data: {
+        labels: porArea.map(x => x[0]),
+        datasets: [{ label: "Personas", data: porArea.map(x => x[1]), backgroundColor: NAVY }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    });
+  }
+
+  const porSexo = {{ data.por_sexo | tojson }};
+  if (porSexo.length) {
+    new Chart(document.getElementById("chartSexo"), {
+      type: "doughnut",
+      data: { labels: porSexo.map(x => x[0]), datasets: [{ data: porSexo.map(x => x[1]), backgroundColor: PALETTE }] },
+    });
+  }
+
+  const porPrevisional = {{ data.por_sistema_pension | tojson }};
+  new Chart(document.getElementById("chartPrevisional"), {
+    type: "doughnut",
+    data: { labels: porPrevisional.map(x => x[0]), datasets: [{ data: porPrevisional.map(x => x[1]), backgroundColor: PALETTE }] },
+  });
+
+  const porAfp = {{ data.por_afp | tojson }};
+  if (porAfp.length) {
+    new Chart(document.getElementById("chartAfp"), {
+      type: "bar",
+      data: { labels: porAfp.map(x => x[0]), datasets: [{ label: "Personas", data: porAfp.map(x => x[1]), backgroundColor: GOLD }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    });
+  }
+
+  const incorporaciones = {{ data.incorporaciones_por_mes | tojson }};
+  new Chart(document.getElementById("chartIncorporaciones"), {
+    type: "line",
+    data: {
+      labels: incorporaciones.map(x => x[0]),
+      datasets: [{ label: "Incorporaciones", data: incorporaciones.map(x => x[1]), borderColor: NAVY, backgroundColor: NAVY, tension: 0.25 }],
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+  });
+</script>
 </body>
 </html>
