@@ -321,6 +321,17 @@
     },
     {
       "tipo": "competencia",
+      "nombre": "DISPONIBILIDAD",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
       "nombre": "ETICA",
       "descripcion": null,
       "nivel_1": null,
@@ -354,6 +365,28 @@
     },
     {
       "tipo": "competencia",
+      "nombre": "LIDERAZGO",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
+      "nombre": "ORGANIZACION",
+      "descripcion": null,
+      "nivel_1": null,
+      "nivel_2": null,
+      "nivel_3": null,
+      "nivel_4": null,
+      "conductas_no_deseadas": null,
+      "activo": true
+    },
+    {
+      "tipo": "competencia",
       "nombre": "ORIENTACION A RESULTADOS",
       "descripcion": null,
       "nivel_1": null,
@@ -365,7 +398,7 @@
     },
     {
       "tipo": "competencia",
-      "nombre": "Orientación al Cliente",
+      "nombre": "ORIENTADO AL CLIENTE",
       "descripcion": "Capacidad de identificar y satisfacer las necesidades del cliente interno y externo.",
       "nivel_1": "Atiende consultas básicas sin anticipar necesidades.",
       "nivel_2": "Identifica necesidades explícitas del cliente y responde adecuadamente.",
@@ -586,6 +619,17 @@
   ],
   "cargos": [
     {
+      "nombre": "ANALISTA DE CX",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "LIDER DE BASE"
+    },
+    {
       "nombre": "ASISTENTE DE TESORERIA",
       "descripcion": null,
       "funciones": [],
@@ -659,6 +703,42 @@
       "reporta_a_nombre": null
     },
     {
+      "nombre": "GERENTE UM SERVICIOS",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "GERENTE GENERAL"
+    },
+    {
+      "nombre": "GUARDIAN DE EXPERIENCIA - GX",
+      "descripcion": "Asegurar la capacitación técnica de las cuadrillas a nivel de los lineamientos de la organización y lo que pide el cliente (operador).",
+      "funciones": [
+        "Capacitación constante a las cuadrillas.",
+        "Exigencia en el cumplimiento de las normas establecidas por la organización.",
+        "Resolución de las Ordenes de Intervención (OI)."
+      ],
+      "responsabilidades": [
+        "Atención inmediata de las ordenes de intervención.",
+        "Reporte de intervenciones.",
+        "Reporte semanal de los gastos de combustible.",
+        "Verifica el correcto uso y estado de las herramientas de las cuadrillas.",
+        "Recomendar que la cuadrilla no salga a campo por falta de experiencia requerida o mal estado de herramientas.",
+        "Resuelve las Ordenes de Intervención que se le asigna efectivamente.",
+        "Gestiona el desarrollo de las cuadrillas a nivel de S1",
+        "Permanencia de las cuadrillas en proceso de Onboarding",
+        "Capacitar a las cuadrillas para evitar se activen las Garantías."
+      ],
+      "requisito_academico": "Nivel requerido: Técnico.",
+      "requisito_experiencia": "01 Año como T1 en una cuadrilla.\r\n06 Meses como Supervisor de cuadrillas.",
+      "requisito_conocimientos": "Instalaciones de Fibra Optica.\r\nConocimiento de SSOMA (ideal)",
+      "activo": true,
+      "reporta_a_nombre": "LIDER TECNICO"
+    },
+    {
       "nombre": "INVENTARIOS",
       "descripcion": null,
       "funciones": [],
@@ -699,6 +779,62 @@
       "reporta_a_nombre": "GERENTE GENERAL"
     },
     {
+      "nombre": "LIDER DE BASE",
+      "descripcion": "Resguardar la capacidad operativa a todo nivel (Cuadrillas, Guardian de Experiencia y Líder Tecnico); reclutamiento y desarrollo principalmente de las cuadrillas para que sean S1.",
+      "funciones": [
+        "Capacidad Operativa de Headcount",
+        "Velar por el desarrollo de las cuadrillas",
+        "Atraer y Administrar cuadrillas."
+      ],
+      "responsabilidades": [
+        "Da cuenta del HC Efectivo diario.",
+        "Recibe a las nuevas cuadrillas para su capacitación inicial.",
+        "Recluta através de canales internos.",
+        "Gatilla con SSOMA",
+        "Planificación D-1 y Semanal de las cuadrillas.",
+        "Charla de 5 minutos diarias.",
+        "Reporte de Altas y Bajas",
+        "Agenda OKA todos los lunes",
+        "Administración de SCTR",
+        "Actualización de Base de Datos",
+        "Reunión Semanal con Gerencia de UM Servicios",
+        "Retirar o Mover cuadrillas",
+        "Cubrir la cuota de rutas mensual (40% Com.Var.)",
+        "Costo de Administración de Cuadrillas (40% Com.Var.)",
+        "Agenda OKA (20% Com.Var.)"
+      ],
+      "requisito_academico": "Preferiblemente Universitaria en Administración o Sistemas (Bachiller)",
+      "requisito_experiencia": "03 Años de Experiencia Liderando Equipos grandes.",
+      "requisito_conocimientos": "Comercial, Logistica\r\nManejo Avanzado de Excel, Presentaciones.",
+      "activo": true,
+      "reporta_a_nombre": "GERENTE UM SERVICIOS"
+    },
+    {
+      "nombre": "LIDER TECNICO",
+      "descripcion": "Es el principal actor para capacitar tanto a los Guardianes de Experiencia (GX), como también a las cuadrillas, en la parte técnica. Tiene llegada al cliente (operador).",
+      "funciones": [
+        "Identificar los problemas frecuentes de las cuadrillas y/o desviaciones.",
+        "Capacitar principalmente a los Guardianes de Experiencias (Gx) y a los técnicos de las cuadrillas.",
+        "Evalua la experiencia tecnica de las cuadrillas.",
+        "Gestiona con clientes Garantías.",
+        "Avisa y verifica situaciones que apliquen a SSOMA."
+      ],
+      "responsabilidades": [
+        "Lidera y Evalua el proceso Match.",
+        "Prepara reuniones e informes semanales con el Gerente de UM Servicios para ver agendas y avances.",
+        "Prepara reuniones e informes semanales con Clientes para sustentar Garantías reiteradas que se vayan dando.",
+        "Prepara reuniones e informes diarios con Guardianes de Experiencia, sobre avances de OI, Garantías y Recableado.",
+        "Gestiona la parte tecnica de Onboarding de las cuadrillas durante los primeros 10 días.",
+        "Activa a SSOMA sobre situaciones.",
+        "Las Garantías deben ser menores al 2% y no debe tener incidencias sin resolver (ssoma)"
+      ],
+      "requisito_academico": "Formación Técnica en Administración o Ingeniria (mínimo).",
+      "requisito_experiencia": "03 Años como Guardian de Experiencia (Supervisor)",
+      "requisito_conocimientos": "SSOMA (ideal)",
+      "activo": true,
+      "reporta_a_nombre": "LIDER DE BASE"
+    },
+    {
       "nombre": "SOPORTE TI",
       "descripcion": null,
       "funciones": [],
@@ -725,13 +861,13 @@
     {
       "cargo_nombre": "Analista de Recursos Humanos",
       "competencia_tipo": "competencia",
-      "competencia_nombre": "Orientación al Cliente",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
       "nivel_requerido": 3
     },
     {
       "cargo_nombre": "JEFE DE RECURSOS HUMANOS",
       "competencia_tipo": "competencia",
-      "competencia_nombre": "Orientación al Cliente",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
       "nivel_requerido": 1
     },
     {
@@ -739,6 +875,108 @@
       "competencia_tipo": "competencia",
       "competencia_nombre": "RESOLUCION DE PROBLEMAS",
       "nivel_requerido": 4
+    },
+    {
+      "cargo_nombre": "GUARDIAN DE EXPERIENCIA - GX",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "GUARDIAN DE EXPERIENCIA - GX",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "GUARDIAN DE EXPERIENCIA - GX",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "GUARDIAN DE EXPERIENCIA - GX",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER TECNICO",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "LIDER TECNICO",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "LIDER TECNICO",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER TECNICO",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "LIDER TECNICO",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "LIDER TECNICO",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "DISPONIBILIDAD",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "nivel_requerido": 3
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TOMA DE DECISIONES",
+      "nivel_requerido": 2
+    },
+    {
+      "cargo_nombre": "LIDER DE BASE",
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE CONFLICTOS",
+      "nivel_requerido": 3
     }
   ]
 }
