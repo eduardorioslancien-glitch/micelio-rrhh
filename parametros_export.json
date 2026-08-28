@@ -107,6 +107,11 @@
     },
     {
       "tipo": "area",
+      "nombre": "ALMACÉN",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "CALIDAD",
       "activo": true
     },
@@ -127,7 +132,27 @@
     },
     {
       "tipo": "area",
+      "nombre": "GERENCIA",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "GROWTH",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "GROWTH CALIDAD",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "GROWTH FINANZAS",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "GROWTH LOGÍSTICA",
       "activo": true
     },
     {
@@ -172,12 +197,32 @@
     },
     {
       "tipo": "area",
+      "nombre": "TALENTO",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "TESORERIA",
       "activo": true
     },
     {
       "tipo": "area",
+      "nombre": "TRANSFORMACIÓN DIGITAL",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "UM",
+      "activo": true
+    },
+    {
+      "tipo": "area",
       "nombre": "VALORIZACION",
+      "activo": true
+    },
+    {
+      "tipo": "area",
+      "nombre": "VENTAS",
       "activo": true
     },
     {
@@ -641,6 +686,39 @@
       "reporta_a_nombre": "JEFE DE ADMIN. Y FINANZAS"
     },
     {
+      "nombre": "Analisis de Datos",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Analista de Calidad",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Analista de Finanzas",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
       "nombre": "Analista de Recursos Humanos",
       "descripcion": "Responsable de dar soporte administrativo al área de RRHH, procesos de selección y administración de personal.",
       "funciones": [
@@ -659,6 +737,83 @@
       "reporta_a_nombre": "JEFE DE RECURSOS HUMANOS"
     },
     {
+      "nombre": "Asesora Legal",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Asistente de Almacen",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Asistente de Contabilidad",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Asistente de Soporte TD",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Asistente de Venta al Detalle",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "BP Administración y Finanzas",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Bussiness Partner Proyectos",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
       "nombre": "CALIDAD",
       "descripcion": null,
       "funciones": [],
@@ -670,6 +825,17 @@
       "reporta_a_nombre": "GERENTE DE GROWTH"
     },
     {
+      "nombre": "Coordinador de Calidad",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
       "nombre": "DOTACION",
       "descripcion": null,
       "funciones": [],
@@ -679,6 +845,17 @@
       "requisito_conocimientos": null,
       "activo": true,
       "reporta_a_nombre": "GERENTE DE GROWTH"
+    },
+    {
+      "nombre": "Director General",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
     },
     {
       "nombre": "GERENTE DE GROWTH",
@@ -739,6 +916,39 @@
       "reporta_a_nombre": "LIDER TECNICO"
     },
     {
+      "nombre": "Gerente Customer Experience",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Gerente de Ultima Milla",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Guardián de la Experiencia",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
       "nombre": "INVENTARIOS",
       "descripcion": null,
       "funciones": [],
@@ -777,6 +987,17 @@
       "requisito_conocimientos": "Dominio avanzado de la legislación laboral vigente de la región.\r\nManejo de sistemas de gestión de RR.HH.\r\nManejo de indicadores clave de gestión (KPIs de capital humano)",
       "activo": true,
       "reporta_a_nombre": "GERENTE GENERAL"
+    },
+    {
+      "nombre": "Jefe de Operaciones",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
     },
     {
       "nombre": "LIDER DE BASE",
@@ -833,6 +1054,105 @@
       "requisito_conocimientos": "SSOMA (ideal)",
       "activo": true,
       "reporta_a_nombre": "LIDER DE BASE"
+    },
+    {
+      "nombre": "Lider de CX",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Lider de Logistica",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Limpieza",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Liquidadora",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Líder CX",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Líder de Activaciones",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Líder de Adquisición del Ecosistema",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Líder de Logística de Inventarios",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "Líder de Reclutamiento",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
     },
     {
       "nombre": "SOPORTE TI",
@@ -978,5 +1298,6 @@
       "competencia_nombre": "GESTION DE CONFLICTOS",
       "nivel_requerido": 3
     }
-  ]
+  ],
+  "esquemas_pago": []
 }
