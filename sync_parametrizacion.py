@@ -2,7 +2,8 @@
 """
 Sincroniza los catálogos de Parámetros — Holdings, Unidades de Negocio,
 Empresas, Líneas de Producto, Principios/Valores/Competencias, Áreas,
-Gerencias, Cargos y Funciones, Sedes, Bancos, Centros de Costo — desde una
+Gerencias, Cargos y Funciones, Esquemas de Pago, Sedes, Bancos, Centros de
+Costo — desde una
 base de datos hacia otra (pensado para: laptop de Eduardo -> servidor de
 producción). No sincroniza logos/firmas (son archivos binarios, se suben
 directo en cada entorno desde Parametrización).
@@ -34,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
     Holding, UnidadNegocio, Empresa, LineaProducto, Catalogo, Competencia, Cargo, CargoRequisitoCompetencia,
+    EsquemaPago,
 )
 
 DEFAULT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parametros_export.json")
@@ -102,6 +104,14 @@ def export_data(out_path: str):
                     "competencia_nombre": r.competencia.nombre, "nivel_requerido": r.nivel_requerido,
                 }
                 for r in db.query(CargoRequisitoCompetencia).all()
+            ],
+            "esquemas_pago": [
+                {
+                    "cargo_nombre": e.cargo.nombre, "sueldo_base": e.sueldo_base,
+                    "comision_variable": e.comision_variable, "movilidad": e.movilidad,
+                    "combustible": e.combustible, "otros_ingresos": e.otros_ingresos, "notas": e.notas,
+                }
+                for e in db.query(EsquemaPago).all()
             ],
         }
     finally:
@@ -246,6 +256,24 @@ def import_data(in_path: str):
                 db.add(obj)
             else:
                 obj.nivel_requerido = r["nivel_requerido"]
+        db.commit()
+
+        # 7. Esquemas de Pago (uno por Cargo)
+        for e in data.get("esquemas_pago", []):
+            cargo = db.query(Cargo).filter_by(nombre=e["cargo_nombre"]).first()
+            if not cargo:
+                print(f"  aviso: se omite esquema de pago de '{e['cargo_nombre']}' (cargo no encontrado)")
+                continue
+            obj = db.query(EsquemaPago).filter_by(cargo_id=cargo.id).first()
+            if not obj:
+                obj = EsquemaPago(cargo_id=cargo.id)
+                db.add(obj)
+            obj.sueldo_base = e.get("sueldo_base")
+            obj.comision_variable = e.get("comision_variable")
+            obj.movilidad = e.get("movilidad")
+            obj.combustible = e.get("combustible")
+            obj.otros_ingresos = e.get("otros_ingresos")
+            obj.notas = e.get("notas")
         db.commit()
     finally:
         db.close()

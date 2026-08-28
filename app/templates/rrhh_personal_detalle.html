@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -217,6 +217,9 @@
     {% set f = e.ficha_data or {} %}
     <table>
       <tr><td style="width:220px;"><strong>Remuneración</strong></td><td>S/ {{ f.get('remuneracion','—') }}</td></tr>
+      <tr><td><strong>Bonificaciones</strong></td><td>S/ {{ f.get('bonificaciones','—') }}</td></tr>
+      <tr><td><strong>Asignación Familiar</strong></td><td>S/ {{ f.get('asignacion_familiar','—') }}</td></tr>
+      <tr><td><strong>Movilidad</strong></td><td>S/ {{ f.get('movilidad','—') }}</td></tr>
       <tr><td><strong>Banco (haberes)</strong></td><td>{{ f.get('banco_haberes','—') }} · Cta {{ f.get('cuenta_haberes','—') }}</td></tr>
       <tr><td><strong>CCI</strong></td><td>{{ f.get('cci_haberes','—') }}</td></tr>
       <tr><td><strong>Banco CTS</strong></td><td>{{ f.get('banco_cts','—') }} · Cta {{ f.get('cuenta_cts','—') }}</td></tr>

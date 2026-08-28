@@ -13,7 +13,7 @@ COPY sync_parametrizacion.py parametros_export.json ./
 
 # Carpetas de datos en tiempo de ejecución (la app también las crea sola al
 # arrancar, esto solo asegura que existan desde el primer build).
-RUN mkdir -p data app/generated app/uploads app/fotos app/signatures app/firmas_empresa
+RUN mkdir -p data app/generated app/uploads app/fotos app/signatures app/firmas_empresa app/cv_postulantes
 
 ENV PYTHONUNBUFFERED=1
 

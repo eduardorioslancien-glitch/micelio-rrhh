@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Esquemas de Pago — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=9">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Esquemas de Pago</h2>
+    <p class="muted">La parte económica de referencia de cada cargo — se sugiere automáticamente al registrar un Pedido de Personal para ese cargo.</p>
+    <table>
+      <tr>
+        <th>Cargo</th><th>Sueldo Base</th><th>Comisión Variable</th><th>Movilidad</th><th>Combustible</th><th>Otros Ingresos</th><th></th>
+      </tr>
+      {% for c in cargos %}
+      {% set e = c.esquema_pago %}
+      <tr>
+        <td><strong>{{ c.nombre }}</strong></td>
+        <td>{{ "S/ %.2f"|format(e.sueldo_base) if e and e.sueldo_base is not none else "—" }}</td>
+        <td>{{ "S/ %.2f"|format(e.comision_variable) if e and e.comision_variable is not none else "—" }}</td>
+        <td>{{ "S/ %.2f"|format(e.movilidad) if e and e.movilidad is not none else "—" }}</td>
+        <td>{{ "S/ %.2f"|format(e.combustible) if e and e.combustible is not none else "—" }}</td>
+        <td>{{ "S/ %.2f"|format(e.otros_ingresos) if e and e.otros_ingresos is not none else "—" }}</td>
+        <td class="icon-btn-row">
+          <details>
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
+            <div class="edit-popover">
+              <form method="post" action="/rrhh/parametrizacion/esquemas-pago/{{ c.id }}">
+                <div class="field"><label>Sueldo Base (S/)</label><input type="number" step="0.01" name="sueldo_base" value="{{ e.sueldo_base if e and e.sueldo_base is not none else '' }}"></div>
+                <div class="field"><label>Comisión Variable (S/)</label><input type="number" step="0.01" name="comision_variable" value="{{ e.comision_variable if e and e.comision_variable is not none else '' }}"></div>
+                <div class="field"><label>Movilidad (S/)</label><input type="number" step="0.01" name="movilidad" value="{{ e.movilidad if e and e.movilidad is not none else '' }}"></div>
+                <div class="field"><label>Combustible (S/)</label><input type="number" step="0.01" name="combustible" value="{{ e.combustible if e and e.combustible is not none else '' }}"></div>
+                <div class="field"><label>Otros Ingresos (S/)</label><input type="number" step="0.01" name="otros_ingresos" value="{{ e.otros_ingresos if e and e.otros_ingresos is not none else '' }}"></div>
+                <div class="field"><label>Notas</label><input type="text" name="notas" value="{{ e.notas if e else '' }}"></div>
+                <button class="btn small" type="submit">Guardar</button>
+              </form>
+            </div>
+          </details>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="muted">Todavía no hay cargos registrados en Parámetros &gt; Cargos y Funciones.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

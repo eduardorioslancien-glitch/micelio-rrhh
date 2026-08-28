@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ pedido.cargo_solicitado }} — Trabaja con Nosotros — DIGETEL GROUP</title>
+<link rel="stylesheet" href="/static/style.css?v=9">
+</head>
+<body>
+  <div class="topbar">
+    <img src="/static/dg_logo.png" alt="DG">
+    <div>
+      <h1>Trabaja con Nosotros</h1>
+      <div class="sub">Vacantes disponibles en DIGETEL GROUP</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <a class="btn small secondary" href="/trabaja-con-nosotros">&larr; Ver todas las vacantes</a>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>{{ pedido.cargo_solicitado }}</h2>
+      <p class="muted">
+        {{ pedido.empresa.nombre if pedido.empresa else "DIGETEL GROUP" }}
+        {% if pedido.area %} · {{ pedido.area }}{% endif %}
+      </p>
+
+      {% if cargo %}
+        {% if cargo.descripcion %}<p>{{ cargo.descripcion }}</p>{% endif %}
+        {% if cargo.funciones %}
+        <div class="section-title">Funciones</div>
+        <ul>{% for f in cargo.funciones %}<li>{{ f }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if cargo.requisito_academico or cargo.requisito_experiencia or cargo.requisito_conocimientos %}
+        <div class="section-title">Requisitos</div>
+        <ul>
+          {% if cargo.requisito_academico %}<li><strong>Formación:</strong> {{ cargo.requisito_academico }}</li>{% endif %}
+          {% if cargo.requisito_experiencia %}<li><strong>Experiencia:</strong> {{ cargo.requisito_experiencia }}</li>{% endif %}
+          {% if cargo.requisito_conocimientos %}<li><strong>Conocimientos:</strong> {{ cargo.requisito_conocimientos }}</li>{% endif %}
+        </ul>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Postula a esta vacante</h2>
+      {% if error %}<div class="alert-error">{{ error|replace('+', ' ') }}</div>{% endif %}
+      <form method="post" action="/trabaja-con-nosotros/{{ pedido.id }}/postular" enctype="multipart/form-data">
+        <div class="grid2">
+          <div class="field"><label>Nombre Completo</label><input type="text" name="nombre_completo" required></div>
+          <div class="field"><label>Correo</label><input type="email" name="email" required></div>
+          <div class="field">
+            <label>Tipo de Documento</label>
+            <select name="documento_tipo" required>
+              {% for t in tipos_documento %}<option>{{ t }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field"><label>Número de Documento</label><input type="text" name="documento_numero" required></div>
+          <div class="field"><label>Celular</label><input type="text" name="celular"></div>
+          <div class="field"><label>CV (PDF o Word, máx. 8 MB)</label><input type="file" name="cv" accept=".pdf,.doc,.docx" required></div>
+        </div>
+        <button class="btn" type="submit" style="margin-top:10px;">Postular</button>
+      </form>
+      <p class="hint" style="margin-top:12px;">¿Tienes dudas? Escríbenos a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a>.</p>
+    </div>
+  </div>
+</body>
+</html>

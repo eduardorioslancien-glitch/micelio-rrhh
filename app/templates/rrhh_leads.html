@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Control de Leads — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -23,30 +23,26 @@
         </div>
       </form>
     </div>
+    <p class="muted">Ordenados por calificación de compatibilidad (IA) y, entre iguales, por antigüedad de postulación.</p>
     <table>
       <tr>
-        <th>Candidato</th><th>Contacto</th><th>Origen</th><th>Pedido</th><th>Registrado</th><th>Etapa</th><th></th>
+        <th>★</th><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Pedido</th><th>Registrado</th><th>Etapa</th><th></th>
       </tr>
       {% for l in leads %}
       <tr>
-        <td><strong>{{ l.nombre_completo }}</strong>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
+        <td class="muted" style="white-space:nowrap;">{{ "★" * l.estrellas if l.estrellas else "—" }}</td>
+        <td><a href="/rrhh/reclutamiento/leads/{{ l.id }}"><strong>{{ l.nombre_completo }}</strong></a>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
         <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
         <td>{{ l.origen or "—" }}</td>
         <td>{{ l.pedido.cargo_solicitado if l.pedido else "—" }}</td>
         <td>{{ l.created_at.strftime("%d/%m/%Y") }}</td>
         <td><span class="badge {{ l.etapa }}">{{ etapa_labels.get(l.etapa, l.etapa) }}</span></td>
         <td>
-          <form method="post" action="/rrhh/reclutamiento/leads/{{ l.id }}/etapa" class="inline-form" style="margin:0;">
-            <select name="etapa" onchange="this.form.submit()">
-              {% for key, label in etapas %}
-              <option value="{{ key }}" {{ 'selected' if l.etapa == key else '' }}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </form>
+          <a class="btn small secondary" href="/rrhh/reclutamiento/leads/{{ l.id }}">Ver</a>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="muted">Todavía no hay candidatos registrados.</td></tr>
+      <tr><td colspan="8" class="muted">Todavía no hay candidatos registrados.</td></tr>
       {% endfor %}
     </table>
 

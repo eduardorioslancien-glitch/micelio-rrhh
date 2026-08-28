@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postulación recibida — DIGETEL GROUP</title>
+<link rel="stylesheet" href="/static/style.css?v=9">
+</head>
+<body>
+  <div class="topbar">
+    <img src="/static/dg_logo.png" alt="DG">
+    <div>
+      <h1>Trabaja con Nosotros</h1>
+      <div class="sub">Vacantes disponibles en DIGETEL GROUP</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card" style="text-align:center; padding:40px 26px;">
+      <h2>¡Gracias por postular!</h2>
+      <p>Recibimos tu postulación a <strong>{{ pedido.cargo_solicitado }}</strong>. Nuestro equipo de Recursos Humanos va a revisar tu CV y, si tu perfil calza con lo que buscamos, te contactaremos para coordinar los siguientes pasos.</p>
+      <p class="muted">Si tienes alguna consulta, escríbenos a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a>.</p>
+      <a class="btn small secondary" href="/trabaja-con-nosotros" style="margin-top:10px; display:inline-block;">Ver otras vacantes</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Editar ficha — {{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -145,9 +145,8 @@
       </div>
       <div class="field"><label>Remuneración (S/)</label><input type="text" id="remuneracion"></div>
       <div class="field"><label>Bonificaciones (S/)</label><input type="text" id="bonificaciones"></div>
-      <div class="field"><label>Asignación Familiar</label>
-        <select id="asignacion_familiar"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
-      </div>
+      <div class="field"><label>Asignación Familiar (S/)</label><input type="text" id="asignacion_familiar"></div>
+      <div class="field"><label>Movilidad (S/)</label><input type="text" id="movilidad"></div>
     </div>
   </div>
 
@@ -523,7 +522,7 @@ function collectFicha() {
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_direccion",
     "lab_codigo","area","gerencia","cargo","sede","centro_costos","jefe_inmediato",
     "fecha_ingreso","fecha_contrato","fecha_fin_contrato","tipo_contrato","modalidad","horario","jornada","turno",
-    "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar",
+    "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar","movilidad",
     "banco_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
     "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",
     "talla_camisa","talla_polo","talla_pantalon","talla_zapato","talla_chaleco","talla_casco","talla_guantes",

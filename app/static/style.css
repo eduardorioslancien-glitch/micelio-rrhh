@@ -107,13 +107,14 @@ a.btn.small, button.btn.small { padding: 5px 10px; font-size: 12px; }
    va a ejecutar al hacer clic (igual que el texto del title), no el estado
    actual: si está activo se ve el ícono rojo "Desactivar", si está
    inactivo se ve el verde "Activar". */
-.icon-btn-editar, .icon-btn-eliminar, .icon-btn-activar, .icon-btn-desactivar {
+.icon-btn-editar, .icon-btn-eliminar, .icon-btn-activar, .icon-btn-desactivar, .icon-btn-imprimir {
   background-repeat: no-repeat; background-position: center; background-size: 18px 18px;
 }
 .icon-btn-editar { background-image: url('/static/icons/icon_editar.png'); }
 .icon-btn-eliminar { background-image: url('/static/icons/icon_eliminar.png'); }
 .icon-btn-activar { background-image: url('/static/icons/icon_activar.png'); }
 .icon-btn-desactivar { background-image: url('/static/icons/icon_desactivar.png'); }
+.icon-btn-imprimir { background-image: url('/static/icons/icon_imprimir.png'); }
 /* Punto 8 del pedido: el desplegable de "Editar" en Parámetros se veía
    desordenado (formularios y botones de subir archivo mezclados sin
    separación) — este contenedor + títulos de sección lo ordenan. */

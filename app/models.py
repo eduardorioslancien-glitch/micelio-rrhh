@@ -147,7 +147,8 @@ ETAPAS_LEAD = [
     ("descartado", "Descartado"),
 ]
 ETAPA_LEAD_KEYS = [e[0] for e in ETAPAS_LEAD]
-ORIGENES_LEAD = ["LinkedIn", "Referido", "Bolsa de Trabajo", "Feria Laboral", "Otro"]
+ORIGENES_LEAD = ["Trabaja con Nosotros", "LinkedIn", "Referido", "Bolsa de Trabajo", "Feria Laboral", "Otro"]
+TIPOS_DOCUMENTO_POSTULANTE = ["DNI", "CE", "Pasaporte"]
 
 # Onboarding (seguimiento por trabajador) — Reclutamiento y Selección, Fase 3.
 ETAPAS_ONBOARDING = [
@@ -313,8 +314,9 @@ class Cargo(Base):
     requisito_academico = Column(Text, nullable=True)
     requisito_experiencia = Column(Text, nullable=True)
     requisito_conocimientos = Column(Text, nullable=True)
-    # Compensación de referencia para este cargo — se sugiere automáticamente
-    # al registrar un Pedido de Personal para este cargo (punto 4.3 del pedido).
+    # OBSOLETO: reemplazado por EsquemaPago (Parametrización > Esquemas de
+    # Pago). Se dejan las columnas por compatibilidad con datos viejos, pero
+    # ya no se leen ni se editan desde la UI — usar cargo.esquema_pago.
     sueldo_base_sugerido = Column(Float, nullable=True)
     comision_sugerida = Column(Float, nullable=True)
     movilidad_sugerida = Column(Float, nullable=True)
@@ -325,6 +327,8 @@ class Cargo(Base):
     reporta_a = relationship("Cargo", remote_side=[id], backref="subordinados")
     requisitos_competencias = relationship("CargoRequisitoCompetencia", back_populates="cargo",
                                             cascade="all, delete-orphan")
+    esquema_pago = relationship("EsquemaPago", back_populates="cargo", uselist=False,
+                                 cascade="all, delete-orphan")
 
 
 class CargoRequisitoCompetencia(Base):
@@ -338,6 +342,26 @@ class CargoRequisitoCompetencia(Base):
 
     cargo = relationship("Cargo", back_populates="requisitos_competencias")
     competencia = relationship("Competencia")
+
+
+class EsquemaPago(Base):
+    """Parametrización > Esquemas de Pago: la parte económica detallada
+    asociada a un Cargo (uno por cargo). Es la referencia que se sugiere
+    automáticamente al registrar un Pedido de Personal para ese cargo."""
+    __tablename__ = "esquemas_pago"
+
+    id = Column(Integer, primary_key=True)
+    cargo_id = Column(Integer, ForeignKey("cargos.id"), unique=True, nullable=False)
+    sueldo_base = Column(Float, nullable=True)
+    comision_variable = Column(Float, nullable=True)
+    movilidad = Column(Float, nullable=True)
+    combustible = Column(Float, nullable=True)
+    otros_ingresos = Column(Float, nullable=True)
+    notas = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    cargo = relationship("Cargo", back_populates="esquema_pago")
 
 
 # ---------------------------------------------------------------------------
@@ -592,6 +616,7 @@ class PedidoPersonal(Base):
     __tablename__ = "pedidos_personal"
 
     id = Column(Integer, primary_key=True)
+    codigo = Column(String(30), unique=True, nullable=True)  # PED-2026-0001, autogenerado
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=True)
     cargo_solicitado = Column(String(150), nullable=False)
     area = Column(String(150), nullable=True)
@@ -607,6 +632,7 @@ class PedidoPersonal(Base):
     sueldo_base_ofrecido = Column(Float, nullable=True)
     comision_ofrecida = Column(Float, nullable=True)
     movilidad_ofrecida = Column(Float, nullable=True)
+    combustible_ofrecido = Column(Float, nullable=True)
     otros_ingresos_ofrecido = Column(Float, nullable=True)
     estado = Column(String(20), default="abierto")  # uno de ESTADO_PEDIDO_KEYS
     observaciones = Column(Text, nullable=True)
@@ -631,12 +657,26 @@ class LeadCandidato(Base):
     nombre_completo = Column(String(200), nullable=False)
     email = Column(String(200), nullable=True)
     celular = Column(String(30), nullable=True)
+    documento_tipo = Column(String(20), nullable=True)  # uno de TIPOS_DOCUMENTO_POSTULANTE
+    documento_numero = Column(String(20), nullable=True)
     origen = Column(String(60), nullable=True)  # uno de ORIGENES_LEAD
     etapa = Column(String(20), default="nuevo")  # uno de ETAPA_LEAD_KEYS
     notas = Column(Text, nullable=True)
     registrado_por = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Postulación vía "Trabaja con Nosotros" (landing pública) — CV y
+    # calificación preliminar de compatibilidad hecha por IA (Claude) contra
+    # los requisitos del cargo del pedido asociado.
+    cv_path = Column(String(500), nullable=True)
+    cv_filename = Column(String(300), nullable=True)
+    estrellas = Column(Integer, nullable=True)  # 1-5, calificación de compatibilidad de la IA
+    analisis_ia = Column(Text, nullable=True)  # explicación de la calificación
+
+    # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
+    # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.
+    entrevista_data = Column(JSON, nullable=True)
 
     pedido = relationship("PedidoPersonal", back_populates="leads")
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Informe — {{ cargo.nombre }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 <style>
   body { background: white; }
   .informe { max-width: 900px; margin: 0 auto; padding: 30px 34px 60px; }
@@ -72,11 +72,13 @@
     </table>
 
     <div class="section-title">Compensación de Referencia</div>
+    {% set e = cargo.esquema_pago %}
     <table>
-      <tr><td style="width:220px;"><strong>Sueldo Base</strong></td><td>{{ "S/ %.2f"|format(cargo.sueldo_base_sugerido) if cargo.sueldo_base_sugerido is not none else "—" }}</td></tr>
-      <tr><td><strong>Comisión Variable</strong></td><td>{{ "S/ %.2f"|format(cargo.comision_sugerida) if cargo.comision_sugerida is not none else "—" }}</td></tr>
-      <tr><td><strong>Movilidad</strong></td><td>{{ "S/ %.2f"|format(cargo.movilidad_sugerida) if cargo.movilidad_sugerida is not none else "—" }}</td></tr>
-      <tr><td><strong>Otros Ingresos</strong></td><td>{{ "S/ %.2f"|format(cargo.otros_ingresos_sugerido) if cargo.otros_ingresos_sugerido is not none else "—" }}</td></tr>
+      <tr><td style="width:220px;"><strong>Sueldo Base</strong></td><td>{{ "S/ %.2f"|format(e.sueldo_base) if e and e.sueldo_base is not none else "—" }}</td></tr>
+      <tr><td><strong>Comisión Variable</strong></td><td>{{ "S/ %.2f"|format(e.comision_variable) if e and e.comision_variable is not none else "—" }}</td></tr>
+      <tr><td><strong>Movilidad</strong></td><td>{{ "S/ %.2f"|format(e.movilidad) if e and e.movilidad is not none else "—" }}</td></tr>
+      <tr><td><strong>Combustible</strong></td><td>{{ "S/ %.2f"|format(e.combustible) if e and e.combustible is not none else "—" }}</td></tr>
+      <tr><td><strong>Otros Ingresos</strong></td><td>{{ "S/ %.2f"|format(e.otros_ingresos) if e and e.otros_ingresos is not none else "—" }}</td></tr>
     </table>
 
     <div class="section-title">Personal Actual en este Cargo ({{ ocupantes|length }})</div>

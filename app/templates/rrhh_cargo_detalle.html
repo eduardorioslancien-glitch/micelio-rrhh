@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <title>{{ cargo.nombre }} — MOF — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
 
   <div style="display:flex; align-items:center; gap:10px;">
     <a class="btn secondary" href="/rrhh/parametrizacion/cargos">&larr; Volver a Cargos y Funciones</a>
-    <a class="icon-btn" href="/rrhh/parametrizacion/cargo/{{ cargo.id }}/informe" target="_blank"
-       title="Imprimir informe completo del cargo">🖨️</a>
+    <a class="icon-btn icon-btn-imprimir" href="/rrhh/parametrizacion/cargo/{{ cargo.id }}/informe" target="_blank"
+       title="Imprimir informe completo del cargo"></a>
   </div>
 
   <div class="card" style="margin-top:16px;">
@@ -36,17 +36,21 @@
       <div class="field"><label>Experiencia</label><textarea name="requisito_experiencia" rows="2">{{ cargo.requisito_experiencia or '' }}</textarea></div>
       <div class="field"><label>Conocimientos</label><textarea name="requisito_conocimientos" rows="2">{{ cargo.requisito_conocimientos or '' }}</textarea></div>
 
-      <div class="section-title">Compensación de Referencia</div>
-      <p class="hint">Se sugiere automáticamente al registrar un Pedido de Personal para este cargo.</p>
-      <div class="grid4">
-        <div class="field"><label>Sueldo Base (S/)</label><input type="number" step="0.01" name="sueldo_base_sugerido" value="{{ cargo.sueldo_base_sugerido if cargo.sueldo_base_sugerido is not none else '' }}"></div>
-        <div class="field"><label>Comisión Variable (S/)</label><input type="number" step="0.01" name="comision_sugerida" value="{{ cargo.comision_sugerida if cargo.comision_sugerida is not none else '' }}"></div>
-        <div class="field"><label>Movilidad (S/)</label><input type="number" step="0.01" name="movilidad_sugerida" value="{{ cargo.movilidad_sugerida if cargo.movilidad_sugerida is not none else '' }}"></div>
-        <div class="field"><label>Otros Ingresos (S/)</label><input type="number" step="0.01" name="otros_ingresos_sugerido" value="{{ cargo.otros_ingresos_sugerido if cargo.otros_ingresos_sugerido is not none else '' }}"></div>
-      </div>
-
       <button class="btn" type="submit">Guardar cambios</button>
     </form>
+  </div>
+
+  <div class="card">
+    <h2>Compensación de Referencia</h2>
+    {% set e = cargo.esquema_pago %}
+    <table>
+      <tr><td style="width:220px;"><strong>Sueldo Base</strong></td><td>{{ "S/ %.2f"|format(e.sueldo_base) if e and e.sueldo_base is not none else "—" }}</td></tr>
+      <tr><td><strong>Comisión Variable</strong></td><td>{{ "S/ %.2f"|format(e.comision_variable) if e and e.comision_variable is not none else "—" }}</td></tr>
+      <tr><td><strong>Movilidad</strong></td><td>{{ "S/ %.2f"|format(e.movilidad) if e and e.movilidad is not none else "—" }}</td></tr>
+      <tr><td><strong>Combustible</strong></td><td>{{ "S/ %.2f"|format(e.combustible) if e and e.combustible is not none else "—" }}</td></tr>
+      <tr><td><strong>Otros Ingresos</strong></td><td>{{ "S/ %.2f"|format(e.otros_ingresos) if e and e.otros_ingresos is not none else "—" }}</td></tr>
+    </table>
+    <a class="btn small secondary" style="margin-top:10px;" href="/rrhh/parametrizacion/esquemas-pago">Editar en Esquemas de Pago</a>
   </div>
 
   <div class="card">

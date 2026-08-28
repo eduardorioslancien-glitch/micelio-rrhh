@@ -10,3 +10,5 @@ itsdangerous>=2.1    # firma la cookie de sesión del login (Administración de 
 reportlab>=4.0    # genera los PDF firmados del legajo en Python puro (sin Word/LibreOffice)
 a2wsgi>=1.10      # adapta la app ASGI (FastAPI) a WSGI para Passenger (cPanel Setup Python App)
 requests>=2.31   # solo lo usa test_e2e.py (prueba automatizada), no el servidor
+anthropic>=0.40   # califica CVs de "Trabaja con Nosotros" contra el cargo (necesita ANTHROPIC_API_KEY)
+python-docx>=1.1   # extrae texto de CVs en Word (.docx) para el análisis anterior

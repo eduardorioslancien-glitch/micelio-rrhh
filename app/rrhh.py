@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
-    OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion,
+    OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion, EsquemaPago,
     Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
@@ -983,8 +983,6 @@ def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form
                   funciones: str = Form(""), responsabilidades: str = Form(""),
                   reporta_a_id: str = Form(""), requisito_academico: str = Form(""),
                   requisito_experiencia: str = Form(""), requisito_conocimientos: str = Form(""),
-                  sueldo_base_sugerido: str = Form(""), comision_sugerida: str = Form(""),
-                  movilidad_sugerida: str = Form(""), otros_ingresos_sugerido: str = Form(""),
                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     cargo = db.query(Cargo).get(cargo_id)
     if not cargo:
@@ -1000,10 +998,6 @@ def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form
     cargo.requisito_academico = requisito_academico.strip() or None
     cargo.requisito_experiencia = requisito_experiencia.strip() or None
     cargo.requisito_conocimientos = requisito_conocimientos.strip() or None
-    cargo.sueldo_base_sugerido = _monto_o_none(sueldo_base_sugerido)
-    cargo.comision_sugerida = _monto_o_none(comision_sugerida)
-    cargo.movilidad_sugerida = _monto_o_none(movilidad_sugerida)
-    cargo.otros_ingresos_sugerido = _monto_o_none(otros_ingresos_sugerido)
     db.commit()
     return RedirectResponse(f"/rrhh/parametrizacion/cargo/{cargo_id}", status_code=303)
 
@@ -1061,6 +1055,41 @@ def eliminar_cargo(cargo_id: int, db: Session = Depends(get_db),
         db.delete(cargo)
         db.commit()
     return RedirectResponse("/rrhh/parametrizacion/cargos", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Esquemas de Pago (Parametrización) — punto 5 del pedido de Reclutamiento:
+# la parte económica detallada asociada a un Cargo, usada para sugerir la
+# compensación al registrar un Pedido de Personal.
+# ---------------------------------------------------------------------------
+@router.get("/rrhh/parametrizacion/esquemas-pago", response_class=HTMLResponse)
+def esquemas_pago_list(request: Request, db: Session = Depends(get_db),
+                        user: User = Depends(require_role("administrador"))):
+    cargos = db.query(Cargo).filter(Cargo.activo == True).order_by(Cargo.nombre).all()  # noqa: E712
+    return templates.TemplateResponse(request, "rrhh_esquemas_pago.html", _ctx(
+        request, user, cargos=cargos, active="esquemas_pago",
+    ))
+
+
+@router.post("/rrhh/parametrizacion/esquemas-pago/{cargo_id}")
+def esquema_pago_guardar(cargo_id: int, sueldo_base: str = Form(""), comision_variable: str = Form(""),
+                          movilidad: str = Form(""), combustible: str = Form(""), otros_ingresos: str = Form(""),
+                          notas: str = Form(""), db: Session = Depends(get_db),
+                          user: User = Depends(require_role("administrador"))):
+    cargo = db.query(Cargo).get(cargo_id)
+    if not cargo:
+        raise HTTPException(404)
+    esquema = cargo.esquema_pago or EsquemaPago(cargo_id=cargo_id)
+    esquema.sueldo_base = _monto_o_none(sueldo_base)
+    esquema.comision_variable = _monto_o_none(comision_variable)
+    esquema.movilidad = _monto_o_none(movilidad)
+    esquema.combustible = _monto_o_none(combustible)
+    esquema.otros_ingresos = _monto_o_none(otros_ingresos)
+    esquema.notas = notas.strip() or None
+    if esquema.id is None:
+        db.add(esquema)
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/esquemas-pago", status_code=303)
 
 
 # ---------------------------------------------------------------------------

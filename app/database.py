@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -46,6 +47,15 @@ _MIGRACIONES_COLUMNAS = [
     ("pedidos_personal", "comision_ofrecida", "FLOAT"),
     ("pedidos_personal", "movilidad_ofrecida", "FLOAT"),
     ("pedidos_personal", "otros_ingresos_ofrecido", "FLOAT"),
+    ("pedidos_personal", "codigo", "VARCHAR(30)"),
+    ("pedidos_personal", "combustible_ofrecido", "FLOAT"),
+    ("leads_candidatos", "documento_tipo", "VARCHAR(20)"),
+    ("leads_candidatos", "documento_numero", "VARCHAR(20)"),
+    ("leads_candidatos", "cv_path", "VARCHAR(500)"),
+    ("leads_candidatos", "cv_filename", "VARCHAR(300)"),
+    ("leads_candidatos", "estrellas", "INTEGER"),
+    ("leads_candidatos", "analisis_ia", "TEXT"),
+    ("leads_candidatos", "entrevista_data", "JSON"),
 ]
 
 
@@ -57,6 +67,7 @@ def _run_migraciones_livianas():
                 conn.exec_driver_sql(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo_sql}")
                 conn.commit()
         _backfill_holding_por_defecto(conn)
+        _backfill_codigo_pedidos(conn)
 
 
 def _backfill_holding_por_defecto(conn):
@@ -84,6 +95,27 @@ def _backfill_holding_por_defecto(conn):
     conn.exec_driver_sql(
         f"UPDATE unidades_negocio SET holding_id = {holding_id} WHERE holding_id IS NULL"
     )
+    conn.commit()
+
+
+def _backfill_codigo_pedidos(conn):
+    """Pedidos de Personal creados antes de que existiera el código
+    autogenerado se numeran acá, en orden de creación, para que ninguno
+    quede sin código en el listado."""
+    filas = conn.exec_driver_sql(
+        "SELECT id, created_at FROM pedidos_personal WHERE codigo IS NULL ORDER BY created_at"
+    ).fetchall()
+    if not filas:
+        return
+    from collections import defaultdict
+    contador = defaultdict(int)
+    for pedido_id, created_at in filas:
+        anio = (created_at or "")[:4] or str(datetime.datetime.utcnow().year)
+        contador[anio] += 1
+        codigo = f"PED-{anio}-{contador[anio]:04d}"
+        conn.exec_driver_sql(
+            f"UPDATE pedidos_personal SET codigo = '{codigo}' WHERE id = {int(pedido_id)}"
+        )
     conn.commit()
 
 

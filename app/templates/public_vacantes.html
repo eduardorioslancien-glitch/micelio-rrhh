@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trabaja con Nosotros — DIGETEL GROUP</title>
+<link rel="stylesheet" href="/static/style.css?v=9">
+</head>
+<body>
+  <div class="topbar">
+    <img src="/static/dg_logo.png" alt="DG">
+    <div>
+      <h1>Trabaja con Nosotros</h1>
+      <div class="sub">Vacantes disponibles en DIGETEL GROUP</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Vacantes abiertas ({{ vacantes|length }})</h2>
+      {% if vacantes %}
+      {% for v in vacantes %}
+      <div style="padding:16px 0; border-bottom:1px solid var(--light);">
+        <h3 style="margin:0 0 4px;"><a href="/trabaja-con-nosotros/{{ v.pedido.id }}">{{ v.pedido.cargo_solicitado }}</a></h3>
+        <p class="muted" style="margin:0 0 8px;">
+          {{ v.pedido.empresa.nombre if v.pedido.empresa else "DIGETEL GROUP" }}
+          {% if v.pedido.area %} · {{ v.pedido.area }}{% endif %}
+        </p>
+        {% if v.cargo and v.cargo.descripcion %}<p style="margin:0 0 10px;">{{ v.cargo.descripcion }}</p>{% endif %}
+        <a class="btn small" href="/trabaja-con-nosotros/{{ v.pedido.id }}">Ver vacante y postular</a>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="muted">Por ahora no tenemos vacantes abiertas. Escríbenos a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a> y con gusto te contactamos apenas se abra una posición para ti.</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
