@@ -1299,5 +1299,15 @@
       "nivel_requerido": 3
     }
   ],
-  "esquemas_pago": []
+  "esquemas_pago": [
+    {
+      "cargo_nombre": "JEFE DE RECURSOS HUMANOS",
+      "sueldo_base": 2500.0,
+      "comision_variable": 1500.0,
+      "movilidad": 250.0,
+      "combustible": null,
+      "otros_ingresos": 250.0,
+      "notas": null
+    }
+  ]
 }
