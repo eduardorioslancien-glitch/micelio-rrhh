@@ -3,10 +3,24 @@
 <head>
 <meta charset="utf-8">
 <title>MICELIO — Sistema de Recursos Humanos DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
+
+  {% if puede_marcar_asistencia %}
+  <div class="card" id="widget-asistencia" style="text-align:center;">
+    <h2 style="margin-top:0;">Control de Asistencia</h2>
+    {% if not tiene_consentimiento_geo %}
+    <p class="muted">Para que tu marcación quede geolocalizada, primero acepta el <a href="/rrhh/asistencia/consentimiento">consentimiento de geolocalización</a> (se pide una sola vez). Igual puedes marcar sin eso, solo que sin ubicación.</p>
+    {% endif %}
+    <div style="display:flex; gap:14px; justify-content:center; margin-top:10px;">
+      <button class="btn" id="btn-marcar-entrada" onclick="marcarAsistencia('entrada')" style="background:var(--green); border-color:var(--green); padding:14px 32px; font-size:15px;" {{ 'disabled' if not puede_marcar_entrada else '' }}>🟢 INGRESO</button>
+      <button class="btn" id="btn-marcar-salida" onclick="marcarAsistencia('salida')" style="background:var(--red); border-color:var(--red); padding:14px 32px; font-size:15px;" {{ 'disabled' if puede_marcar_entrada else '' }}>🔴 SALIDA</button>
+    </div>
+    <p id="resultado-marcacion" class="muted" style="margin-top:14px;"></p>
+  </div>
+  {% endif %}
 
   <div class="home-banner">
     <img src="/static/micelio_art.png" alt="MICELIO">
@@ -65,6 +79,7 @@
 
   <h2 style="margin:20px 4px 4px;">Anuncios</h2>
   {% if anuncios %}
+  <div class="grid2-cards">
   {% for a in anuncios %}
   <div class="card anuncio-card">
     {% if a.imagen_path %}<img class="anuncio-imagen" src="/rrhh/clima/anuncios/{{ a.id }}/imagen" alt="{{ a.titulo }}">{% endif %}
@@ -73,7 +88,7 @@
       {{ a.created_at.strftime('%d/%m/%Y') }} ·
       {% if a.ambito == 'holding' %}Todo el Holding{% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '' }}{% else %}{{ a.empresa.nombre if a.empresa else '' }}{% endif %}
     </p>
-    <p style="margin:0; white-space:pre-line;">{{ a.cuerpo }}</p>
+    <p class="anuncio-cuerpo" style="white-space:pre-line;">{{ a.cuerpo }}</p>
     {% set c = conteos_anuncio.get(a.id, {}) %}
     <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/like" style="margin-top:12px;">
       <button class="btn small secondary" type="submit" title="{{ 'Quitar me gusta' if c.get('le_gusta') else 'Me gusta' }}">
@@ -83,10 +98,51 @@
     </form>
   </div>
   {% endfor %}
+  </div>
   {% else %}
   <div class="card"><p class="muted">No hay anuncios publicados por ahora.</p></div>
   {% endif %}
 
 </div>
+<script>
+  function marcarAsistencia(tipo) {
+    const btnE = document.getElementById("btn-marcar-entrada");
+    const btnS = document.getElementById("btn-marcar-salida");
+    const resultado = document.getElementById("resultado-marcacion");
+    btnE.disabled = true; btnS.disabled = true;
+    resultado.textContent = "Obteniendo tu ubicación…";
+
+    const enviar = (lat, lng, precision) => {
+      fetch("/rrhh/asistencia/marcar-geo", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ tipo, lat, lng, precision }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.ok) { resultado.textContent = "No se pudo registrar la marcación."; return; }
+          let msg = `${data.tipo === "entrada" ? "Ingreso" : "Salida"} registrado — ${data.hora} · ${data.fecha}`;
+          if (!data.tiene_consentimiento) msg += " · sin ubicación (falta aceptar el consentimiento)";
+          else if (data.sede) msg += ` · ${data.sede} (${data.distancia} m)`;
+          else msg += " · sin geocerca cercana registrada";
+          if (data.fuera_de_zona) msg += " ⚠️ fuera de zona autorizada, quedó para revisión";
+          resultado.textContent = msg;
+          btnE.disabled = data.tipo === "entrada";
+          btnS.disabled = data.tipo === "salida";
+        })
+        .catch(() => { resultado.textContent = "Ocurrió un error al registrar la marcación."; btnE.disabled = false; btnS.disabled = false; });
+    };
+
+    if (!navigator.geolocation) {
+      resultado.textContent = "Tu navegador no soporta geolocalización — se registrará sin ubicación.";
+      enviar(null, null, null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => enviar(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
+      () => { resultado.textContent = "No se pudo obtener tu ubicación — se registrará sin ella."; enviar(null, null, null); },
+      { enableHighAccuracy: true, timeout: 12000 },
+    );
+  }
+</script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Asistencia — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -25,17 +25,27 @@
     <p class="muted">{{ total_activos - sin_marcar|length }} de {{ total_activos }} trabajadores activos marcaron entrada este día.</p>
 
     <table>
-      <tr><th>Trabajador</th><th>Tipo</th><th>Hora</th><th>Registrado por</th><th>Nota</th></tr>
+      <tr><th>Trabajador</th><th>Tipo</th><th>Hora</th><th>Ubicación</th><th>Registrado por</th><th>Nota</th></tr>
       {% for r in registros %}
       <tr>
         <td>{{ r.employee.nombre_completo }}</td>
         <td><span class="badge {{ 'firmado' if r.tipo == 'entrada' else 'pendiente' }}">{{ r.tipo }}</span></td>
         <td>{{ r.timestamp.strftime('%H:%M:%S') }}</td>
+        <td>
+          {% if r.latitud is not none %}
+          <a href="https://www.google.com/maps?q={{ r.latitud }},{{ r.longitud }}" target="_blank">
+            {{ r.sede_geocerca_nombre or "ver mapa" }}{% if r.distancia_metros is not none %} ({{ r.distancia_metros|round|int }} m){% endif %}
+          </a>
+          {% if r.fuera_de_zona %}<br><span class="badge cancelado" style="margin-top:2px;">fuera de zona</span>{% endif %}
+          {% else %}
+          <span class="muted">sin ubicación</span>
+          {% endif %}
+        </td>
         <td class="muted">{{ r.registrado_por or '—' }}</td>
         <td class="muted">{{ r.nota or '—' }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="muted">Sin marcaciones ese día.</td></tr>
+      <tr><td colspan="6" class="muted">Sin marcaciones ese día.</td></tr>
       {% endfor %}
     </table>
   </div>

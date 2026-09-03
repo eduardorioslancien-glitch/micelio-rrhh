@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Legajo Digital — DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/style.css?v=10">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
 </head>
 <body>
@@ -243,6 +243,14 @@
       <h2>Documentos</h2>
       <p class="section-sub">Adjunta tus documentos de sustento (PDF, JPG o PNG). Quedan guardados en tu legajo.</p>
 
+      <div class="upload-box">
+        <label class="title">Documento de Identidad — Anverso</label>
+        <input type="file" id="file_dni_anverso" accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+      <div class="upload-box">
+        <label class="title">Documento de Identidad — Reverso</label>
+        <input type="file" id="file_dni_reverso" accept=".pdf,.jpg,.jpeg,.png">
+      </div>
       <div class="upload-box">
         <label class="title">Curriculum Vitae (CV)</label>
         <input type="file" id="file_cv" accept=".pdf,.jpg,.jpeg,.png">
@@ -651,6 +659,8 @@ async function continuarDesdeDocumentos() {
 
   const statusEl = document.getElementById("upload_status");
   const fileFields = [
+    { id: "file_dni_anverso", tipo: "dni_anverso" },
+    { id: "file_dni_reverso", tipo: "dni_reverso" },
     { id: "file_cv", tipo: "cv" },
     { id: "file_cul", tipo: "cul" },
     { id: "file_antecedentes", tipo: "antecedentes_policiales" },

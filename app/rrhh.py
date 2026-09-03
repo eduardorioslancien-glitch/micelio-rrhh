@@ -3,7 +3,11 @@
 login/control de accesos, parametrización (empresas/unidades de negocio),
 base de datos maestra de personal (foto, bitácora, documentos, altas/bajas)
 y gestión de usuarios del sistema."""
+import base64
 import datetime
+import hashlib
+import json
+import math
 import os
 import uuid
 
@@ -17,6 +21,7 @@ from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion, EsquemaPago,
     Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
+    SedeGeocerca, ConsentimientoAsistencia,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -27,16 +32,19 @@ from .auth import (
     can_see_planilla, can_see_operativo, is_staff,
 )
 from . import kpis as kpis_module
+from . import pdf_signed
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOTOS_DIR = os.path.join(BASE_DIR, "fotos")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 FIRMAS_EMPRESA_DIR = os.path.join(BASE_DIR, "firmas_empresa")
 GENERATED_DIR = os.path.join(BASE_DIR, "generated")
+SIGNATURES_DIR = os.path.join(BASE_DIR, "signatures")
 os.makedirs(FOTOS_DIR, exist_ok=True)
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 os.makedirs(FIRMAS_EMPRESA_DIR, exist_ok=True)
 os.makedirs(GENERATED_DIR, exist_ok=True)
+os.makedirs(SIGNATURES_DIR, exist_ok=True)
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 router = APIRouter()
@@ -182,9 +190,27 @@ def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depe
             "le_gusta": a.id in likes_usuario,
         }
     db.commit()
+
+    # Widget de marcación de asistencia — solo si el usuario está vinculado
+    # a un trabajador (un login de sistema puro, sin ficha, no marca nada).
+    puede_marcar_asistencia = bool(user.employee_id)
+    puede_marcar_entrada = True
+    tiene_consentimiento_geo = False
+    if puede_marcar_asistencia:
+        ultima_marca = (
+            db.query(AsistenciaRegistro)
+            .filter(AsistenciaRegistro.employee_id == user.employee_id)
+            .order_by(AsistenciaRegistro.timestamp.desc()).first()
+        )
+        puede_marcar_entrada = not ultima_marca or ultima_marca.tipo == "salida"
+        tiene_consentimiento_geo = db.query(ConsentimientoAsistencia).filter(
+            ConsentimientoAsistencia.employee_id == user.employee_id).first() is not None
+
     return templates.TemplateResponse(request, "rrhh_home.html", _ctx(
         request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios,
         conteos_anuncio=conteos, active="home",
+        puede_marcar_asistencia=puede_marcar_asistencia, puede_marcar_entrada=puede_marcar_entrada,
+        tiene_consentimiento_geo=tiene_consentimiento_geo,
     ))
 
 
@@ -1274,16 +1300,13 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
 
     # Punto 2 del pedido: cuando la ficha se llenó por Selección (el propio
     # trabajador), avisar qué datos de completar RR.HH./Administrador todavía
-    # faltan (Sección IV completa, fecha de afiliación/seguro, cuenta CTS).
+    # faltan (Sección IV completa, cuenta CTS). Fecha de Afiliación y Seguro
+    # (Sección VI) no son datos urgentes — no se avisan aquí.
     f = emp.ficha_data or {}
     faltan_datos = []
     if emp.ficha_data:
         if not (f.get("cargo") or "").strip():
             faltan_datos.append("Cargo / Datos Laborales (Sección IV)")
-        if not (f.get("fecha_afiliacion") or "").strip():
-            faltan_datos.append("Fecha de Afiliación (Sección VI)")
-        if not (f.get("seguro") or "").strip():
-            faltan_datos.append("Seguro (Sección VI)")
         if not (f.get("cuenta_cts") or "").strip():
             faltan_datos.append("Cuenta CTS (Sección V)")
 
@@ -1298,7 +1321,7 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         etapas_onboarding=ETAPAS_ONBOARDING, estados_onboarding=ESTADOS_ONBOARDING,
         etapa_onboarding_labels=dict(ETAPAS_ONBOARDING), estado_onboarding_labels=dict(ESTADOS_ONBOARDING),
         faltan_datos=faltan_datos, renovaciones=emp.renovaciones_contrato,
-        organigrama=_organigrama_de(db, emp),
+        organigrama=_organigrama_de(db, emp), doc_type_labels=dict(DOC_TYPES),
         active="personal",
     ))
 
@@ -1776,6 +1799,239 @@ def asistencia_manual(employee_id: int = Form(...), tipo: str = Form(...), fecha
     ))
     db.commit()
     return RedirectResponse(f"/rrhh/asistencia?fecha={fecha}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Marcación geolocalizada de asistencia (botón en INICIO) — punto pedido por
+# el usuario: cualquiera con cuenta ligada a un trabajador puede marcar su
+# ingreso/salida desde la pantalla de inicio, con GPS + geocerca opcional.
+#
+# Filosofía: la geolocalización NUNCA bloquea la marcación (ni por permiso
+# denegado, ni por estar fuera de una geocerca) — solo queda etiquetada para
+# que RR.HH. la revise. Se le pide al trabajador firmar UNA vez un
+# consentimiento de geolocalización antes de la primera marcación con GPS.
+# ---------------------------------------------------------------------------
+def _haversine_metros(lat1, lon1, lat2, lon2) -> float:
+    R = 6371000  # radio de la Tierra en metros
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+def _geocerca_mas_cercana(db: Session, lat: float, lon: float):
+    """Devuelve (geocerca_o_None, distancia_metros_o_None, fuera_de_zona) —
+    fuera_de_zona es True si no cae dentro del radio de ninguna geocerca
+    activa (o si no hay ninguna geocerca cargada todavía)."""
+    geocercas = db.query(SedeGeocerca).filter(SedeGeocerca.activo == True).all()  # noqa: E712
+    if not geocercas:
+        return None, None, True
+    mejor, mejor_dist = None, None
+    for g in geocercas:
+        d = _haversine_metros(lat, lon, g.latitud, g.longitud)
+        if mejor_dist is None or d < mejor_dist:
+            mejor, mejor_dist = g, d
+    dentro = mejor_dist is not None and mejor_dist <= mejor.radio_metros
+    return mejor, mejor_dist, not dentro
+
+
+@router.get("/rrhh/asistencia/consentimiento", response_class=HTMLResponse)
+def asistencia_consentimiento_form(request: Request, db: Session = Depends(get_db),
+                                    user: User = Depends(require_login)):
+    if not user.employee_id:
+        raise HTTPException(400, "Tu usuario no está vinculado a un trabajador — no aplica este consentimiento.")
+    ya_firmado = db.query(ConsentimientoAsistencia).filter(
+        ConsentimientoAsistencia.employee_id == user.employee_id).first()
+    texto = pdf_signed.LEGAL_TEXTS["consentimiento_geolocalizacion"]
+    return templates.TemplateResponse(request, "rrhh_asistencia_consentimiento.html", _ctx(
+        request, user, texto=texto, ya_firmado=ya_firmado, active="home",
+    ))
+
+
+@router.post("/rrhh/asistencia/consentimiento")
+async def asistencia_consentimiento_guardar(request: Request, db: Session = Depends(get_db),
+                                             user: User = Depends(require_login)):
+    if not user.employee_id:
+        raise HTTPException(400, "Tu usuario no está vinculado a un trabajador.")
+    emp = db.query(Employee).get(user.employee_id)
+    if not emp:
+        raise HTTPException(404)
+
+    payload = await request.json()
+    sig_b64 = payload.get("signature_image", "")
+    if not sig_b64 or "," not in sig_b64:
+        raise HTTPException(400, "Falta la firma.")
+
+    img_bytes = base64.b64decode(sig_b64.split(",", 1)[1])
+    sig_filename = f"asistencia_consentimiento_{emp.token}_{uuid.uuid4().hex[:8]}.png"
+    sig_path = os.path.join(SIGNATURES_DIR, sig_filename)
+    with open(sig_path, "wb") as f:
+        f.write(img_bytes)
+
+    ip = request.client.host if request.client else ""
+    ua = request.headers.get("user-agent", "")
+    ahora = datetime.datetime.utcnow()
+    f = emp.ficha_data or {}
+    fields = {
+        "nombre_completo": emp.nombre_completo,
+        "num_doc": f.get("numero_documento") or "—",
+    }
+    hash_source = json.dumps({"employee_id": emp.id, "fields": fields, "signed_at": ahora.isoformat()},
+                              sort_keys=True, ensure_ascii=False, default=str)
+    content_hash = hashlib.sha256(hash_source.encode("utf-8")).hexdigest()
+
+    out_pdf = os.path.join(GENERATED_DIR, f"consentimiento_asistencia_{emp.token}.pdf")
+    pdf_signed.build_pdf(
+        doc_type="consentimiento_geolocalizacion", fields=fields, signature_image_path=sig_path,
+        signed_at=ahora.strftime("%d/%m/%Y %H:%M:%S"), ip=ip, hash_=content_hash, out_path=out_pdf,
+    )
+
+    existente = db.query(ConsentimientoAsistencia).filter(ConsentimientoAsistencia.employee_id == emp.id).first()
+    if not existente:
+        existente = ConsentimientoAsistencia(employee_id=emp.id)
+        db.add(existente)
+    existente.firma_path = sig_path
+    existente.ip_address = ip
+    existente.user_agent = ua
+    existente.pdf_path = out_pdf
+    existente.hash_registro = content_hash
+    existente.aceptado_en = ahora
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.get("/rrhh/asistencia/consentimiento/pdf")
+def asistencia_consentimiento_pdf(db: Session = Depends(get_db), user: User = Depends(require_login)):
+    c = db.query(ConsentimientoAsistencia).filter(ConsentimientoAsistencia.employee_id == user.employee_id).first()
+    if not c or not c.pdf_path or not os.path.exists(c.pdf_path):
+        raise HTTPException(404)
+    return FileResponse(c.pdf_path, filename="consentimiento_geolocalizacion.pdf")
+
+
+@router.post("/rrhh/asistencia/marcar-geo")
+async def marcar_asistencia_geo(request: Request, db: Session = Depends(get_db),
+                                 user: User = Depends(require_login)):
+    """Marcación desde el botón de INICIO. Si el trabajador todavía no
+    aceptó el consentimiento de geolocalización, se registra igual pero SIN
+    coordenadas (nunca se captura ubicación sin consentimiento previo)."""
+    if not user.employee_id:
+        raise HTTPException(400, "Tu usuario no está vinculado a un trabajador.")
+    payload = await request.json()
+    tipo = payload.get("tipo")
+    if tipo not in ("entrada", "salida"):
+        raise HTTPException(400, "Tipo de marcación inválido.")
+
+    emp = db.query(Employee).get(user.employee_id)
+    if not emp:
+        raise HTTPException(404)
+
+    tiene_consentimiento = db.query(ConsentimientoAsistencia).filter(
+        ConsentimientoAsistencia.employee_id == emp.id).first() is not None
+
+    lat = payload.get("lat") if tiene_consentimiento else None
+    lon = payload.get("lng") if tiene_consentimiento else None
+    precision = payload.get("precision") if tiene_consentimiento else None
+
+    geocerca = distancia = fuera_zona = None
+    if lat is not None and lon is not None:
+        geocerca, distancia, fuera_zona = _geocerca_mas_cercana(db, lat, lon)
+
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent", "")
+    ahora = datetime.datetime.utcnow()
+
+    hash_source = json.dumps({
+        "employee_id": emp.id, "tipo": tipo, "timestamp": ahora.isoformat(),
+        "lat": lat, "lon": lon, "ip": ip,
+    }, sort_keys=True, ensure_ascii=False, default=str)
+    content_hash = hashlib.sha256(hash_source.encode("utf-8")).hexdigest()
+
+    registro = AsistenciaRegistro(
+        employee_id=emp.id, tipo=tipo, timestamp=ahora, ip_address=ip,
+        registrado_por=user.nombre_completo, latitud=lat, longitud=lon,
+        precision_metros=precision, dispositivo=ua[:300],
+        sede_geocerca_id=geocerca.id if geocerca else None,
+        sede_geocerca_nombre=geocerca.nombre if geocerca else None,
+        distancia_metros=round(distancia, 1) if distancia is not None else None,
+        fuera_de_zona=fuera_zona, hash_registro=content_hash,
+    )
+    db.add(registro)
+    db.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "tipo": tipo,
+        "hora": ahora.strftime("%H:%M:%S"),
+        "fecha": ahora.strftime("%d/%m/%Y"),
+        "tiene_consentimiento": tiene_consentimiento,
+        "sede": geocerca.nombre if geocerca else None,
+        "distancia": round(distancia) if distancia is not None else None,
+        "fuera_de_zona": fuera_zona,
+        "registro_id": registro.id,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Parametrización > Sedes y Geocercas (solo administrador)
+# ---------------------------------------------------------------------------
+@router.get("/rrhh/parametrizacion/sedes-geocercas", response_class=HTMLResponse)
+def sedes_geocercas_list(request: Request, db: Session = Depends(get_db),
+                          user: User = Depends(require_role("administrador"))):
+    geocercas = db.query(SedeGeocerca).order_by(SedeGeocerca.nombre).all()
+    return templates.TemplateResponse(request, "rrhh_sedes_geocercas.html", _ctx(
+        request, user, geocercas=geocercas, active="sedes_geocercas",
+    ))
+
+
+@router.post("/rrhh/parametrizacion/sedes-geocercas")
+def sedes_geocercas_crear(nombre: str = Form(...), direccion: str = Form(""),
+                           latitud: float = Form(...), longitud: float = Form(...),
+                           radio_metros: int = Form(100), db: Session = Depends(get_db),
+                           user: User = Depends(require_role("administrador"))):
+    db.add(SedeGeocerca(
+        nombre=nombre.strip(), direccion=direccion.strip() or None,
+        latitud=latitud, longitud=longitud, radio_metros=max(radio_metros, 10),
+    ))
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/sedes-geocercas", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/sedes-geocercas/{geocerca_id}/editar")
+def sedes_geocercas_editar(geocerca_id: int, nombre: str = Form(...), direccion: str = Form(""),
+                            latitud: float = Form(...), longitud: float = Form(...),
+                            radio_metros: int = Form(100), db: Session = Depends(get_db),
+                            user: User = Depends(require_role("administrador"))):
+    g = db.query(SedeGeocerca).get(geocerca_id)
+    if not g:
+        raise HTTPException(404)
+    g.nombre = nombre.strip()
+    g.direccion = direccion.strip() or None
+    g.latitud = latitud
+    g.longitud = longitud
+    g.radio_metros = max(radio_metros, 10)
+    db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/sedes-geocercas", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/sedes-geocercas/{geocerca_id}/toggle")
+def sedes_geocercas_toggle(geocerca_id: int, db: Session = Depends(get_db),
+                            user: User = Depends(require_role("administrador"))):
+    g = db.query(SedeGeocerca).get(geocerca_id)
+    if g:
+        g.activo = not g.activo
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/sedes-geocercas", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/sedes-geocercas/{geocerca_id}/eliminar")
+def sedes_geocercas_eliminar(geocerca_id: int, db: Session = Depends(get_db),
+                              user: User = Depends(require_role("administrador"))):
+    g = db.query(SedeGeocerca).get(geocerca_id)
+    if g:
+        db.delete(g)
+        db.commit()
+    return RedirectResponse("/rrhh/parametrizacion/sedes-geocercas", status_code=303)
 
 
 # ---------------------------------------------------------------------------

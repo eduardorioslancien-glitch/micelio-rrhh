@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -85,11 +85,18 @@
   {% if e.documents %}
   <div class="card">
     <h2>Legajo de Selección — documentos firmados</h2>
+    {% if can_edit %}
+    <p class="muted">Si algún documento sigue pendiente o abierto, comparte este enlace con el trabajador para que lo firme remotamente (es el mismo que usó para llenar su ficha):</p>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+      <code id="enlace-firma-remota" style="flex:1; overflow-wrap:break-word;">{{ request.url.scheme }}://{{ request.url.netloc }}/f/{{ e.token }}</code>
+      <button class="btn small secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('enlace-firma-remota').textContent); this.textContent='Copiado ✓';">Copiar</button>
+    </div>
+    {% endif %}
     <table>
       <tr><th>Documento</th><th>Estado</th><th></th></tr>
       {% for d in e.documents %}
       <tr>
-        <td>{{ d.doc_type }}</td>
+        <td>{{ doc_type_labels.get(d.doc_type, d.doc_type) }}</td>
         <td><span class="badge {{ d.status }}">{{ d.status }}</span></td>
         <td>{% if d.status == 'firmado' %}<a class="btn small" href="/descargas/{{ d.id }}">Descargar PDF</a>{% endif %}</td>
       </tr>

@@ -507,7 +507,61 @@ class AsistenciaRegistro(Base):
     registrado_por = Column(String(200), nullable=True)  # nombre de quien lo marcó (el propio o RR.HH.)
     nota = Column(String(300), nullable=True)  # p.ej. motivo de una corrección manual
 
+    # Marcación geolocalizada desde el botón de INICIO (ver SedeGeocerca más
+    # abajo). Quedan en NULL para marcaciones manuales/antiguas sin GPS.
+    latitud = Column(Float, nullable=True)
+    longitud = Column(Float, nullable=True)
+    precision_metros = Column(Float, nullable=True)  # precisión reportada por el GPS del dispositivo
+    dispositivo = Column(String(300), nullable=True)  # user-agent del navegador/dispositivo
+    sede_geocerca_id = Column(Integer, ForeignKey("sedes_geocercas.id"), nullable=True)
+    sede_geocerca_nombre = Column(String(150), nullable=True)  # copia del nombre al momento de marcar
+    distancia_metros = Column(Float, nullable=True)  # distancia a la geocerca más cercana
+    fuera_de_zona = Column(Boolean, nullable=True)  # True si no cayó dentro de ninguna geocerca activa
+    hash_registro = Column(String(64), nullable=True)  # SHA-256 de los campos clave, para detectar alteraciones
+
     employee = relationship("Employee", back_populates="asistencia")
+    sede_geocerca = relationship("SedeGeocerca")
+
+
+class SedeGeocerca(Base):
+    """Parametrización > Sedes y Geocercas: ubicación real (lat/long) y radio
+    permitido de cada sede, usada para validar dónde se marca asistencia.
+    No reemplaza el catálogo de "Sede" de la ficha (nombre libre) — es la
+    capa de geolocalización que se le puede sumar. No es obligatorio tener
+    una: quien marca fuera de todas las geocercas (o sin ninguna cargada,
+    p.ej. trabajo de campo) igual puede marcar — solo queda etiquetado
+    "fuera de zona" para que RR.HH. lo revise, nunca bloquea la marcación."""
+    __tablename__ = "sedes_geocercas"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(150), nullable=False)
+    direccion = Column(String(300), nullable=True)
+    latitud = Column(Float, nullable=False)
+    longitud = Column(Float, nullable=False)
+    radio_metros = Column(Integer, default=100, nullable=False)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class ConsentimientoAsistencia(Base):
+    """Aceptación (una sola vez) de la política de geolocalización y datos
+    biométricos de firma para el Control de Asistencia — independiente del
+    consentimiento de datos personales que se firma al ingresar (Selección).
+    Se le pide firma manuscrita UNA vez; las marcaciones diarias de
+    entrada/salida después son solo un botón, sin volver a firmar."""
+    __tablename__ = "consentimientos_asistencia"
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), unique=True, nullable=False)
+    version_texto = Column(String(20), nullable=False, default="2026-08")
+    firma_path = Column(String(500), nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    user_agent = Column(String(300), nullable=True)
+    pdf_path = Column(String(500), nullable=True)
+    hash_registro = Column(String(64), nullable=True)
+    aceptado_en = Column(DateTime, default=datetime.datetime.utcnow)
+
+    employee = relationship("Employee")
 
 
 class OnboardingRegistro(Base):

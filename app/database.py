@@ -56,6 +56,15 @@ _MIGRACIONES_COLUMNAS = [
     ("leads_candidatos", "estrellas", "INTEGER"),
     ("leads_candidatos", "analisis_ia", "TEXT"),
     ("leads_candidatos", "entrevista_data", "JSON"),
+    ("asistencia_registros", "latitud", "FLOAT"),
+    ("asistencia_registros", "longitud", "FLOAT"),
+    ("asistencia_registros", "precision_metros", "FLOAT"),
+    ("asistencia_registros", "dispositivo", "VARCHAR(300)"),
+    ("asistencia_registros", "sede_geocerca_id", "INTEGER"),
+    ("asistencia_registros", "sede_geocerca_nombre", "VARCHAR(150)"),
+    ("asistencia_registros", "distancia_metros", "FLOAT"),
+    ("asistencia_registros", "fuera_de_zona", "BOOLEAN"),
+    ("asistencia_registros", "hash_registro", "VARCHAR(64)"),
 ]
 
 

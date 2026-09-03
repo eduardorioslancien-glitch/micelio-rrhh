@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sedes y Geocercas — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=10">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  #mapaGeocercas { height: 360px; border-radius: 8px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Sedes y Geocercas (GPS)</h2>
+    <p class="muted">La ubicación real (con radio permitido) de cada sede — se usa para saber si una marcación de asistencia se hizo dentro o fuera de la zona autorizada. No es obligatorio cargar todas: quien marca sin caer dentro de ninguna geocerca (o si no hay ninguna cargada) igual puede marcar, solo queda etiquetado "fuera de zona" para revisión — nunca se bloquea la marcación.</p>
+    <table>
+      <tr><th>Nombre</th><th>Dirección</th><th>Coordenadas</th><th>Radio</th><th>Estado</th><th></th></tr>
+      {% for g in geocercas %}
+      <tr>
+        <td><strong>{{ g.nombre }}</strong></td>
+        <td class="muted">{{ g.direccion or "—" }}</td>
+        <td class="muted">{{ "%.6f"|format(g.latitud) }}, {{ "%.6f"|format(g.longitud) }}</td>
+        <td>{{ g.radio_metros }} m</td>
+        <td><span class="badge {{ 'firmado' if g.activo else 'pendiente' }}">{{ 'activa' if g.activo else 'inactiva' }}</span></td>
+        <td class="icon-btn-row">
+          <details>
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
+            <div class="edit-popover">
+              <form method="post" action="/rrhh/parametrizacion/sedes-geocercas/{{ g.id }}/editar">
+                <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ g.nombre }}" required></div>
+                <div class="field"><label>Dirección</label><input type="text" name="direccion" value="{{ g.direccion or '' }}"></div>
+                <div class="field"><label>Latitud</label><input type="text" name="latitud" value="{{ g.latitud }}" required></div>
+                <div class="field"><label>Longitud</label><input type="text" name="longitud" value="{{ g.longitud }}" required></div>
+                <div class="field"><label>Radio permitido (metros)</label><input type="number" name="radio_metros" value="{{ g.radio_metros }}" min="10" required></div>
+                <button class="btn small" type="submit">Guardar</button>
+              </form>
+            </div>
+          </details>
+          <form method="post" action="/rrhh/parametrizacion/sedes-geocercas/{{ g.id }}/toggle" style="display:inline;">
+            <button class="icon-btn {{ 'icon-btn-desactivar' if g.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if g.activo else 'Activar' }}"></button>
+          </form>
+          <form method="post" action="/rrhh/parametrizacion/sedes-geocercas/{{ g.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar {{ g.nombre }}? No se puede deshacer.');">
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Todavía no hay sedes con geocerca cargada.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Agregar sede con geocerca</h3>
+    <p class="hint">Haz clic en el mapa para ubicar la sede — o escribe las coordenadas directamente si ya las tienes.</p>
+    <div id="mapaGeocercas"></div>
+    <form method="post" action="/rrhh/parametrizacion/sedes-geocercas">
+      <div class="grid3">
+        <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
+        <div class="field" style="flex:2;"><label>Dirección</label><input type="text" name="direccion"></div>
+        <div class="field"><label>Radio permitido (metros)</label><input type="number" name="radio_metros" value="100" min="10" required></div>
+        <div class="field"><label>Latitud</label><input type="text" name="latitud" id="inputLat" required></div>
+        <div class="field"><label>Longitud</label><input type="text" name="longitud" id="inputLng" required></div>
+      </div>
+      <button class="btn" type="submit">Agregar sede</button>
+    </form>
+  </div>
+
+</div>
+<script>
+  // Centro por defecto: Lima, Perú.
+  const map = L.map('mapaGeocercas').setView([-12.0464, -77.0428], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors', maxZoom: 19,
+  }).addTo(map);
+  let marker = null;
+  map.on('click', (e) => {
+    document.getElementById('inputLat').value = e.latlng.lat.toFixed(6);
+    document.getElementById('inputLng').value = e.latlng.lng.toFixed(6);
+    if (marker) { marker.setLatLng(e.latlng); } else { marker = L.marker(e.latlng).addTo(map); }
+  });
+  {% for g in geocercas if g.activo %}
+  L.circle([{{ g.latitud }}, {{ g.longitud }}], { radius: {{ g.radio_metros }}, color: '#1246AB' })
+    .addTo(map).bindPopup("{{ g.nombre|replace('\"','') }}");
+  {% endfor %}
+</script>
+</body>
+</html>

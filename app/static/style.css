@@ -333,7 +333,11 @@ canvas.sigpad {
 .anuncio-item { padding: 10px 0; border-bottom: 1px solid var(--light); }
 .anuncio-item:last-child { border-bottom: none; }
 .anuncio-card { margin-bottom: 14px; }
-.anuncio-imagen { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; background: var(--light2); border-radius: 6px; margin-bottom: 10px; }
+.anuncio-imagen { display: block; width: 100%; height: auto; max-height: 220px; object-fit: contain; background: var(--light2); border-radius: 6px; margin-bottom: 10px; }
+.anuncio-cuerpo {
+  margin: 0; line-height: 1.5; max-height: 15em; overflow-y: auto;
+  padding-right: 4px; /* espacio para que el texto no quede pegado a la barra */
+}
 @media (max-width: 900px) {
   .grid2-cards { grid-template-columns: 1fr; }
   .birthday-today { flex-direction: column; align-items: flex-start; }

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Consentimiento de Geolocalización — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=10">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh">&larr; Volver a Inicio</a>
+
+  <div class="card" style="margin-top:16px; max-width:800px;">
+    <h2>{{ texto.titulo }}</h2>
+    <p class="muted" style="margin-top:-8px;">{{ texto.subtitulo }}</p>
+
+    {% if ya_firmado %}
+    <div class="card" style="background:var(--green-bg); border:1px solid var(--green);">
+      <p style="margin:0; color:var(--green);">Ya aceptaste este consentimiento el {{ ya_firmado.aceptado_en.strftime('%d/%m/%Y %H:%M') }}.</p>
+    </div>
+    <a class="btn small secondary" href="/rrhh/asistencia/consentimiento/pdf" target="_blank" style="margin-top:10px; display:inline-block;">Descargar comprobante firmado (PDF)</a>
+    {% else %}
+
+    <p style="text-align:justify;">{{ texto.intro | replace("{nombre_completo}", user.employee.nombre_completo) | replace("{num_doc}", (user.employee.ficha_data or {}).get("numero_documento", "—")) }}</p>
+
+    <ol style="padding-left:20px;">
+      {% for item in texto['items'] %}
+      <li style="margin-bottom:10px; text-align:justify;">{{ item }}</li>
+      {% endfor %}
+    </ol>
+
+    <p class="hint" style="font-style:italic;">{{ texto.cierre }}</p>
+
+    <div class="field" style="margin-top:6px;">
+      <label><input type="checkbox" id="chk-acepto" style="width:auto; margin-right:6px;">He leído y acepto lo descrito en este documento.</label>
+    </div>
+
+    <div class="section-title" style="margin-top:14px;">Firma</div>
+    <div style="border:1px solid var(--border); border-radius:8px; background:#fff;">
+      <canvas id="sigpad" width="700" height="180" style="width:100%; height:180px; touch-action:none;"></canvas>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:10px;">
+      <button class="btn secondary" type="button" onclick="sigPad.clear()">Limpiar</button>
+      <button class="btn" type="button" id="btn-firmar" onclick="firmarConsentimiento()">Firmar y aceptar</button>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+<script>
+  let sigPad = null;
+  window.addEventListener("load", () => {
+    const canvas = document.getElementById("sigpad");
+    if (canvas) {
+      canvas.width = canvas.offsetWidth;
+      sigPad = new SignaturePad(canvas, { penColor: "#0E3585" });
+    }
+  });
+
+  async function firmarConsentimiento() {
+    const chk = document.getElementById("chk-acepto");
+    if (!chk.checked) { alert("Debes marcar que has leído y aceptas el documento."); return; }
+    if (!sigPad || sigPad.isEmpty()) { alert("Por favor dibuja tu firma."); return; }
+
+    const btn = document.getElementById("btn-firmar");
+    btn.disabled = true; btn.textContent = "Guardando…";
+
+    const signature_image = sigPad.toDataURL("image/png");
+    const res = await fetch("/rrhh/asistencia/consentimiento", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ signature_image }),
+    });
+    if (res.ok) {
+      window.location.href = "/rrhh";
+    } else {
+      alert("Ocurrió un error al guardar tu firma. Intenta nuevamente.");
+      btn.disabled = false; btn.textContent = "Firmar y aceptar";
+    }
+  }
+</script>
+</body>
+</html>
