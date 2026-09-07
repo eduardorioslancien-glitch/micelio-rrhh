@@ -3,28 +3,33 @@
 <head>
 <meta charset="utf-8">
 <title>MICELIO — Sistema de Recursos Humanos DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=10">
+<link rel="stylesheet" href="/static/style.css?v=12">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
 
   {% if puede_marcar_asistencia %}
-  <div class="card" id="widget-asistencia" style="text-align:center;">
-    <h2 style="margin-top:0;">Control de Asistencia</h2>
-    {% if not tiene_consentimiento_geo %}
-    <p class="muted">Para que tu marcación quede geolocalizada, primero acepta el <a href="/rrhh/asistencia/consentimiento">consentimiento de geolocalización</a> (se pide una sola vez). Igual puedes marcar sin eso, solo que sin ubicación.</p>
-    {% endif %}
-    <div style="display:flex; gap:14px; justify-content:center; margin-top:10px;">
-      <button class="btn" id="btn-marcar-entrada" onclick="marcarAsistencia('entrada')" style="background:var(--green); border-color:var(--green); padding:14px 32px; font-size:15px;" {{ 'disabled' if not puede_marcar_entrada else '' }}>🟢 INGRESO</button>
-      <button class="btn" id="btn-marcar-salida" onclick="marcarAsistencia('salida')" style="background:var(--red); border-color:var(--red); padding:14px 32px; font-size:15px;" {{ 'disabled' if puede_marcar_entrada else '' }}>🔴 SALIDA</button>
+  <div class="home-top-row">
+    <div class="card" id="widget-asistencia" style="text-align:center; margin-bottom:0;">
+      <h2 style="margin-top:0;">Control de Asistencia</h2>
+      {% if not tiene_consentimiento_geo %}
+      <p class="muted">Para que tu marcación quede geolocalizada, primero acepta el <a href="/rrhh/asistencia/consentimiento">consentimiento de geolocalización</a> (se pide una sola vez). Igual puedes marcar sin eso, solo que sin ubicación.</p>
+      {% endif %}
+      <div style="display:flex; gap:14px; justify-content:center; margin-top:10px;">
+        <button class="btn" id="btn-marcar-entrada" onclick="marcarAsistencia('entrada')" style="background:var(--green); border-color:var(--green); padding:14px 32px; font-size:15px;" {{ 'disabled' if not puede_marcar_entrada else '' }}>🟢 INGRESO</button>
+        <button class="btn" id="btn-marcar-salida" onclick="marcarAsistencia('salida')" style="background:var(--red); border-color:var(--red); padding:14px 32px; font-size:15px;" {{ 'disabled' if puede_marcar_entrada else '' }}>🔴 SALIDA</button>
+      </div>
+      <p id="resultado-marcacion" class="muted" style="margin-top:14px;"></p>
     </div>
-    <p id="resultado-marcacion" class="muted" style="margin-top:14px;"></p>
+    <div class="home-banner home-banner-side">
+      <img src="/static/micelio_art.png" alt="MICELIO">
+    </div>
   </div>
-  {% endif %}
-
+  {% else %}
   <div class="home-banner">
     <img src="/static/micelio_art.png" alt="MICELIO">
   </div>
+  {% endif %}
 
   {% if cumple_hoy %}
   <div class="card birthday-today-card">

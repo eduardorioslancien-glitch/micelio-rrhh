@@ -284,7 +284,7 @@ canvas.sigpad {
 .login-page { min-height: 100vh; display: flex; align-items: stretch; }
 .login-art {
   flex: 1 1 50%;
-  background: #05070a;
+  background: var(--navy);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,9 +318,16 @@ canvas.sigpad {
 .home-hero img { max-width: 70%; max-height: 78vh; object-fit: contain; }
 .home-banner {
   display: flex; align-items: center; justify-content: center;
-  background: #05070a; border-radius: 8px; padding: 14px; margin-bottom: 16px;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;
 }
 .home-banner img { max-height: 4cm; max-width: 100%; width: auto; object-fit: contain; }
+.home-top-row { display: flex; gap: 20px; align-items: stretch; margin-bottom: 16px; }
+.home-top-row #widget-asistencia { flex: 1.4; }
+.home-top-row .home-banner-side { flex: 1; margin-bottom: 0; min-width: 0; }
+.home-banner-side img { max-height: none; height: 100%; max-width: 100%; width: auto; object-fit: contain; }
+@media (max-width: 900px) {
+  .home-top-row { flex-direction: column; }
+}
 .birthday-today-card { background: linear-gradient(135deg, var(--light2), white); border: 1px solid var(--border); }
 .birthday-entry { margin-bottom: 26px; }
 .birthday-entry:last-child { margin-bottom: 0; }
