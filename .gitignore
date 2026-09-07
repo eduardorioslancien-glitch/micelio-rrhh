@@ -31,5 +31,8 @@ app/cv_postulantes/*
 
 ejemplos_generados_en_prueba/
 
+# Backups diarios generados en el servidor por backup_diario.sh — NUNCA a GitHub
+backups/
+
 # Secretos de entorno para docker-compose
 .env
