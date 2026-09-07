@@ -28,3 +28,4 @@ services:
       - ./app/signatures:/app/app/signatures
       - ./app/firmas_empresa:/app/app/firmas_empresa
       - ./app/cv_postulantes:/app/app/cv_postulantes
+      - ./app/anuncios_imagenes:/app/app/anuncios_imagenes
