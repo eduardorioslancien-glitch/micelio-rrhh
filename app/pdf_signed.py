@@ -285,6 +285,7 @@ def _doc_ficha(fields):
     spec = LEGAL_TEXTS["ficha"]
     story = [_body_text(_fill(spec["intro"], fields))]
     g = fields.get
+    tel = lambda base: " ".join(x for x in [g(base + "_codigo"), g(base)] if x)  # noqa: E731
 
     story += _section_caption("I. Datos Personales")
     story.append(_field_table([
@@ -300,7 +301,7 @@ def _doc_ficha(fields):
         ["Dirección", g("direccion"), "Urbanización", g("urbanizacion")],
         ["Distrito", g("distrito"), "Provincia", g("provincia")],
         ["Departamento", g("departamento"), "Referencia", g("referencia")],
-        ["Teléfono Fijo", g("telefono_fijo"), "Celular", g("celular")],
+        ["Teléfono Fijo", tel("telefono_fijo"), "Celular", tel("celular")],
         ["Correo Personal", g("correo_personal"), "Correo Corporativo", g("correo_corporativo")],
         ["N.° de Licencia", g("licencia_numero"), "Tipo / Vencimiento",
          " — ".join([x for x in [g("licencia_tipo"), g("licencia_vencimiento")] if x])],
@@ -309,10 +310,15 @@ def _doc_ficha(fields):
     familia = fields.get("familia") or []
     story += _section_caption("II. Información Familiar")
     if familia:
+        def _doc_familiar(f):
+            # Compatibilidad: registros antiguos solo tenían "dni" (sin tipo).
+            numero = f.get("documento_numero") or f.get("dni") or ""
+            tipo = f.get("documento_tipo") or ("DNI" if numero else "")
+            return " ".join(x for x in [tipo, numero] if x)
         story.append(_grid_table(
-            ["Parentesco", "Nombre", "DNI", "Fecha Nac.", "Depende Econ.", "EsSalud"],
-            [1700, 3600, 1600, 1600, 1400, 1300],
-            [[f.get("parentesco"), f.get("nombre"), f.get("dni"), f.get("fecha_nacimiento"),
+            ["Parentesco", "Nombre", "Documento", "Fecha Nac.", "Depende Econ.", "EsSalud"],
+            [1700, 3300, 1900, 1600, 1400, 1300],
+            [[f.get("parentesco"), f.get("nombre"), _doc_familiar(f), f.get("fecha_nacimiento"),
               "Sí" if f.get("depende_economicamente") else "No",
               "Sí" if f.get("derechohabiente_essalud") else "No"] for f in familia],
         ))
@@ -322,9 +328,9 @@ def _doc_ficha(fields):
     story += _section_caption("III. Contactos de Emergencia")
     story.append(_field_table([
         ["Contacto 1 — Nombre", g("emerg1_nombre"), "Parentesco", g("emerg1_parentesco")],
-        ["Celular", g("emerg1_celular"), "Dirección", g("emerg1_direccion")],
+        ["Celular", tel("emerg1_celular"), "Dirección", g("emerg1_direccion")],
         ["Contacto 2 — Nombre", g("emerg2_nombre"), "Parentesco", g("emerg2_parentesco")],
-        ["Celular", g("emerg2_celular"), "Dirección", g("emerg2_direccion")],
+        ["Celular", tel("emerg2_celular"), "Dirección", g("emerg2_direccion")],
     ]))
 
     story += _section_caption("IV. Datos Laborales")
@@ -419,11 +425,15 @@ def _doc_derechohabientes(fields):
     ]))
     dependientes = fields.get("dependientes") or []
     if dependientes:
+        def _doc_dependiente(d):
+            numero = d.get("documento_numero") or d.get("dni") or ""
+            tipo = d.get("documento_tipo") or ("DNI" if numero else "")
+            return " ".join(x for x in [tipo, numero] if x)
         story += _section_caption("Derechohabientes declarados para EsSalud")
         story.append(_grid_table(
-            ["Parentesco", "Nombre", "DNI", "Fecha de Nacimiento"],
-            [2200, 4200, 2200, 2300],
-            [[d.get("parentesco"), d.get("nombre"), d.get("dni"), d.get("fecha_nacimiento")]
+            ["Parentesco", "Nombre", "Documento", "Fecha de Nacimiento"],
+            [2200, 4000, 2400, 2300],
+            [[d.get("parentesco"), d.get("nombre"), _doc_dependiente(d), d.get("fecha_nacimiento")]
              for d in dependientes],
         ))
     else:

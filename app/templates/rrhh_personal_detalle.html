@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=13">
+<link rel="stylesheet" href="/static/style.css?v=14">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -123,7 +123,7 @@
       <tr><td style="width:220px;"><strong>Documento</strong></td><td>{{ f.get('tipo_documento','') }} {{ f.get('numero_documento','') }}</td></tr>
       <tr><td><strong>Fecha de nacimiento</strong></td><td>{{ f.get('fecha_nacimiento','—') }}</td></tr>
       <tr><td><strong>Dirección</strong></td><td>{{ f.get('direccion','—') }}, {{ f.get('distrito','') }}</td></tr>
-      <tr><td><strong>Celular</strong></td><td>{{ f.get('celular','—') }}</td></tr>
+      <tr><td><strong>Celular</strong></td><td>{{ f.get('celular_codigo','') }} {{ f.get('celular','—') }}</td></tr>
       <tr><td><strong>Correo personal</strong></td><td>{{ f.get('correo_personal', e.email or '—') }}</td></tr>
     </table>
     {% else %}
@@ -329,18 +329,11 @@
     <form method="post" action="/rrhh/personal/{{ e.id }}/documentos" enctype="multipart/form-data" class="inline-form" style="margin-bottom:16px;">
       <div class="field">
         <label>Tipo</label>
-        <select name="tipo" id="doc_tipo" required onchange="ajustarAcceptArchivo()">{% for k, lbl in attachment_types %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
+        <select name="tipo" id="doc_tipo" required>{% for k, lbl in attachment_types %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select>
       </div>
       <div class="field"><label>Archivo</label><input type="file" name="archivo" id="doc_archivo" required></div>
       <button class="btn small" type="submit">Subir</button>
     </form>
-    <script>
-      function ajustarAcceptArchivo() {
-        const tipo = document.getElementById("doc_tipo").value;
-        const archivo = document.getElementById("doc_archivo");
-        archivo.accept = (tipo === "dni_anverso" || tipo === "dni_reverso") ? ".pdf,application/pdf" : "";
-      }
-    </script>
     <table>
       <tr><th>Tipo</th><th>Archivo</th><th>Subido por</th><th>Fecha</th><th></th></tr>
       {% for a in e.attachments %}

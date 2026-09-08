@@ -67,16 +67,15 @@ STATUS_FIRMADO = "firmado"
 # Tipos de documento que puede adjuntar un postulante/trabajador, o que RR.HH.
 # puede subir directamente al legajo de un trabajador ya administrado.
 ATTACHMENT_TYPES = [
+    ("documento_identidad", "Documento de Identidad (ambos lados, un solo archivo)"),
+    ("recibo_agua_luz", "Recibo de Agua o Luz"),
     ("cv", "Curriculum Vitae (CV)"),
     ("cul", "Certificado Único Laboral (CUL)"),
-    ("antecedentes_policiales", "Antecedentes Policiales"),
     ("certificado_curso", "Certificado de Curso / Capacitación"),
     ("memo", "Memorándum"),
     ("documento_salud", "Documento de Salud"),
     ("alta_sunat", "Constancia de Alta en SUNAT"),
     ("baja_sunat", "Constancia de Baja en SUNAT"),
-    ("dni_anverso", "Documento de Identidad — Anverso (PDF)"),
-    ("dni_reverso", "Documento de Identidad — Reverso (PDF)"),
     ("otros", "Otros documentos"),
 ]
 ATTACHMENT_TYPE_KEYS = [a[0] for a in ATTACHMENT_TYPES]

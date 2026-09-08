@@ -163,6 +163,11 @@ label { font-size: 12px; font-weight: 600; color: var(--gray); text-transform: u
   text-decoration: underline;
 }
 .action-link:hover { color: var(--navy-dark); }
+/* Campos de teléfono con selector de código internacional (personas fuera
+   de Perú). Apilado vertical (selector arriba, número abajo) para que no se
+   aplaste en columnas angostas de grid2/grid3/grid4. */
+.phone-row { display: flex; flex-direction: column; gap: 4px; }
+.phone-row select, .phone-row input { margin-top: 0; }
 .link-box {
   background: var(--light2);
   border: 1px dashed var(--navy);

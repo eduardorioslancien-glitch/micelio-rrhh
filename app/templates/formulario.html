@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Legajo Digital — DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=13">
+<link rel="stylesheet" href="/static/style.css?v=14">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
 </head>
 <body>
@@ -76,8 +76,18 @@
       </div>
       <div class="section-title">Contacto</div>
       <div class="grid3">
-        <div class="field"><label>Teléfono Fijo</label><input type="text" id="telefono_fijo"></div>
-        <div class="field"><label>Celular</label><input type="text" id="celular"></div>
+        <div class="field"><label>Teléfono Fijo</label>
+          <div class="phone-row">
+            <select id="telefono_fijo_codigo">{% include "_codigo_pais_options.html" %}</select>
+            <input type="text" id="telefono_fijo">
+          </div>
+        </div>
+        <div class="field"><label>Celular</label>
+          <div class="phone-row">
+            <select id="celular_codigo">{% include "_codigo_pais_options.html" %}</select>
+            <input type="text" id="celular">
+          </div>
+        </div>
         <div class="field"><label>Correo Personal</label><input type="email" id="correo_personal"></div>
       </div>
       <div class="section-title">Licencia de Conducir (si aplica)</div>
@@ -121,7 +131,12 @@
         <div class="field"><label>Parentesco</label>
           <select id="emerg{{ i }}_parentesco"><option value="">Seleccionar…</option><option>Cónyuge</option><option>Padre</option><option>Madre</option><option>Hijo(a)</option><option>Hermano(a)</option><option>Otro</option></select>
         </div>
-        <div class="field"><label>Celular</label><input type="text" id="emerg{{ i }}_celular"></div>
+        <div class="field"><label>Celular</label>
+          <div class="phone-row">
+            <select id="emerg{{ i }}_celular_codigo">{% include "_codigo_pais_options.html" %}</select>
+            <input type="text" id="emerg{{ i }}_celular">
+          </div>
+        </div>
         <div class="field"><label>Dirección</label><input type="text" id="emerg{{ i }}_direccion"></div>
       </div>
       {% endfor %}
@@ -223,12 +238,12 @@
         <div class="field"><label>EsSalud</label>
           <select id="essalud"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
         </div>
-        <div class="field" style="grid-column:span 3;"><label>Alergias</label><input type="text" id="alergias"></div>
-        <div class="field" style="grid-column:span 3;"><label>Restricciones</label><input type="text" id="restricciones"></div>
-        <div class="field" style="grid-column:span 3;"><label>Medicamentos de Uso Regular</label><input type="text" id="medicamentos"></div>
+        <div class="field" style="grid-column:span 3;"><label>Alergias</label><input type="text" id="alergias" value="NINGUNA"></div>
+        <div class="field" style="grid-column:span 3;"><label>Restricciones / Enfermedades</label><input type="text" id="restricciones" value="NINGUNA"></div>
+        <div class="field" style="grid-column:span 3;"><label>Medicamentos de Uso Regular</label><input type="text" id="medicamentos" value="NINGUNA"></div>
         <div class="field"><label>Examen Médico — Fecha</label><input type="date" id="examen_medico_fecha"></div>
         <div class="field"><label>Examen Médico — Vencimiento</label><input type="date" id="examen_medico_vencimiento"></div>
-        <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" placeholder="COVID-19 completo, Tétanos 2024…"></div>
+        <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" value="NINGUNA" placeholder="COVID-19 completo, Tétanos 2024…"></div>
       </div>
       <div class="footer-nav">
         <button class="btn secondary" onclick="goStep('1f')">Atrás</button>
@@ -244,12 +259,13 @@
       <p class="section-sub">Adjunta tus documentos de sustento (PDF, JPG o PNG). Quedan guardados en tu legajo.</p>
 
       <div class="upload-box">
-        <label class="title">Documento de Identidad — Anverso</label>
-        <input type="file" id="file_dni_anverso" accept=".pdf,.jpg,.jpeg,.png">
+        <label class="title">Documento de Identidad (ambos lados, un solo archivo) *</label>
+        <div class="hint">Si es DNI físico, escanea o fotografía el anverso y el reverso juntos en un solo PDF o imagen.</div>
+        <input type="file" id="file_documento_identidad" accept=".pdf,.jpg,.jpeg,.png">
       </div>
       <div class="upload-box">
-        <label class="title">Documento de Identidad — Reverso</label>
-        <input type="file" id="file_dni_reverso" accept=".pdf,.jpg,.jpeg,.png">
+        <label class="title">Recibo de Agua o Luz *</label>
+        <input type="file" id="file_recibo_agua_luz" accept=".pdf,.jpg,.jpeg,.png">
       </div>
       <div class="upload-box">
         <label class="title">Curriculum Vitae (CV)</label>
@@ -258,10 +274,6 @@
       <div class="upload-box">
         <label class="title">Certificado Único Laboral (CUL)</label>
         <input type="file" id="file_cul" accept=".pdf,.jpg,.jpeg,.png">
-      </div>
-      <div class="upload-box">
-        <label class="title">Antecedentes Policiales</label>
-        <input type="file" id="file_antecedentes" accept=".pdf,.jpg,.jpeg,.png">
       </div>
       <div class="upload-box">
         <label class="title">Otros documentos</label>
@@ -340,6 +352,18 @@ let educacion = [];
 let experiencia = [];
 let capacitaciones = [];
 const sigPads = {};
+
+// Punto 1 del pedido: todo lo que se escribe queda en mayúsculas. Delegado en
+// document para que funcione también en filas agregadas dinámicamente
+// (familia, educación, experiencia, capacitaciones).
+document.addEventListener("input", function (ev) {
+  const el = ev.target;
+  if (el.tagName === "INPUT" && (el.type === "text" || el.type === "tel")) {
+    const start = el.selectionStart, end = el.selectionEnd;
+    el.value = el.value.toUpperCase();
+    if (start !== null) el.setSelectionRange(start, end);
+  }
+});
 
 function renderProgress() {
   const el = document.getElementById("progress");
@@ -475,7 +499,10 @@ function addFamiliaRow() {
       <select class="fam-parentesco"><option value="">Seleccionar…</option><option>Cónyuge</option><option>Conviviente</option><option>Hijo(a)</option><option>Padre</option><option>Madre</option><option>Otro</option></select>
     </div>
     <div class="field"><label>Nombre</label><input type="text" class="fam-nombre"></div>
-    <div class="field"><label>DNI</label><input type="text" class="fam-dni"></div>
+    <div class="field"><label>Tipo de Documento</label>
+      <select class="fam-doc-tipo"><option value="">Seleccionar…</option><option>DNI</option><option>Carné de Extranjería</option><option>Pasaporte</option></select>
+    </div>
+    <div class="field"><label>N.° de Documento</label><input type="text" class="fam-doc-numero"></div>
     <div class="field"><label>Fecha Nac.</label><input type="date" class="fam-fecha"></div>
     <div class="field-check"><input type="checkbox" class="fam-depende" style="width:auto;"><label>Depende económicamente</label></div>
     <div class="field-check"><input type="checkbox" class="fam-essalud" style="width:auto;"><label>Derechohabiente EsSalud</label></div>
@@ -491,7 +518,8 @@ function collectFamilia() {
     rows.push({
       parentesco: row.querySelector(".fam-parentesco").value,
       nombre,
-      dni: row.querySelector(".fam-dni").value,
+      documento_tipo: row.querySelector(".fam-doc-tipo").value,
+      documento_numero: row.querySelector(".fam-doc-numero").value,
       fecha_nacimiento: row.querySelector(".fam-fecha").value,
       depende_economicamente: row.querySelector(".fam-depende").checked,
       derechohabiente_essalud: row.querySelector(".fam-essalud").checked,
@@ -612,11 +640,11 @@ function collectFicha() {
     "codigo_trabajador","apellido_paterno","apellido_materno","nombres","tipo_documento","numero_documento",
     "ruc","nacionalidad","sexo","estado_civil","fecha_nacimiento","lugar_nacimiento","edad",
     "direccion","urbanizacion","distrito","provincia","departamento","referencia",
-    "telefono_fijo","celular","correo_personal",
+    "telefono_fijo","telefono_fijo_codigo","celular","celular_codigo","correo_personal",
     "licencia_numero","licencia_tipo","licencia_vencimiento",
     // III. Contactos de emergencia
-    "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_direccion",
-    "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_direccion",
+    "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_celular_codigo","emerg1_direccion",
+    "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_celular_codigo","emerg2_direccion",
     // V. Bancaria (los datos de Sección IV y la cuenta CTS los completa RR.HH.)
     "banco_haberes","cuenta_haberes","cci_haberes",
     // VI. Previsional (fecha de afiliación y seguro los completa RR.HH.)
@@ -629,6 +657,11 @@ function collectFicha() {
   ];
   ficha = {};
   simpleIds.forEach(id => { ficha[id] = val(id); });
+  // Punto 4 del pedido: estos datos de salud no pueden quedar en blanco —
+  // si no se llenaron, el valor por defecto es NINGUNA.
+  ["alergias", "restricciones", "medicamentos", "vacunas"].forEach(id => {
+    if (!ficha[id] || !ficha[id].trim()) ficha[id] = "NINGUNA";
+  });
   ficha.nombre_completo = nombreCompletoActual();
   // alias de compatibilidad con los documentos legales / PDFs existentes
   ficha.telefono = ficha.celular || ficha.telefono_fijo;
@@ -644,6 +677,13 @@ function collectFicha() {
 }
 
 async function continuarDesdeDocumentos() {
+  const reqIdentidad = document.getElementById("file_documento_identidad");
+  const reqRecibo = document.getElementById("file_recibo_agua_luz");
+  if (!reqIdentidad.files.length || !reqRecibo.files.length) {
+    alert("El Documento de Identidad y el Recibo de Agua o Luz son obligatorios. Adjunta ambos para continuar.");
+    return;
+  }
+
   collectFicha();
   const nombre_completo = ficha.nombre_completo;
   const res = await fetch(`/f/${TOKEN}/ficha`, {
@@ -659,11 +699,10 @@ async function continuarDesdeDocumentos() {
 
   const statusEl = document.getElementById("upload_status");
   const fileFields = [
-    { id: "file_dni_anverso", tipo: "dni_anverso" },
-    { id: "file_dni_reverso", tipo: "dni_reverso" },
+    { id: "file_documento_identidad", tipo: "documento_identidad" },
+    { id: "file_recibo_agua_luz", tipo: "recibo_agua_luz" },
     { id: "file_cv", tipo: "cv" },
     { id: "file_cul", tipo: "cul" },
-    { id: "file_antecedentes", tipo: "antecedentes_policiales" },
     { id: "file_otros", tipo: "otros" },
   ];
   for (const f of fileFields) {
@@ -690,7 +729,7 @@ function fillDerechohabientesSummary() {
   let html = "";
   if (dependientes.length) {
     html = "<table><tr><th>Parentesco</th><th>Nombre</th><th>DNI</th><th>EsSalud</th></tr>" +
-      dependientes.map(f => `<tr><td>${f.parentesco}</td><td>${f.nombre}</td><td>${f.dni || "—"}</td><td>${f.derechohabiente_essalud ? "Sí" : "No"}</td></tr>`).join("") +
+      dependientes.map(f => `<tr><td>${f.parentesco}</td><td>${f.nombre}</td><td>${f.documento_numero || "—"}</td><td>${f.derechohabiente_essalud ? "Sí" : "No"}</td></tr>`).join("") +
       "</table>";
   } else {
     html = "<p><em>No se registraron derechohabientes.</em></p>";

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Editar ficha — {{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=13">
+<link rel="stylesheet" href="/static/style.css?v=14">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -62,8 +62,18 @@
     </div>
     <div class="section-title">Contacto</div>
     <div class="grid3">
-      <div class="field"><label>Teléfono Fijo</label><input type="text" id="telefono_fijo"></div>
-      <div class="field"><label>Celular</label><input type="text" id="celular"></div>
+      <div class="field"><label>Teléfono Fijo</label>
+        <div class="phone-row">
+          <select id="telefono_fijo_codigo">{% include "_codigo_pais_options.html" %}</select>
+          <input type="text" id="telefono_fijo">
+        </div>
+      </div>
+      <div class="field"><label>Celular</label>
+        <div class="phone-row">
+          <select id="celular_codigo">{% include "_codigo_pais_options.html" %}</select>
+          <input type="text" id="celular">
+        </div>
+      </div>
       <div class="field"><label>Correo Personal</label><input type="email" id="correo_personal"></div>
       <div class="field"><label>Correo Corporativo</label><input type="email" id="correo_corporativo"></div>
     </div>
@@ -95,7 +105,12 @@
       <div class="field"><label>Parentesco</label>
         <select id="emerg{{ i }}_parentesco"><option value="">Seleccionar…</option><option>Cónyuge</option><option>Padre</option><option>Madre</option><option>Hijo(a)</option><option>Hermano(a)</option><option>Otro</option></select>
       </div>
-      <div class="field"><label>Celular</label><input type="text" id="emerg{{ i }}_celular"></div>
+      <div class="field"><label>Celular</label>
+        <div class="phone-row">
+          <select id="emerg{{ i }}_celular_codigo">{% include "_codigo_pais_options.html" %}</select>
+          <input type="text" id="emerg{{ i }}_celular">
+        </div>
+      </div>
       <div class="field"><label>Dirección</label><input type="text" id="emerg{{ i }}_direccion"></div>
     </div>
     {% endfor %}
@@ -235,12 +250,12 @@
       <div class="field"><label>EsSalud</label>
         <select id="essalud"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
       </div>
-      <div class="field" style="grid-column:span 3;"><label>Alergias</label><input type="text" id="alergias"></div>
-      <div class="field" style="grid-column:span 3;"><label>Restricciones</label><input type="text" id="restricciones"></div>
-      <div class="field" style="grid-column:span 3;"><label>Medicamentos de Uso Regular</label><input type="text" id="medicamentos"></div>
+      <div class="field" style="grid-column:span 3;"><label>Alergias</label><input type="text" id="alergias" value="NINGUNA"></div>
+      <div class="field" style="grid-column:span 3;"><label>Restricciones / Enfermedades</label><input type="text" id="restricciones" value="NINGUNA"></div>
+      <div class="field" style="grid-column:span 3;"><label>Medicamentos de Uso Regular</label><input type="text" id="medicamentos" value="NINGUNA"></div>
       <div class="field"><label>Examen Médico — Fecha</label><input type="date" id="examen_medico_fecha"></div>
       <div class="field"><label>Examen Médico — Vencimiento</label><input type="date" id="examen_medico_vencimiento"></div>
-      <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" placeholder="COVID-19 completo, Tétanos 2024…"></div>
+      <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" value="NINGUNA" placeholder="COVID-19 completo, Tétanos 2024…"></div>
     </div>
   </div>
 
@@ -260,6 +275,19 @@ const FAMILIA_EXISTENTE = {{ (e.familia_data or [])|tojson }};
 const EDUCACION_EXISTENTE = {{ (e.educacion_data or [])|tojson }};
 const EXPERIENCIA_EXISTENTE = {{ (e.experiencia_data or [])|tojson }};
 const CAPACITACIONES_EXISTENTE = {{ (e.capacitaciones_data or [])|tojson }};
+
+// Punto 1 del pedido: todo lo que se escribe queda en mayúsculas. Delegado en
+// document para que funcione también en filas agregadas dinámicamente
+// (familia, educación, experiencia, capacitaciones). Se excluyen los campos
+// de tipo email/fecha/número/password (no aplica) y los <select>.
+document.addEventListener("input", function (ev) {
+  const el = ev.target;
+  if (el.tagName === "INPUT" && (el.type === "text" || el.type === "tel")) {
+    const start = el.selectionStart, end = el.selectionEnd;
+    el.value = el.value.toUpperCase();
+    if (start !== null) el.setSelectionRange(start, end);
+  }
+});
 
 function actualizarEdad() {
   const f = document.getElementById("fecha_nacimiento").value;
@@ -349,7 +377,10 @@ function addFamiliaRow(datos) {
       <select class="fam-parentesco"><option value="">Seleccionar…</option><option>Cónyuge</option><option>Conviviente</option><option>Hijo(a)</option><option>Padre</option><option>Madre</option><option>Otro</option></select>
     </div>
     <div class="field"><label>Nombre</label><input type="text" class="fam-nombre"></div>
-    <div class="field"><label>DNI</label><input type="text" class="fam-dni"></div>
+    <div class="field"><label>Tipo de Documento</label>
+      <select class="fam-doc-tipo"><option value="">Seleccionar…</option><option>DNI</option><option>Carné de Extranjería</option><option>Pasaporte</option></select>
+    </div>
+    <div class="field"><label>N.° de Documento</label><input type="text" class="fam-doc-numero"></div>
     <div class="field"><label>Fecha Nac.</label><input type="date" class="fam-fecha"></div>
     <div class="field-check"><input type="checkbox" class="fam-depende" style="width:auto;"><label>Depende económicamente</label></div>
     <div class="field-check" title="Un derechohabiente es el familiar (cónyuge/conviviente, hijos, etc.) que queda cubierto por EsSalud a través del titular trabajador, sin aportar por su cuenta.">
@@ -360,7 +391,8 @@ function addFamiliaRow(datos) {
   document.getElementById("familia_container").appendChild(wrap);
   if (datos.parentesco) wrap.querySelector(".fam-parentesco").value = datos.parentesco;
   if (datos.nombre) wrap.querySelector(".fam-nombre").value = datos.nombre;
-  if (datos.dni) wrap.querySelector(".fam-dni").value = datos.dni;
+  if (datos.documento_tipo) wrap.querySelector(".fam-doc-tipo").value = datos.documento_tipo;
+  if (datos.documento_numero || datos.dni) wrap.querySelector(".fam-doc-numero").value = datos.documento_numero || datos.dni;
   if (datos.fecha_nacimiento) wrap.querySelector(".fam-fecha").value = datos.fecha_nacimiento;
   wrap.querySelector(".fam-depende").checked = !!datos.depende_economicamente;
   wrap.querySelector(".fam-essalud").checked = !!datos.derechohabiente_essalud;
@@ -373,7 +405,8 @@ function collectFamilia() {
     rows.push({
       parentesco: row.querySelector(".fam-parentesco").value,
       nombre,
-      dni: row.querySelector(".fam-dni").value,
+      documento_tipo: row.querySelector(".fam-doc-tipo").value,
+      documento_numero: row.querySelector(".fam-doc-numero").value,
       fecha_nacimiento: row.querySelector(".fam-fecha").value,
       depende_economicamente: row.querySelector(".fam-depende").checked,
       derechohabiente_essalud: row.querySelector(".fam-essalud").checked,
@@ -522,10 +555,10 @@ function collectFicha() {
     "codigo_trabajador","apellido_paterno","apellido_materno","nombres","tipo_documento","numero_documento",
     "ruc","nacionalidad","sexo","estado_civil","fecha_nacimiento","lugar_nacimiento","edad",
     "direccion","urbanizacion","distrito","provincia","departamento","referencia",
-    "telefono_fijo","celular","correo_personal","correo_corporativo",
+    "telefono_fijo","telefono_fijo_codigo","celular","celular_codigo","correo_personal","correo_corporativo",
     "licencia_numero","licencia_tipo","licencia_vencimiento",
-    "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_direccion",
-    "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_direccion",
+    "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_celular_codigo","emerg1_direccion",
+    "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_celular_codigo","emerg2_direccion",
     "lab_codigo","area","gerencia","cargo","sede","centro_costos","jefe_inmediato",
     "fecha_ingreso","fecha_contrato","fecha_fin_contrato","tipo_contrato","modalidad","horario","jornada","turno",
     "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar","movilidad",
@@ -537,6 +570,11 @@ function collectFicha() {
   ];
   const ficha = {};
   simpleIds.forEach(id => { ficha[id] = val(id); });
+  // Punto 4 del pedido: estos datos de salud no pueden quedar en blanco —
+  // si no se llenaron, el valor por defecto es NINGUNA.
+  ["alergias", "restricciones", "medicamentos", "vacunas"].forEach(id => {
+    if (!ficha[id] || !ficha[id].trim()) ficha[id] = "NINGUNA";
+  });
   ficha.personal_confianza = document.getElementById("personal_confianza").checked;
   ficha.nombre_completo = nombreCompletoActual();
   ficha.telefono = ficha.celular || ficha.telefono_fijo;
