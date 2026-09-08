@@ -1306,7 +1306,7 @@ def cambiar_mi_password(request: Request, actual: str = Form(...), nueva: str = 
 @router.get("/rrhh/personal", response_class=HTMLResponse)
 def personal_list(request: Request, empresa_id: str = "", unidad_id: str = "", q: str = "",
                    estado: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                   user: User = Depends(require_role("administrador"))):
     query = db.query(Employee)
     if empresa_id:
         query = query.filter(Employee.empresa_id == int(empresa_id))
@@ -1331,7 +1331,7 @@ def personal_list(request: Request, empresa_id: str = "", unidad_id: str = "", q
 @router.get("/rrhh/personal/export.xlsx")
 def personal_export(empresa_id: str = "", unidad_id: str = "", q: str = "", estado: str = "",
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                     user: User = Depends(require_role("administrador"))):
     """Punto 2 del pedido: descargar a Excel según el filtro activo en
     Personal (mismos parámetros que personal_list), o todos si no hay filtro."""
     from .export_xlsx import build_export
@@ -1354,7 +1354,7 @@ def personal_export(empresa_id: str = "", unidad_id: str = "", q: str = "", esta
 
 @router.post("/rrhh/personal/nuevo")
 def personal_nuevo_crear(db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador", "opeoka"))):
+                          user: User = Depends(require_role("administrador"))):
     """Punto 9.2 del pedido: "Agregar trabajador" ya no pasa por un mini
     formulario de nombre/correo/empresa — crea el registro en blanco y va
     directo a la ficha completa, donde se llena todo desde cero (el nombre
@@ -1370,7 +1370,7 @@ def personal_nuevo_crear(db: Session = Depends(get_db),
 @router.post("/rrhh/personal/nueva-seleccion")
 def personal_nueva_seleccion(nombre_completo: str = Form(...), email: str = Form(""), empresa_id: str = Form(""),
                               db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador", "opeoka"))):
+                              user: User = Depends(require_role("administrador"))):
     """Punto 2 del pedido: segunda forma de dar de alta a un trabajador —
     genera el enlace de Selección (/f/{token}) para que la propia persona
     llene su ficha (con menos secciones que la ficha completa; ver
@@ -1436,7 +1436,7 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
 def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...),
                       nueva_fecha_fin_contrato: str = Form(""), tipo_contrato: str = Form(""),
                       notas: str = Form(""), db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador", "opeoka"))):
+                      user: User = Depends(require_role("administrador"))):
     """Punto 2.5 del pedido: al renovar el contrato, los campos fecha_contrato
     y fecha_fin_contrato de la ficha se actualizan, pero queda un registro
     permanente de cada renovación (fechas anteriores y nuevas, tipo, quién la
@@ -1473,7 +1473,7 @@ def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/personal/{employee_id}/solicitar-renovacion", response_class=HTMLResponse)
 def solicitar_renovacion_form(request: Request, employee_id: int, db: Session = Depends(get_db),
-                               user: User = Depends(require_role("administrador", "opeoka"))):
+                               user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1492,7 +1492,7 @@ def solicitar_renovacion_crear(employee_id: int, meses_renovacion: str = Form(""
                                 aumento_sueldo: str = Form(""), monto_aumento: str = Form(""),
                                 movilidad: str = Form(""), otra_comision: str = Form(""),
                                 notas: str = Form(""), db: Session = Depends(get_db),
-                                user: User = Depends(require_role("administrador", "opeoka"))):
+                                user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1629,7 +1629,7 @@ def renovacion_rechazar(request: Request, token: str, db: Session = Depends(get_
 
 @router.get("/rrhh/solicitudes-renovacion/{solicitud_id}/carta")
 def descargar_carta_no_renovacion(solicitud_id: int, db: Session = Depends(get_db),
-                                   user: User = Depends(require_role("administrador", "opeoka"))):
+                                   user: User = Depends(require_role("administrador"))):
     solicitud = db.query(SolicitudRenovacion).get(solicitud_id)
     if not solicitud or not solicitud.carta_no_renovacion_path or not os.path.exists(solicitud.carta_no_renovacion_path):
         raise HTTPException(404, "Carta no disponible.")
@@ -1639,7 +1639,7 @@ def descargar_carta_no_renovacion(solicitud_id: int, db: Session = Depends(get_d
 
 @router.get("/rrhh/personal/{employee_id}/ficha", response_class=HTMLResponse)
 def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depends(get_db),
-                           user: User = Depends(require_role("administrador", "opeoka"))):
+                           user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1672,7 +1672,7 @@ def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depe
 
 @router.post("/rrhh/personal/{employee_id}/ficha")
 async def personal_ficha_guardar(employee_id: int, request: Request, db: Session = Depends(get_db),
-                                  user: User = Depends(require_role("administrador", "opeoka"))):
+                                  user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1726,7 +1726,7 @@ def personal_foto(employee_id: int, db: Session = Depends(get_db), user: User = 
 
 @router.post("/rrhh/personal/{employee_id}/foto")
 async def subir_foto(employee_id: int, foto: UploadFile = File(...), db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador", "opeoka"))):
+                      user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1743,7 +1743,7 @@ async def subir_foto(employee_id: int, foto: UploadFile = File(...), db: Session
 @router.post("/rrhh/personal/{employee_id}/bitacora")
 def agregar_bitacora(employee_id: int, tipo: str = Form(...), texto: str = Form(...),
                       db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                      user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1756,7 +1756,7 @@ def agregar_bitacora(employee_id: int, tipo: str = Form(...), texto: str = Form(
 def agregar_onboarding(employee_id: int, etapa: str = Form(...), estado: str = Form("pendiente"),
                         fecha: str = Form(""), responsable: str = Form(""), notas: str = Form(""),
                         db: Session = Depends(get_db),
-                        user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                        user: User = Depends(require_role("administrador"))):
     if etapa not in ETAPA_ONBOARDING_KEYS:
         raise HTTPException(400, "Etapa de onboarding inválida.")
     emp = db.query(Employee).get(employee_id)
@@ -1780,7 +1780,7 @@ def agregar_onboarding(employee_id: int, etapa: str = Form(...), estado: str = F
 @router.post("/rrhh/personal/{employee_id}/documentos")
 async def subir_documento_rrhh(employee_id: int, tipo: str = Form(...), archivo: UploadFile = File(...),
                                  db: Session = Depends(get_db),
-                                 user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                                 user: User = Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1867,7 +1867,7 @@ def marcar_asistencia(request: Request, employee_id: int, tipo: str = Form(...),
 @router.get("/rrhh/asistencia", response_class=HTMLResponse)
 def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                     user: User = Depends(require_role("administrador"))):
     # "Hoy" y el rango del día se calculan en hora de Lima (UTC-5), no en la
     # del servidor (UTC) — si no, entre las 19:00 y medianoche hora Lima las
     # marcaciones (guardadas en UTC) caían en el "día siguiente" y el filtro
@@ -1908,7 +1908,7 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
 @router.post("/rrhh/asistencia/manual")
 def asistencia_manual(employee_id: int = Form(...), tipo: str = Form(...), fecha: str = Form(...),
                        hora: str = Form(...), nota: str = Form(""), db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador", "opeoka"))):
+                       user: User = Depends(require_role("administrador"))):
     if tipo not in ("entrada", "salida"):
         raise HTTPException(400, "Tipo de marcación inválido.")
     # RR.HH. escribe la hora en hora de Lima (lo que vio/le dijeron) — se
@@ -2177,7 +2177,7 @@ def dashboard(request: Request, dias: int = 30, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/contratos", response_class=HTMLResponse)
 def contratos_list(request: Request, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                    user: User = Depends(require_role("administrador"))):
     return templates.TemplateResponse(request, "rrhh_contratos.html", _ctx(
         request, user, contratos=_contratos_no_indefinidos(db), active="contratos",
     ))

@@ -23,8 +23,22 @@ from .models import (
     Anuncio, Holding, UnidadNegocio, Empresa, AnuncioVista, AnuncioLike,
     ESTADOS_ENCUESTA, RELACIONES_ENCUESTA, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
-from .auth import require_role, require_login
+from .auth import require_role, require_login, Forbidden
 from .rrhh import _ctx
+
+
+def require_encuesta_acceso(campana_id: int, request: Request, db: Session = Depends(get_db)) -> User:
+    """Punto 5 del pedido de Eduardo (2026-09-08): mientras una campaña de
+    Encuesta 360 esté abierta, CUALQUIER usuario logueado (sin importar su
+    rol) puede entrar a responderla — no solo RR.HH. Una vez cerrada, vuelve
+    a ser administrador-only (revisión de resultados)."""
+    user = require_login(request, db)
+    if user.rol == "administrador":
+        return user
+    campana = db.query(EncuestaCampana).get(campana_id)
+    if campana and campana.estado == "abierta":
+        return user
+    raise Forbidden()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
@@ -51,8 +65,16 @@ def _promedio_por_pregunta(campana: EncuestaCampana):
 
 @router.get("/rrhh/clima/encuestas", response_class=HTMLResponse)
 def encuestas_list(request: Request, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
-    campanas = db.query(EncuestaCampana).order_by(EncuestaCampana.created_at.desc()).all()
+                    user: User = Depends(require_login)):
+    # Punto 5 del pedido de Eduardo (2026-09-08): mientras una campaña esté
+    # abierta, cualquier rol puede entrar a responderla. Administrador ve la
+    # gestión completa (todas las campañas, crear/cerrar); el resto solo ve
+    # las que están abiertas ahora, para responder.
+    if user.rol == "administrador":
+        campanas = db.query(EncuestaCampana).order_by(EncuestaCampana.created_at.desc()).all()
+    else:
+        campanas = db.query(EncuestaCampana).filter(EncuestaCampana.estado == "abierta") \
+            .order_by(EncuestaCampana.created_at.desc()).all()
     return templates.TemplateResponse(request, "rrhh_encuestas.html", _ctx(
         request, user, campanas=campanas, estado_labels=ESTADO_ENCUESTA_LABELS, active="encuestas",
     ))
@@ -61,7 +83,7 @@ def encuestas_list(request: Request, db: Session = Depends(get_db),
 @router.post("/rrhh/clima/encuestas/nueva")
 def encuestas_crear(nombre: str = Form(...), descripcion: str = Form(""), preguntas: str = Form(...),
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                     user: User = Depends(require_role("administrador"))):
     lista_preguntas = [p.strip() for p in preguntas.splitlines() if p.strip()]
     if not lista_preguntas:
         raise HTTPException(400, "Agrega al menos una pregunta.")
@@ -75,7 +97,7 @@ def encuestas_crear(nombre: str = Form(...), descripcion: str = Form(""), pregun
 
 @router.post("/rrhh/clima/encuestas/{campana_id}/estado")
 def encuestas_cambiar_estado(campana_id: int, estado: str = Form(...), db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                              user: User = Depends(require_role("administrador"))):
     if estado not in dict(ESTADOS_ENCUESTA):
         raise HTTPException(400, "Estado inválido.")
     campana = db.query(EncuestaCampana).get(campana_id)
@@ -89,7 +111,7 @@ def encuestas_cambiar_estado(campana_id: int, estado: str = Form(...), db: Sessi
 
 @router.get("/rrhh/clima/encuestas/{campana_id}", response_class=HTMLResponse)
 def encuesta_detalle(request: Request, campana_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                      user: User = Depends(require_encuesta_acceso)):
     campana = db.query(EncuestaCampana).get(campana_id)
     if not campana:
         raise HTTPException(404)
@@ -105,7 +127,7 @@ def encuesta_detalle(request: Request, campana_id: int, db: Session = Depends(ge
 
 @router.post("/rrhh/clima/encuestas/{campana_id}/respuesta")
 async def encuesta_agregar_respuesta(campana_id: int, request: Request, db: Session = Depends(get_db),
-                                      user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                                      user: User = Depends(require_encuesta_acceso)):
     campana = db.query(EncuestaCampana).get(campana_id)
     if not campana:
         raise HTTPException(404)
@@ -135,7 +157,7 @@ async def encuesta_agregar_respuesta(campana_id: int, request: Request, db: Sess
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/clima/anuncios", response_class=HTMLResponse)
 def anuncios_list(request: Request, db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                   user: User = Depends(require_role("administrador"))):
     anuncios = db.query(Anuncio).order_by(Anuncio.created_at.desc()).all()
     holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     unidades = db.query(UnidadNegocio).filter(UnidadNegocio.activo == True).order_by(UnidadNegocio.nombre).all()  # noqa: E712
@@ -240,7 +262,7 @@ def anuncios_eliminar(anuncio_id: int, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/clima/indicadores", response_class=HTMLResponse)
 def indicadores(request: Request, dias: int = 30, db: Session = Depends(get_db),
-                 user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                 user: User = Depends(require_role("administrador"))):
     data = kpis_module.resumen_dashboard(db, dias=dias)
 
     total_activos = data["headcount"]

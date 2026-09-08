@@ -22,7 +22,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import User, Employee
+from .models import User
 
 PBKDF2_ITERATIONS = 260_000
 
@@ -96,19 +96,12 @@ def require_role(*roles: str):
 
 
 def es_jefe_o_gerente(user: User, db: Session) -> bool:
-    """Registro de Pedidos de Personal: además de RR.HH. (administrador/
-    conta/opeoka en general para gestionar el pipeline), puede GENERAR un
-    pedido nuevo un usuario con rol Operaciones cuyo Cargo (en su ficha)
-    contenga "Jefe" o "Gerente" — así los jefes/gerentes de área piden
-    personal ellos mismos, sin depender de que RR.HH. lo cargue por ellos."""
-    if user.rol == "administrador":
-        return True
-    if user.rol != "opeoka" or not user.employee_id:
-        return False
-    emp = db.query(Employee).get(user.employee_id)
-    cargo = ((emp.ficha_data or {}).get("cargo") or "") if emp else ""
-    cargo = cargo.lower()
-    return "jefe" in cargo or "gerente" in cargo
+    """Registro de Pedidos de Personal: administrador, o un usuario con rol
+    "opeoka" (== "Gerente o Jefe" en la matriz de accesos de Eduardo del
+    2026-09-08 — ver [[feedback-niveles-de-acceso]]). Ya no se infiere por
+    el texto del Cargo: el rol "opeoka" pasó a significar directamente
+    "Gerente o Jefe", nada más lo necesita."""
+    return user.rol in ("administrador", "opeoka")
 
 
 def require_jefe_o_gerente(request: Request, db: Session = Depends(get_db)) -> User:
@@ -121,15 +114,24 @@ def require_jefe_o_gerente(request: Request, db: Session = Depends(get_db)) -> U
 
 
 def can_see_planilla(user: User) -> bool:
-    """Secciones bancarias/previsionales/remuneración: administrador y conta."""
-    return user.rol in ("administrador", "conta")
+    """Secciones bancarias/previsionales/remuneración: solo administrador.
+    "conta" (Contabilidad) ya no gestiona la ficha de Personal — queda
+    reservado exclusivamente para cuando exista el módulo de Planillas (ver
+    matriz de accesos de Eduardo, 2026-09-08)."""
+    return user.rol == "administrador"
 
 
 def can_see_operativo(user: User) -> bool:
-    """Secciones operativas: administrador, conta y opeoka (todo el staff de RR.HH.)."""
-    return user.rol in ("administrador", "conta", "opeoka")
+    """Secciones operativas de la ficha de OTRA persona: solo administrador.
+    "opeoka" (Gerente o Jefe) ya no tiene acceso operativo general — solo
+    ve su propia ficha (como 'usuario') y puede registrar pedidos de
+    personal (ver es_jefe_o_gerente)."""
+    return user.rol == "administrador"
 
 
 def is_staff(user: User) -> bool:
-    """Cualquier rol de RR.HH. (no 'usuario')."""
-    return user.rol in ("administrador", "conta", "opeoka")
+    """Acceso de RR.HH. a la ficha de CUALQUIER trabajador: solo
+    administrador. "conta" y "opeoka" quedaron con el mismo alcance que
+    'usuario' (solo su propia información) más su capacidad puntual
+    (Planillas a futuro / Registro de Pedidos, respectivamente)."""
+    return user.rol == "administrador"

@@ -192,7 +192,7 @@ def root():
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db),
-                     user=Depends(require_role("administrador", "conta", "opeoka"))):
+                     user=Depends(require_role("administrador"))):
     employees = db.query(Employee).order_by(Employee.created_at.desc()).all()
     rows = []
     for e in employees:
@@ -213,7 +213,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db),
 @app.post("/admin/nuevo")
 def admin_nuevo(request: Request, nombre_completo: str = Form(...), email: str = Form(""),
                  empresa: str = Form("Digetel"), db: Session = Depends(get_db),
-                 user=Depends(require_role("administrador", "opeoka"))):
+                 user=Depends(require_role("administrador"))):
     emp = Employee(nombre_completo=nombre_completo.strip(), email=email.strip() or None, empresa=empresa)
     db.add(emp)
     db.commit()
@@ -225,7 +225,7 @@ def admin_nuevo(request: Request, nombre_completo: str = Form(...), email: str =
 
 @app.get("/admin/empleado/{employee_id}", response_class=HTMLResponse)
 def admin_detalle(request: Request, employee_id: int, db: Session = Depends(get_db),
-                   user=Depends(require_role("administrador", "conta", "opeoka"))):
+                   user=Depends(require_role("administrador"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -242,7 +242,7 @@ def admin_detalle(request: Request, employee_id: int, db: Session = Depends(get_
 
 
 @app.get("/admin/export.xlsx")
-def admin_export(db: Session = Depends(get_db), user=Depends(require_role("administrador", "conta"))):
+def admin_export(db: Session = Depends(get_db), user=Depends(require_role("administrador"))):
     from .export_xlsx import build_export
     path = build_export(db)
     return FileResponse(
@@ -254,7 +254,7 @@ def admin_export(db: Session = Depends(get_db), user=Depends(require_role("admin
 
 @app.get("/descargas/{document_id}")
 def descargar_pdf(document_id: int, db: Session = Depends(get_db),
-                   user=Depends(require_role("administrador", "conta", "opeoka"))):
+                   user=Depends(require_role("administrador"))):
     doc = db.query(Document).get(document_id)
     if not doc or not doc.pdf_path or not os.path.exists(doc.pdf_path):
         raise HTTPException(404, "Documento no disponible todavía.")
@@ -264,7 +264,7 @@ def descargar_pdf(document_id: int, db: Session = Depends(get_db),
 
 @app.get("/adjuntos/{attachment_id}")
 def descargar_adjunto(attachment_id: int, db: Session = Depends(get_db),
-                       user=Depends(require_role("administrador", "conta", "opeoka"))):
+                       user=Depends(require_role("administrador"))):
     att = db.query(Attachment).get(attachment_id)
     if not att or not os.path.exists(att.file_path):
         raise HTTPException(404, "Archivo no disponible.")
@@ -278,7 +278,7 @@ def descargar_adjunto(attachment_id: int, db: Session = Depends(get_db),
 @app.get("/admin/empleado/{employee_id}/exportar-sunafil")
 def exportar_sunafil(employee_id: int, docs: list[str] = Query(default=[]),
                       adjuntos: bool = Query(default=False), db: Session = Depends(get_db),
-                      user=Depends(require_role("administrador", "conta", "opeoka"))):
+                      user=Depends(require_role("administrador"))):
     from .sunafil_export import build_sunafil_pdf
     emp = db.query(Employee).get(employee_id)
     if not emp:

@@ -27,7 +27,7 @@
         <button class="btn small secondary" type="submit">Reactivar</button>
       </form>
       {% endif %}
-      {% if user.rol in ('administrador', 'opeoka') %}
+      {% if user.rol == 'administrador' %}
       <a class="btn" href="/rrhh/personal/{{ e.id }}/ficha">{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}</a>
       {% endif %}
     </div>

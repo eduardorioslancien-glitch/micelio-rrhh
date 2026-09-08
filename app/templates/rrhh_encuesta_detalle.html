@@ -10,6 +10,7 @@
 
   <a class="btn secondary" href="/rrhh/clima/encuestas">&larr; Volver a campañas</a>
 
+  {% if user.rol == 'administrador' %}
   <div class="card" style="margin-top:16px;">
     <h2>{{ campana.nombre }}</h2>
     {% if campana.descripcion %}<p class="muted">{{ campana.descripcion }}</p>{% endif %}
@@ -47,6 +48,15 @@
       <tr><td colspan="5" class="muted">Todavía no hay respuestas cargadas.</td></tr>
       {% endfor %}
     </table>
+  {% else %}
+  {# Punto 5 del pedido de Eduardo (2026-09-08): cualquier rol puede entrar a
+     responder mientras la campaña esté abierta, pero NO ve los resultados
+     agregados ni las respuestas/comentarios de los demás — solo su propio
+     formulario para responder. #}
+  <div class="card" style="margin-top:16px;">
+    <h2>{{ campana.nombre }}</h2>
+    {% if campana.descripcion %}<p class="muted">{{ campana.descripcion }}</p>{% endif %}
+  {% endif %}
 
     {% if campana.estado == 'abierta' %}
     <h3 style="margin-top:22px;">Cargar respuesta</h3>

@@ -22,7 +22,7 @@
 
   <div class="card">
     <h2>Base de datos maestra de personal ({{ empleados|length }})</h2>
-    {% if user.rol in ['administrador','opeoka'] %}
+    {% if user.rol == 'administrador' %}
     <details style="margin-bottom:16px;">
       <summary class="action-link">+ Generar enlace de Selección</summary>
       <form method="post" action="/rrhh/personal/nueva-seleccion" class="inline-form" style="margin-top:10px;">
@@ -62,7 +62,7 @@
          href="/rrhh/personal/export.xlsx?empresa_id={{ f_empresa }}&unidad_id={{ f_unidad }}&q={{ f_q }}&estado={{ f_estado }}">
         Descargar Excel {{ '(según filtro)' if (f_empresa or f_unidad or f_q or f_estado) else '(todos)' }}
       </a>
-      {% if user.rol in ['administrador','opeoka'] %}
+      {% if user.rol == 'administrador' %}
       <form method="post" action="/rrhh/personal/nuevo" style="margin:0;">
         <button class="btn" type="submit">+ Agregar trabajador</button>
       </form>

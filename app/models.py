@@ -91,8 +91,8 @@ REGIMENES_LABORALES = [
 
 ROLES = [
     ("administrador", "Administrador — acceso total"),
-    ("conta", "Contabilidad / Planillas — acceso a datos de planilla"),
-    ("opeoka", "Operaciones — acceso a la parte operativa"),
+    ("conta", "Contabilidad — planillas de pago (próximamente)"),
+    ("opeoka", "Gerente o Jefe — su ficha + registrar pedidos de personal"),
     ("usuario", "Usuario — acceso solo a su información"),
 ]
 ROLE_KEYS = [r[0] for r in ROLES]

@@ -112,7 +112,7 @@ def _generar_codigo_pedido(db: Session) -> str:
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/reclutamiento/pedidos", response_class=HTMLResponse)
 def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                  user: User = Depends(require_role("administrador", "opeoka"))):
     query = db.query(PedidoPersonal)
     if estado:
         query = query.filter(PedidoPersonal.estado == estado)
@@ -178,7 +178,7 @@ def pedidos_crear(cargo_solicitado: str = Form(...), cantidad: int = Form(1),
 
 @router.post("/rrhh/reclutamiento/pedidos/{pedido_id}/estado")
 def pedidos_cambiar_estado(pedido_id: int, estado: str = Form(...), db: Session = Depends(get_db),
-                            user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                            user: User = Depends(require_role("administrador"))):
     if estado not in ESTADO_PEDIDO_KEYS:
         raise HTTPException(400, "Estado inválido.")
     pedido = db.query(PedidoPersonal).get(pedido_id)
@@ -201,7 +201,7 @@ def _orden_leads(lead: LeadCandidato):
 
 @router.get("/rrhh/reclutamiento/leads", response_class=HTMLResponse)
 def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Session = Depends(get_db),
-                user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                user: User = Depends(require_role("administrador"))):
     pedidos_abiertos = (
         db.query(PedidoPersonal)
         .filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
@@ -247,7 +247,7 @@ def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Sessi
 def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), celular: str = Form(""),
                  origen: str = Form(""), pedido_id: str = Form(""), notas: str = Form(""),
                  db: Session = Depends(get_db),
-                 user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                 user: User = Depends(require_role("administrador"))):
     db.add(LeadCandidato(
         nombre_completo=nombre_completo.strip(), email=email.strip() or None, celular=celular.strip() or None,
         origen=origen or None, pedido_id=int(pedido_id) if pedido_id else None, notas=notas.strip() or None,
@@ -260,7 +260,7 @@ def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), celular
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/etapa")
 def leads_cambiar_etapa(lead_id: int, etapa: str = Form(...), db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                         user: User = Depends(require_role("administrador"))):
     if etapa not in ETAPA_LEAD_KEYS:
         raise HTTPException(400, "Etapa inválida.")
     lead = db.query(LeadCandidato).get(lead_id)
@@ -273,7 +273,7 @@ def leads_cambiar_etapa(lead_id: int, etapa: str = Form(...), db: Session = Depe
 
 @router.get("/rrhh/reclutamiento/leads/{lead_id}/cv")
 def lead_cv(lead_id: int, db: Session = Depends(get_db),
-            user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+            user: User = Depends(require_role("administrador"))):
     from fastapi.responses import FileResponse
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
@@ -283,7 +283,7 @@ def lead_cv(lead_id: int, db: Session = Depends(get_db),
 
 @router.get("/rrhh/reclutamiento/leads/{lead_id}", response_class=HTMLResponse)
 def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                  user: User = Depends(require_role("administrador"))):
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
@@ -331,7 +331,7 @@ def _correo_descarte(lead: LeadCandidato) -> bool:
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/coordinar-meet")
 def lead_coordinar_meet(lead_id: int, db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                         user: User = Depends(require_role("administrador"))):
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
@@ -344,7 +344,7 @@ def lead_coordinar_meet(lead_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/descartar")
 def lead_descartar(lead_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                    user: User = Depends(require_role("administrador"))):
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
@@ -357,7 +357,7 @@ def lead_descartar(lead_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/entrevista")
 async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = Depends(get_db),
-                                   user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                                   user: User = Depends(require_role("administrador"))):
     """Guarda la Entrevista por Competencias (una fila por competencia del
     cargo, campos dinámicos comp_{id}_nivel / comp_{id}_notas) y la
     Evaluación DISC (una fila por DISC_PREGUNTAS, disc_{id})."""
@@ -393,7 +393,7 @@ async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = 
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/aprobar")
 def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                  user: User = Depends(require_role("administrador"))):
     """Aprobado -> pasa a Selección: crea el legajo (Employee pendiente con
     token) y le manda al candidato su enlace de autoservicio."""
     lead = db.query(LeadCandidato).get(lead_id)
@@ -434,7 +434,7 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/reclutamiento/onboarding", response_class=HTMLResponse)
 def onboarding_overview(request: Request, db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                          user: User = Depends(require_role("administrador"))):
     empleados = (
         db.query(Employee)
         .filter(Employee.estado == "activo")
