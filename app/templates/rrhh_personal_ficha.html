@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Editar ficha — {{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=12">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -147,6 +147,10 @@
       <div class="field"><label>Bonificaciones (S/)</label><input type="text" id="bonificaciones"></div>
       <div class="field"><label>Asignación Familiar (S/)</label><input type="text" id="asignacion_familiar"></div>
       <div class="field"><label>Movilidad (S/)</label><input type="text" id="movilidad"></div>
+    </div>
+    <div class="field-check" style="margin-top:6px;">
+      <input type="checkbox" id="personal_confianza" style="width:auto;">
+      <label>Personal de Confianza</label>
     </div>
   </div>
 
@@ -348,7 +352,9 @@ function addFamiliaRow(datos) {
     <div class="field"><label>DNI</label><input type="text" class="fam-dni"></div>
     <div class="field"><label>Fecha Nac.</label><input type="date" class="fam-fecha"></div>
     <div class="field-check"><input type="checkbox" class="fam-depende" style="width:auto;"><label>Depende económicamente</label></div>
-    <div class="field-check"><input type="checkbox" class="fam-essalud" style="width:auto;"><label>Derechohabiente EsSalud</label></div>
+    <div class="field-check" title="Un derechohabiente es el familiar (cónyuge/conviviente, hijos, etc.) que queda cubierto por EsSalud a través del titular trabajador, sin aportar por su cuenta.">
+      <input type="checkbox" class="fam-essalud" style="width:auto;"><label>Derechohabiente EsSalud ⓘ</label>
+    </div>
     <button type="button" class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>
   `;
   document.getElementById("familia_container").appendChild(wrap);
@@ -531,6 +537,7 @@ function collectFicha() {
   ];
   const ficha = {};
   simpleIds.forEach(id => { ficha[id] = val(id); });
+  ficha.personal_confianza = document.getElementById("personal_confianza").checked;
   ficha.nombre_completo = nombreCompletoActual();
   ficha.telefono = ficha.celular || ficha.telefono_fijo;
   ficha.email_personal = ficha.correo_personal;
@@ -583,6 +590,7 @@ function precargar() {
     if (["departamento", "provincia", "distrito"].includes(el.id)) return; // manejado por el cascade
     if (FICHA_EXISTENTE[el.id] !== undefined) el.value = FICHA_EXISTENTE[el.id];
   });
+  document.getElementById("personal_confianza").checked = !!FICHA_EXISTENTE.personal_confianza;
   actualizarEdad();
   actualizarCodigoTrabajador();
   ajustarCamposPension();

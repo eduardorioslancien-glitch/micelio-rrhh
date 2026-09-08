@@ -3,16 +3,20 @@
 <head>
 <meta charset="utf-8">
 <title>Administración de Personal — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=12">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
 
   {% if request.query_params.get('enlace') %}
-  <div class="card">
+  <div class="card" id="caja-enlace-generado">
     <p><strong>Enlace de Selección generado.</strong> Compártelo con la persona para que complete su ficha
-      (algunos datos, como los de la Sección IV y la cuenta CTS, los completa RR.HH. después, desde su ficha):</p>
-    <div class="link-box">{{ request.url_for('formulario', token=request.query_params.get('enlace')) }}</div>
+      (los demás datos los completa RR.HH. después, desde su ficha):</p>
+    <div class="link-box" id="texto-enlace-generado">{{ request.url_for('formulario', token=request.query_params.get('enlace')) }}</div>
+    <div class="icon-btn-row" style="margin-top:10px;">
+      <button type="button" class="icon-btn" onclick="copiarEnlaceGenerado()" title="Copiar enlace">⧉</button>
+      <button type="button" class="icon-btn" onclick="document.getElementById('caja-enlace-generado').remove()" title="Cerrar">✕</button>
+    </div>
   </div>
   {% endif %}
 
@@ -20,17 +24,9 @@
     <h2>Base de datos maestra de personal ({{ empleados|length }})</h2>
     {% if user.rol in ['administrador','opeoka'] %}
     <details style="margin-bottom:16px;">
-      <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">+ Generar enlace de Selección</summary>
+      <summary class="action-link">+ Generar enlace de Selección</summary>
       <form method="post" action="/rrhh/personal/nueva-seleccion" class="inline-form" style="margin-top:10px;">
         <div class="field"><label>Nombre completo</label><input type="text" name="nombre_completo" required></div>
-        <div class="field"><label>Correo</label><input type="email" name="email"></div>
-        <div class="field">
-          <label>Empresa</label>
-          <select name="empresa_id">
-            <option value="">— Sin asignar —</option>
-            {% for emp2 in empresas %}<option value="{{ emp2.id }}">{{ emp2.nombre }}</option>{% endfor %}
-          </select>
-        </div>
         <button class="btn small" type="submit">Generar enlace</button>
       </form>
     </details>
@@ -116,6 +112,15 @@
     if (!seleccionSigueValida) selEmpresa.value = "";
   }
   filtrarEmpresasPorUnidad();
+
+  function copiarEnlaceGenerado() {
+    const texto = document.getElementById("texto-enlace-generado").innerText.trim();
+    navigator.clipboard.writeText(texto).then(function () {
+      alert("Enlace copiado al portapapeles.");
+    }).catch(function () {
+      alert("No se pudo copiar automáticamente. Copia el enlace manualmente.");
+    });
+  }
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=12">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -145,6 +145,7 @@
       <tr><td><strong>Fecha de vencimiento</strong></td><td>{{ f.get('fecha_fin_contrato','—') }}</td></tr>
       <tr><td><strong>Fecha de ingreso</strong></td><td>{{ f.get('fecha_ingreso','—') }}</td></tr>
       <tr><td><strong>Jefe inmediato</strong></td><td>{{ f.get('jefe_inmediato','—') }}</td></tr>
+      <tr><td><strong>Personal de Confianza</strong></td><td>{{ 'Sí' if f.get('personal_confianza') else 'No' }}</td></tr>
     </table>
 
     <div class="section-title" style="margin-top:18px;">Organigrama (según Cargos y Funciones)</div>

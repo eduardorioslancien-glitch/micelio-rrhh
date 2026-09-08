@@ -151,6 +151,18 @@ label { font-size: 12px; font-weight: 600; color: var(--gray); text-transform: u
   border-radius: 4px;
   margin: 18px 0 12px;
 }
+/* Disparador de una acción que se ve como enlace (no como botón), p.ej.
+   "+ Generar enlace de Selección" en Personal — usa <summary> de un
+   <details> o un <a>/<span>, según el caso. */
+.action-link {
+  display: inline-block;
+  color: var(--navy);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.action-link:hover { color: var(--navy-dark); }
 .link-box {
   background: var(--light2);
   border: 1px dashed var(--navy);

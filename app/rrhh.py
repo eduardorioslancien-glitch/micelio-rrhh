@@ -1300,15 +1300,13 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
 
     # Punto 2 del pedido: cuando la ficha se llenó por Selección (el propio
     # trabajador), avisar qué datos de completar RR.HH./Administrador todavía
-    # faltan (Sección IV completa, cuenta CTS). Fecha de Afiliación y Seguro
-    # (Sección VI) no son datos urgentes — no se avisan aquí.
+    # faltan (Sección IV completa). Cuenta CTS, Fecha de Afiliación y Seguro
+    # (Secciones V y VI) no son obligatorios — no se avisan aquí.
     f = emp.ficha_data or {}
     faltan_datos = []
     if emp.ficha_data:
         if not (f.get("cargo") or "").strip():
             faltan_datos.append("Cargo / Datos Laborales (Sección IV)")
-        if not (f.get("cuenta_cts") or "").strip():
-            faltan_datos.append("Cuenta CTS (Sección V)")
 
     return templates.TemplateResponse(request, "rrhh_personal_detalle.html", _ctx(
         request, user, e=emp, empresas=empresas, attachment_types=ATTACHMENT_TYPES,
