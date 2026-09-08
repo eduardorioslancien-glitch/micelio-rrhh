@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Selección — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=15">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <h2>Selección — Candidatos elegibles</h2>
+    <p class="muted">Candidatos aprobados desde Gestión de Leads (clasificación Excelente, Muy Bueno o Bueno) a la
+      espera de la segunda entrevista con el área a la que postulan y su aprobación final.</p>
+    <table>
+      <tr><th>Nombre</th><th>Vacante</th><th>Empresa</th><th>Clasificación</th><th>Segunda entrevista</th><th></th></tr>
+      {% for c in candidatos %}
+      {% set f = c.ficha_data or {} %}
+      <tr>
+        <td><strong>{{ c.nombre_completo }}</strong></td>
+        <td>{{ f.get('vacante_cargo', '—') }}</td>
+        <td>{{ c.empresa_rel.nombre if c.empresa_rel else (c.empresa or "—") }}</td>
+        <td><span class="badge {{ 'firmado' if f.get('clasificacion_entrevista') in ('EXCELENTE','MUY BUENO') else 'pendiente' }}">{{ f.get('clasificacion_entrevista', '—') }}</span></td>
+        <td class="muted">{{ f.get('segunda_entrevista_entrevistador_nombre') or 'Sin asignar' }}</td>
+        <td><a class="btn small" href="/rrhh/reclutamiento/seleccion/{{ c.id }}">Ver</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">No hay candidatos elegibles esperando segunda entrevista en este momento.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

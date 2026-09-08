@@ -92,9 +92,11 @@
       <a href="/trabaja-con-nosotros" target="_blank">Trabaja con Nosotros ↗</a>
       <a href="/rrhh/reclutamiento/pedidos" class="{{ 'active' if active == 'pedidos' else '' }}">Registro de Pedidos</a>
       <a href="/rrhh/reclutamiento/leads" class="{{ 'active' if active == 'leads' else '' }}">Gestión de Leads</a>
-      {# "Selección" ya existe como una sola pantalla (ficha + documentos + firma juntos);
-         se separará en Ficha de Datos / Control Documentos / Firma de Contrato más adelante. #}
-      <a href="/admin" class="{{ 'active' if active == 'seleccion' else '' }}">Selección</a>
+      {# Punto de Eduardo (2026-09-08): "Selección" pasó a ser esta pantalla nueva
+         (candidatos elegibles -> segunda entrevista -> aprobado -> contrato).
+         El legajo de documentos firmados de cada trabajador sigue viviendo
+         dentro de Personal (rrhh_personal_detalle.html), sin cambios. #}
+      <a href="/rrhh/reclutamiento/seleccion" class="{{ 'active' if active == 'seleccion' else '' }}">Selección</a>
       <details class="nav-group nested" {{ 'open' if active == 'onboarding' else '' }}>
         <summary>Onboarding</summary>
         <div class="nav-children">

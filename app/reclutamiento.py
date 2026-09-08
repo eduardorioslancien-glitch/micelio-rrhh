@@ -6,6 +6,7 @@ paso a Selección) y Onboarding (Fase 3 + mejoras posteriores).
 """
 import datetime
 import os
+from urllib.parse import quote
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -413,6 +414,8 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
     ficha_inicial = {}
     if lead.pedido and lead.pedido.codigo:
         ficha_inicial["codigo_pedido_seleccion"] = lead.pedido.codigo
+        ficha_inicial["vacante_cargo"] = lead.pedido.cargo_solicitado
+        ficha_inicial["vacante_area"] = lead.pedido.area
     if lead.clasificacion:
         ficha_inicial["clasificacion_entrevista"] = lead.clasificacion
     disc = (lead.entrevista_data or {}).get("disc")
@@ -444,6 +447,125 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
         enviado = _enviar_correo([lead.email], "Siguiente paso en tu proceso — DIGETEL GROUP", cuerpo)
     mensaje = "correo_enviado" if enviado else "correo_no_configurado"
     return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok={mensaje}&enlace={emp.token}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Selección (punto de Eduardo, 2026-09-08): segunda etapa, después de
+# Gestión de Leads. Solo llegan acá los candidatos ya aprobados (Employee
+# creado por lead_aprobar) con clasificación EXCELENTE/MUY BUENO/BUENO que
+# todavía no tienen el visto bueno de una segunda entrevista. Es una
+# pantalla nueva y separada — el legajo de documentos firmados de Personal
+# no se toca (ver nota en _rrhh_topbar.html).
+#
+# El envío por WhatsApp queda como un enlace "wa.me" con el mensaje ya
+# armado (Eduardo lo confirma y lo manda él mismo) — MICELIO no tiene hoy
+# ninguna integración de WhatsApp Business API para mandarlo solo.
+# ---------------------------------------------------------------------------
+CLASIFICACIONES_ELEGIBLES = ["EXCELENTE", "MUY BUENO", "BUENO"]
+
+
+def _celular_completo(ficha: dict, campo: str = "celular") -> str:
+    """Código de país + número, todo junto y solo dígitos (formato que
+    necesita un link wa.me — sin '+' ni espacios)."""
+    codigo = (ficha.get(f"{campo}_codigo") or "+51").lstrip("+")
+    numero = "".join(ch for ch in (ficha.get(campo) or "") if ch.isdigit())
+    return f"{codigo}{numero}" if numero else ""
+
+
+@router.get("/rrhh/reclutamiento/seleccion", response_class=HTMLResponse)
+def seleccion_list(request: Request, db: Session = Depends(get_db),
+                    user: User = Depends(require_role("administrador"))):
+    candidatos = [
+        e for e in db.query(Employee).filter(Employee.estado == "activo")
+        .order_by(Employee.nombre_completo).all()
+        if (e.ficha_data or {}).get("clasificacion_entrevista") in CLASIFICACIONES_ELEGIBLES
+        and not (e.ficha_data or {}).get("seleccion_aprobado")
+    ]
+    return templates.TemplateResponse(request, "rrhh_seleccion.html", _ctx(
+        request, user, candidatos=candidatos, active="seleccion",
+    ))
+
+
+@router.get("/rrhh/reclutamiento/seleccion/{employee_id}", response_class=HTMLResponse)
+def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(require_role("administrador"))):
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    f = emp.ficha_data or {}
+    entrevistadores = db.query(Employee).filter(
+        Employee.estado == "activo", Employee.id != employee_id).order_by(Employee.nombre_completo).all()
+    if f.get("vacante_area"):
+        del_area = [e for e in entrevistadores if (e.ficha_data or {}).get("area") == f.get("vacante_area")]
+        if del_area:
+            entrevistadores = del_area
+    entrevistador_actual = None
+    if f.get("segunda_entrevista_entrevistador_id"):
+        entrevistador_actual = db.query(Employee).get(f["segunda_entrevista_entrevistador_id"])
+    wa_link = None
+    if entrevistador_actual:
+        wa_numero = _celular_completo(entrevistador_actual.ficha_data or {})
+        if wa_numero:
+            texto = (
+                f"Hola {entrevistador_actual.nombre_completo.split()[0]}, te comparto los datos de "
+                f"{emp.nombre_completo}, candidato/a a {f.get('vacante_cargo') or 'la vacante'} en tu área, "
+                "para coordinar la segunda entrevista. "
+                f"Correo: {emp.email or 'sin correo'}. Cuando tengas tu evaluación, avísame para "
+                "registrarlo en MICELIO."
+            )
+            wa_link = f"https://wa.me/{wa_numero}?text={quote(texto)}"
+    return templates.TemplateResponse(request, "rrhh_seleccion_detalle.html", _ctx(
+        request, user, e=emp, ficha=f, entrevistadores=entrevistadores,
+        entrevistador_actual=entrevistador_actual, wa_link=wa_link, active="seleccion",
+    ))
+
+
+@router.post("/rrhh/reclutamiento/seleccion/{employee_id}/asignar")
+def seleccion_asignar(employee_id: int, entrevistador_id: int = Form(...),
+                       db: Session = Depends(get_db),
+                       user: User = Depends(require_role("administrador"))):
+    emp = db.query(Employee).get(employee_id)
+    entrevistador = db.query(Employee).get(entrevistador_id)
+    if not emp or not entrevistador:
+        raise HTTPException(404)
+    f = dict(emp.ficha_data or {})
+    f["segunda_entrevista_entrevistador_id"] = entrevistador.id
+    f["segunda_entrevista_entrevistador_nombre"] = entrevistador.nombre_completo
+    f["seleccion_aprobado"] = False
+    emp.ficha_data = f
+    db.commit()
+
+    ef = entrevistador.ficha_data or {}
+    correo = ef.get("correo_corporativo") or entrevistador.email
+    enviado = False
+    if correo:
+        cuerpo = (
+            f"Hola {entrevistador.nombre_completo.split()[0]},\n\n"
+            f"Te compartimos los datos de {emp.nombre_completo}, candidato/a a "
+            f"{f.get('vacante_cargo') or 'la vacante'} en tu área, para que coordines con él/ella la "
+            "segunda entrevista.\n\n"
+            f"Nombre: {emp.nombre_completo}\nCorreo: {emp.email or '—'}\n"
+            f"Vacante: {f.get('vacante_cargo') or '—'}\n"
+            f"Clasificación de la primera entrevista: {f.get('clasificacion_entrevista') or '—'}\n\n"
+            "Cuando tengas tu evaluación, avísale a RR.HH. para dejarlo registrado en MICELIO.\n\n"
+            "Saludos,\nRecursos Humanos — DIGETEL GROUP"
+        )
+        enviado = _enviar_correo([correo], f"Segunda entrevista — {emp.nombre_completo}", cuerpo)
+    mensaje = "correo_enviado" if enviado else "correo_no_configurado"
+    return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}", status_code=303)
+
+
+@router.post("/rrhh/reclutamiento/seleccion/{employee_id}/aprobar")
+def seleccion_aprobar(employee_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(require_role("administrador"))):
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    f = dict(emp.ficha_data or {})
+    f["seleccion_aprobado"] = True
+    emp.ficha_data = f
+    db.commit()
+    return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}", status_code=303)
 
 
 # ---------------------------------------------------------------------------

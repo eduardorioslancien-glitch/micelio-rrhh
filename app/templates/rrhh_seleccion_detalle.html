@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ e.nombre_completo }} — Selección — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=15">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/reclutamiento/seleccion">&larr; Volver a Selección</a>
+
+  {% if request.query_params.get('ok') == 'correo_enviado' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado al entrevistador.</p></div>
+  {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Se asignó el entrevistador, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor, o el entrevistador no tiene correo corporativo registrado).</p></div>
+  {% endif %}
+
+  <div class="card" style="margin-top:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">{{ e.nombre_completo }}</h2>
+      {% if ficha.get('seleccion_aprobado') %}
+      <span class="badge firmado">APROBADO</span>
+      {% endif %}
+    </div>
+    <table style="margin-top:10px;">
+      <tr><td style="width:220px;"><strong>Vacante</strong></td><td>{{ ficha.get('vacante_cargo', '—') }}</td></tr>
+      <tr><td><strong>Empresa</strong></td><td>{{ e.empresa_rel.nombre if e.empresa_rel else (e.empresa or "—") }}</td></tr>
+      <tr><td><strong>Clasificación (1.ª entrevista)</strong></td><td>{{ ficha.get('clasificacion_entrevista', '—') }}</td></tr>
+      <tr><td><strong>Código de Pedido</strong></td><td>{{ ficha.get('codigo_pedido_seleccion', '—') }}</td></tr>
+      <tr><td><strong>Correo</strong></td><td>{{ e.email or '—' }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Segunda entrevista (con el área)</h2>
+    <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/asignar" class="inline-form">
+      <div class="field">
+        <label>Persona que hará la segunda entrevista</label>
+        <select name="entrevistador_id" required>
+          <option value="">Seleccionar…</option>
+          {% for ent in entrevistadores %}
+          <option value="{{ ent.id }}" {{ 'selected' if entrevistador_actual and entrevistador_actual.id == ent.id else '' }}>{{ ent.nombre_completo }}{% if (ent.ficha_data or {}).get('cargo') %} — {{ (ent.ficha_data or {}).get('cargo') }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn small" type="submit">{{ 'Reasignar y reenviar correo' if entrevistador_actual else 'Asignar y enviar correo' }}</button>
+    </form>
+
+    {% if entrevistador_actual %}
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+      <p>Entrevistador asignado: <strong>{{ entrevistador_actual.nombre_completo }}</strong></p>
+      {% if wa_link %}
+      <a class="btn small secondary" href="{{ wa_link }}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+      {% else %}
+      <p class="hint">Este entrevistador no tiene celular registrado en su ficha — no se puede armar el link de WhatsApp.</p>
+      {% endif %}
+
+      {% if not ficha.get('seleccion_aprobado') %}
+      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/aprobar" style="display:inline; margin-left:8px;"
+            onsubmit="return confirm('¿Marcar a {{ e.nombre_completo }} como APROBADO? Úsalo cuando el entrevistador te haya confirmado su visto bueno.');">
+        <button class="btn small" type="submit">Marcar APROBADO</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if ficha.get('seleccion_aprobado') %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green);">
+    <p style="margin:0; color:var(--green);">Aprobado — ya puedes enviarle el contrato desde su ficha de Personal.</p>
+    <a class="btn small" style="margin-top:10px;" href="/rrhh/personal/{{ e.id }}">Ir a la ficha de {{ e.nombre_completo }}</a>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>
