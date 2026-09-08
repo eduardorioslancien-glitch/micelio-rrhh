@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="stylesheet" href="/static/style.css?v=15">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -102,6 +102,36 @@
       </tr>
       {% endfor %}
     </table>
+  </div>
+  {% endif %}
+
+  {% set _fp = e.ficha_data or {} %}
+  {% if can_edit and (_fp.get('disc_resultado') or _fp.get('codigo_pedido_seleccion') or _fp.get('clasificacion_entrevista')) %}
+  <div class="card">
+    <h2>Proceso de Selección</h2>
+    {% set f = e.ficha_data or {} %}
+    <table>
+      {% if f.get('codigo_pedido_seleccion') %}<tr><td style="width:220px;"><strong>Código de Pedido</strong></td><td>{{ f.get('codigo_pedido_seleccion') }}</td></tr>{% endif %}
+      {% if f.get('clasificacion_entrevista') %}<tr><td><strong>Clasificación de la Entrevista</strong></td><td>{{ f.get('clasificacion_entrevista') }}</td></tr>{% endif %}
+    </table>
+    {% if f.get('disc_resultado') %}
+    {% set disc = f.get('disc_resultado') %}
+    <h3 style="margin-top:18px;">Evaluación DISC</h3>
+    <p class="muted" style="font-size:12.5px;">
+      Perfil de comportamiento tomado en la entrevista — <strong>D</strong>ominancia (asertividad, orientación a
+      resultados), <strong>I</strong>nfluencia (sociabilidad, persuasión), <strong>S</strong>establidad
+      (paciencia, trabajo en equipo) y <strong>C</strong>onciencia/Cautela (atención al detalle, apego a
+      procedimientos). El porcentaje muestra qué tanto pesó cada dimensión en sus respuestas.
+    </p>
+    <div class="kpi-grid" style="margin-top:10px;">
+      <div class="kpi-card"><div class="kpi-value">{{ disc.get('D', 0) }}%</div><div class="kpi-label">Dominancia</div></div>
+      <div class="kpi-card"><div class="kpi-value">{{ disc.get('I', 0) }}%</div><div class="kpi-label">Influencia</div></div>
+      <div class="kpi-card"><div class="kpi-value">{{ disc.get('S', 0) }}%</div><div class="kpi-label">Estabilidad</div></div>
+      <div class="kpi-card"><div class="kpi-value">{{ disc.get('C', 0) }}%</div><div class="kpi-label">Conciencia (Cautela)</div></div>
+    </div>
+    {% set perfiles = {'D': 'Dominancia', 'I': 'Influencia', 'S': 'Estabilidad', 'C': 'Conciencia (Cautela)'} %}
+    <p class="muted" style="margin-top:8px;">Perfil dominante: <strong>{{ perfiles.get(disc.get('perfil_dominante'), '—') }}</strong></p>
+    {% endif %}
   </div>
   {% endif %}
 

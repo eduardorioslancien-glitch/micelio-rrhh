@@ -354,7 +354,11 @@ async def guardar_ficha(token: str, request: Request, db: Session = Depends(get_
                      "Si crees que es un error, comunícate con Recursos Humanos.",
         }, status_code=400)
 
-    emp.ficha_data = ficha_nueva
+    # Merge, no reemplazo: la ficha puede traer datos sembrados al aprobar el
+    # Lead (código de pedido, resultado DISC, clasificación de la entrevista
+    # — ver lead_aprobar) que el formulario de autoservicio no conoce y no
+    # debe borrar.
+    emp.ficha_data = {**(emp.ficha_data or {}), **ficha_nueva}
 
     # Código de trabajador: lo genera el sistema (2 primeras letras de la
     # empresa + N.° de documento), no lo escribe el trabajador. Se calcula

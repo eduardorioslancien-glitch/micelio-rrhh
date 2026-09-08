@@ -51,6 +51,7 @@ _MIGRACIONES_COLUMNAS = [
     ("pedidos_personal", "combustible_ofrecido", "FLOAT"),
     ("pedidos_personal", "base_id", "INTEGER"),
     ("bases_operativas", "departamento", "VARCHAR(100)"),
+    ("leads_candidatos", "clasificacion", "VARCHAR(20)"),
     ("leads_candidatos", "documento_tipo", "VARCHAR(20)"),
     ("leads_candidatos", "documento_numero", "VARCHAR(20)"),
     ("leads_candidatos", "cv_path", "VARCHAR(500)"),

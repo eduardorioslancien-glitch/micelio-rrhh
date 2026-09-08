@@ -15,7 +15,7 @@ services:
       # - SMTP_FROM=
       # Necesaria para que "Trabaja con Nosotros" pueda calificar CVs con IA:
       # - ANTHROPIC_API_KEY=
-      # - TRABAJA_CON_NOSOTROS_EMAIL=trabajaconnosotros@digetelgroup.com
+      - TRABAJA_CON_NOSOTROS_EMAIL=trabajaconnosotros@digetelperu.com
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
     volumes:
       # Todo lo que la app escribe en tiempo de ejecución (base de datos,

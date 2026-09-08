@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Legajo Digital — DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="stylesheet" href="/static/style.css?v=15">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
 </head>
 <body>
@@ -76,13 +76,13 @@
       </div>
       <div class="section-title">Contacto</div>
       <div class="grid3">
-        <div class="field"><label>Teléfono Fijo</label>
+        <div class="field" style="grid-column:span 2;"><label>Teléfono Fijo</label>
           <div class="phone-row">
             <select id="telefono_fijo_codigo">{% include "_codigo_pais_options.html" %}</select>
             <input type="text" id="telefono_fijo">
           </div>
         </div>
-        <div class="field"><label>Celular</label>
+        <div class="field" style="grid-column:span 2;"><label>Celular</label>
           <div class="phone-row">
             <select id="celular_codigo">{% include "_codigo_pais_options.html" %}</select>
             <input type="text" id="celular">

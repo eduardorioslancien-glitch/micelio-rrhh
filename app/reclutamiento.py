@@ -18,6 +18,7 @@ from .models import (
     PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
+    CLASIFICACIONES_LEAD,
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import _ctx, _enviar_correo, _public_base_url, _ensure_documents
@@ -295,7 +296,8 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
         disc_resultado = lead.entrevista_data["disc"]
     return templates.TemplateResponse(request, "rrhh_lead_detalle.html", _ctx(
         request, user, lead=lead, cargo=cargo, disc_preguntas=DISC_PREGUNTAS,
-        disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado, active="leads",
+        disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado,
+        clasificaciones=CLASIFICACIONES_LEAD, active="leads",
     ))
 
 
@@ -385,6 +387,8 @@ async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = 
     entrevista_data["entrevistador"] = user.nombre_completo
     entrevista_data["fecha"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     lead.entrevista_data = entrevista_data
+    if form.get("clasificacion"):
+        lead.clasificacion = form.get("clasificacion")
     if lead.etapa in ("nuevo", "contactado"):
         lead.etapa = "entrevista"
     db.commit()
@@ -400,10 +404,24 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
     if not lead:
         raise HTTPException(404)
     empresa = lead.pedido.empresa if lead.pedido else None
+    # Punto 6 del pedido (Trabaja con Nosotros, 2026-09-08): toda persona que
+    # llega por un proceso de selección debe quedar con el código del pedido
+    # que la originó. Punto 1 de Gestión de Leads: la Evaluación DISC (con
+    # sus porcentajes) y la clasificación de la entrevista también quedan en
+    # la ficha permanente, no solo en el Lead (que es más difícil de ubicar
+    # una vez contratada la persona).
+    ficha_inicial = {}
+    if lead.pedido and lead.pedido.codigo:
+        ficha_inicial["codigo_pedido_seleccion"] = lead.pedido.codigo
+    if lead.clasificacion:
+        ficha_inicial["clasificacion_entrevista"] = lead.clasificacion
+    disc = (lead.entrevista_data or {}).get("disc")
+    if disc:
+        ficha_inicial["disc_resultado"] = disc
     emp = Employee(
         nombre_completo=lead.nombre_completo.strip(), email=lead.email or None,
         empresa_id=empresa.id if empresa else None, empresa=empresa.nombre if empresa else None,
-        estado="activo", status=STATUS_PENDIENTE,
+        estado="activo", status=STATUS_PENDIENTE, ficha_data=ficha_inicial,
     )
     db.add(emp)
     db.commit()

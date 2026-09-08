@@ -1688,7 +1688,10 @@ async def personal_ficha_guardar(employee_id: int, request: Request, db: Session
             "error": "Ya existe otro trabajador registrado con ese mismo tipo y número de documento de identidad.",
         }, status_code=400)
 
-    emp.ficha_data = ficha_nueva
+    # Merge, no reemplazo: preserva datos sembrados al aprobar el Lead
+    # (código de pedido, resultado DISC, clasificación de la entrevista —
+    # ver lead_aprobar) que el formulario de "Editar Ficha" no conoce.
+    emp.ficha_data = {**(emp.ficha_data or {}), **ficha_nueva}
 
     # Mismo cálculo que en el flujo de Selección (main.py): el código de
     # trabajador lo genera el sistema, no se escribe a mano.

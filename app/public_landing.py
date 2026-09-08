@@ -25,7 +25,7 @@ os.makedirs(CV_DIR, exist_ok=True)
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 router = APIRouter()
 
-CONTACTO_EMAIL = os.environ.get("TRABAJA_CON_NOSOTROS_EMAIL", "erios@digetelgroup.com")
+CONTACTO_EMAIL = os.environ.get("TRABAJA_CON_NOSOTROS_EMAIL", "trabajaconnosotros@digetelperu.com")
 EXTENSIONES_CV_VALIDAS = (".pdf", ".doc", ".docx")
 TAMANO_MAXIMO_CV = 8 * 1024 * 1024  # 8 MB
 

@@ -147,8 +147,15 @@ ETAPAS_LEAD = [
     ("descartado", "Descartado"),
 ]
 ETAPA_LEAD_KEYS = [e[0] for e in ETAPAS_LEAD]
-ORIGENES_LEAD = ["Trabaja con Nosotros", "LinkedIn", "Referido", "Bolsa de Trabajo", "Feria Laboral", "Otro"]
+ORIGENES_LEAD = [
+    "Trabaja con Nosotros", "Correo (trabajaconnosotros@digetelperu.com)",
+    "LinkedIn", "Referido", "Bolsa de Trabajo", "Feria Laboral", "Otro",
+]
 TIPOS_DOCUMENTO_POSTULANTE = ["DNI", "CE", "Pasaporte"]
+
+# Clasificación final que RR.HH. deja tras la Entrevista por Competencias
+# (punto 2 del pedido de Eduardo sobre Gestión de Leads, 2026-09-08).
+CLASIFICACIONES_LEAD = ["EXCELENTE", "MUY BUENO", "BUENO", "REGULAR", "DESCARTAR"]
 
 # Onboarding (seguimiento por trabajador) — Reclutamiento y Selección, Fase 3.
 ETAPAS_ONBOARDING = [
@@ -749,6 +756,7 @@ class LeadCandidato(Base):
     documento_numero = Column(String(20), nullable=True)
     origen = Column(String(60), nullable=True)  # uno de ORIGENES_LEAD
     etapa = Column(String(20), default="nuevo")  # uno de ETAPA_LEAD_KEYS
+    clasificacion = Column(String(20), nullable=True)  # uno de CLASIFICACIONES_LEAD, tras la entrevista
     notas = Column(Text, nullable=True)
     registrado_por = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
