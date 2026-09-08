@@ -45,11 +45,11 @@
       "razon_social": null,
       "ruc": null,
       "regimen_laboral": "Régimen General",
-      "representante_legal": null,
-      "gerente_nombre": null,
+      "representante_legal": "Guillermo Araya",
+      "gerente_nombre": "Guillermo A.",
       "gerente_email": null,
-      "jefe_rrhh_nombre": null,
-      "jefe_rrhh_email": null,
+      "jefe_rrhh_nombre": "Eduardo Ríos Lancién",
+      "jefe_rrhh_email": "erios@digetelgroup.com",
       "activo": true,
       "unidad_negocio_nombre": "UM Digital"
     },
@@ -107,17 +107,7 @@
     },
     {
       "tipo": "area",
-      "nombre": "ALMACÉN",
-      "activo": true
-    },
-    {
-      "tipo": "area",
       "nombre": "CALIDAD",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "COMERCIAL",
       "activo": true
     },
     {
@@ -132,27 +122,7 @@
     },
     {
       "tipo": "area",
-      "nombre": "GERENCIA",
-      "activo": true
-    },
-    {
-      "tipo": "area",
       "nombre": "GROWTH",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "GROWTH CALIDAD",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "GROWTH FINANZAS",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "GROWTH LOGÍSTICA",
       "activo": true
     },
     {
@@ -182,11 +152,6 @@
     },
     {
       "tipo": "area",
-      "nombre": "RECLUTAMIENTO",
-      "activo": true
-    },
-    {
-      "tipo": "area",
       "nombre": "RECURSOS HUMANOS",
       "activo": true
     },
@@ -197,27 +162,7 @@
     },
     {
       "tipo": "area",
-      "nombre": "TALENTO",
-      "activo": true
-    },
-    {
-      "tipo": "area",
       "nombre": "TESORERIA",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "TRANSFORMACIÓN DIGITAL",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "UM",
-      "activo": true
-    },
-    {
-      "tipo": "area",
-      "nombre": "VALORIZACION",
       "activo": true
     },
     {
@@ -317,17 +262,7 @@
     },
     {
       "tipo": "gerencia",
-      "nombre": "GERENCIA UM INFRAESTRUCTURA",
-      "activo": true
-    },
-    {
-      "tipo": "gerencia",
       "nombre": "GERENCIA UM SERVICIOS",
-      "activo": true
-    },
-    {
-      "tipo": "gerencia",
-      "nombre": "GROWTH",
       "activo": true
     },
     {
@@ -664,6 +599,28 @@
   ],
   "cargos": [
     {
+      "nombre": "ANALISIS DE DATOS",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "ANALISTA DE CALIDAD",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
       "nombre": "ANALISTA DE CX",
       "descripcion": null,
       "funciones": [],
@@ -675,18 +632,7 @@
       "reporta_a_nombre": "LIDER DE BASE"
     },
     {
-      "nombre": "ASISTENTE DE TESORERIA",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": "JEFE DE ADMIN. Y FINANZAS"
-    },
-    {
-      "nombre": "Analisis de Datos",
+      "nombre": "ANALISTA DE FINANZAS",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -697,29 +643,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Analista de Calidad",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Analista de Finanzas",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Analista de Recursos Humanos",
+      "nombre": "ANALISTA DE RECURSOS HUMANOS",
       "descripcion": "Responsable de dar soporte administrativo al área de RRHH, procesos de selección y administración de personal.",
       "funciones": [
         "Gestionar el proceso de selección de personal",
@@ -737,7 +661,7 @@
       "reporta_a_nombre": "JEFE DE RECURSOS HUMANOS"
     },
     {
-      "nombre": "Asesora Legal",
+      "nombre": "ASESORA LEGAL",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -748,7 +672,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Asistente de Almacen",
+      "nombre": "ASISTENTE DE ALMACEN",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -759,7 +683,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Asistente de Contabilidad",
+      "nombre": "ASISTENTE DE CONTABILIDAD",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -770,7 +694,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Asistente de Soporte TD",
+      "nombre": "ASISTENTE DE SOPORTE TD",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -781,7 +705,18 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Asistente de Venta al Detalle",
+      "nombre": "ASISTENTE DE TESORERIA",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": "JEFE DE ADMIN. Y FINANZAS"
+    },
+    {
+      "nombre": "ASISTENTE DE VENTA AL DETALLE",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -792,7 +727,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "BP Administración y Finanzas",
+      "nombre": "BP ADMINISTRACIÓN Y FINANZAS",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -803,7 +738,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Bussiness Partner Proyectos",
+      "nombre": "BUSSINESS PARTNER PROYECTOS",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -825,7 +760,18 @@
       "reporta_a_nombre": "GERENTE DE GROWTH"
     },
     {
-      "nombre": "Coordinador de Calidad",
+      "nombre": "COORDINADOR DE CALIDAD",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "DIRECTOR GENERAL",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -845,17 +791,6 @@
       "requisito_conocimientos": null,
       "activo": true,
       "reporta_a_nombre": "GERENTE DE GROWTH"
-    },
-    {
-      "nombre": "Director General",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
     },
     {
       "nombre": "GERENTE DE GROWTH",
@@ -916,39 +851,6 @@
       "reporta_a_nombre": "LIDER TECNICO"
     },
     {
-      "nombre": "Gerente Customer Experience",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Gerente de Ultima Milla",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Guardián de la Experiencia",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
       "nombre": "INVENTARIOS",
       "descripcion": null,
       "funciones": [],
@@ -989,17 +891,6 @@
       "reporta_a_nombre": "GERENTE GENERAL"
     },
     {
-      "nombre": "Jefe de Operaciones",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
       "nombre": "LIDER DE BASE",
       "descripcion": "Resguardar la capacidad operativa a todo nivel (Cuadrillas, Guardian de Experiencia y Líder Tecnico); reclutamiento y desarrollo principalmente de las cuadrillas para que sean S1.",
       "funciones": [
@@ -1031,6 +922,28 @@
       "reporta_a_nombre": "GERENTE UM SERVICIOS"
     },
     {
+      "nombre": "LIDER DE CX",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
+      "nombre": "LIDER DE LOGISTICA",
+      "descripcion": null,
+      "funciones": [],
+      "responsabilidades": [],
+      "requisito_academico": null,
+      "requisito_experiencia": null,
+      "requisito_conocimientos": null,
+      "activo": true,
+      "reporta_a_nombre": null
+    },
+    {
       "nombre": "LIDER TECNICO",
       "descripcion": "Es el principal actor para capacitar tanto a los Guardianes de Experiencia (GX), como también a las cuadrillas, en la parte técnica. Tiene llegada al cliente (operador).",
       "funciones": [
@@ -1056,7 +969,7 @@
       "reporta_a_nombre": "LIDER DE BASE"
     },
     {
-      "nombre": "Lider de CX",
+      "nombre": "LIMPIEZA",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -1067,84 +980,7 @@
       "reporta_a_nombre": null
     },
     {
-      "nombre": "Lider de Logistica",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Limpieza",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Liquidadora",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Líder CX",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Líder de Activaciones",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Líder de Adquisición del Ecosistema",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Líder de Logística de Inventarios",
-      "descripcion": null,
-      "funciones": [],
-      "responsabilidades": [],
-      "requisito_academico": null,
-      "requisito_experiencia": null,
-      "requisito_conocimientos": null,
-      "activo": true,
-      "reporta_a_nombre": null
-    },
-    {
-      "nombre": "Líder de Reclutamiento",
+      "nombre": "LÍDER DE LOGÍSTICA DE INVENTARIOS",
       "descripcion": null,
       "funciones": [],
       "responsabilidades": [],
@@ -1179,7 +1015,7 @@
   ],
   "cargo_requisitos": [
     {
-      "cargo_nombre": "Analista de Recursos Humanos",
+      "cargo_nombre": "ANALISTA DE RECURSOS HUMANOS",
       "competencia_tipo": "competencia",
       "competencia_nombre": "ORIENTADO AL CLIENTE",
       "nivel_requerido": 3

@@ -47,7 +47,7 @@ GENERAL_COLUMNS = [
     ("Área", lambda e: (e.ficha_data or {}).get("area", "")),
     ("Gerencia", lambda e: (e.ficha_data or {}).get("gerencia", "")),
     ("Cargo", lambda e: (e.ficha_data or {}).get("cargo", "")),
-    ("Sede", lambda e: (e.ficha_data or {}).get("sede", "")),
+    ("Base", lambda e: (e.ficha_data or {}).get("sede", "")),
     ("Centro de Costos", lambda e: (e.ficha_data or {}).get("centro_costos", "")),
     ("Jefe Inmediato", lambda e: (e.ficha_data or {}).get("jefe_inmediato", "")),
     ("Tipo de Contrato", lambda e: (e.ficha_data or {}).get("tipo_contrato", "")),

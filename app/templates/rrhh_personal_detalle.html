@@ -138,9 +138,10 @@
     <table>
       <tr><td style="width:220px;"><strong>Cargo</strong></td><td>{{ f.get('cargo','—') }}</td></tr>
       <tr><td><strong>Área</strong></td><td>{{ f.get('area','—') }}</td></tr>
-      <tr><td><strong>Sede</strong></td><td>{{ f.get('sede','—') }}</td></tr>
+      <tr><td><strong>Base</strong></td><td>{{ f.get('sede','—') }}</td></tr>
       <tr><td><strong>Centro de Costos</strong></td><td>{{ f.get('centro_costos','—') }}</td></tr>
       <tr><td><strong>Tipo de contrato</strong></td><td>{{ f.get('tipo_contrato','—') }}</td></tr>
+      <tr><td><strong>Régimen Laboral</strong></td><td>{{ f.get('regimen_laboral_persona','—') }}</td></tr>
       <tr><td><strong>Fecha de contrato</strong></td><td>{{ f.get('fecha_contrato','—') }}</td></tr>
       <tr><td><strong>Fecha de vencimiento</strong></td><td>{{ f.get('fecha_fin_contrato','—') }}</td></tr>
       <tr><td><strong>Fecha de ingreso</strong></td><td>{{ f.get('fecha_ingreso','—') }}</td></tr>
@@ -253,7 +254,7 @@
       {% for a in asistencia_reciente %}
       <tr>
         <td><span class="badge {{ 'firmado' if a.tipo == 'entrada' else 'pendiente' }}">{{ a.tipo }}</span></td>
-        <td>{{ a.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>{{ (a.timestamp|lima).strftime('%d/%m/%Y %H:%M:%S') }}</td>
         <td class="muted">{{ a.registrado_por or '—' }}</td>
         <td class="muted">{{ a.nota or '—' }}</td>
       </tr>

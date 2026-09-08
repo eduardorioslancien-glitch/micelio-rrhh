@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
     Holding, UnidadNegocio, Empresa, LineaProducto, Catalogo, Competencia, Cargo, CargoRequisitoCompetencia,
-    EsquemaPago,
+    EsquemaPago, BaseOperativa,
 )
 
 DEFAULT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parametros_export.json")
@@ -77,6 +77,13 @@ def export_data(out_path: str):
             "catalogos": [
                 {"tipo": c.tipo, "nombre": c.nombre, "activo": c.activo}
                 for c in db.query(Catalogo).order_by(Catalogo.tipo, Catalogo.nombre).all()
+            ],
+            "bases": [
+                {
+                    "nombre": b.nombre, "departamento": b.departamento, "distritos": b.distritos or [],
+                    "activo": b.activo, "empresa_nombre": b.empresa.nombre if b.empresa else None,
+                }
+                for b in db.query(BaseOperativa).order_by(BaseOperativa.nombre).all()
             ],
             "competencias": [
                 {
@@ -197,6 +204,22 @@ def import_data(in_path: str):
                 obj = Catalogo(tipo=c["tipo"], nombre=c["nombre"])
                 db.add(obj)
             obj.activo = c.get("activo", True)
+        db.commit()
+
+        # 4b. Bases (resuelve empresa_id por nombre; upsert por empresa+nombre)
+        for b in data.get("bases", []):
+            empresa_nombre = b.get("empresa_nombre")
+            empresa = db.query(Empresa).filter_by(nombre=empresa_nombre).first() if empresa_nombre else None
+            if not empresa:
+                print(f"  aviso: se omite base '{b['nombre']}' (empresa '{empresa_nombre}' no encontrada)")
+                continue
+            obj = db.query(BaseOperativa).filter_by(nombre=b["nombre"], empresa_id=empresa.id).first()
+            if not obj:
+                obj = BaseOperativa(nombre=b["nombre"], empresa_id=empresa.id)
+                db.add(obj)
+            obj.departamento = b.get("departamento")
+            obj.distritos = b.get("distritos") or []
+            obj.activo = b.get("activo", True)
         db.commit()
 
         # 4. Principios, Valores y Competencias

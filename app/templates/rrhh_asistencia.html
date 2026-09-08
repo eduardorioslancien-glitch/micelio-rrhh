@@ -30,7 +30,7 @@
       <tr>
         <td>{{ r.employee.nombre_completo }}</td>
         <td><span class="badge {{ 'firmado' if r.tipo == 'entrada' else 'pendiente' }}">{{ r.tipo }}</span></td>
-        <td>{{ r.timestamp.strftime('%H:%M:%S') }}</td>
+        <td>{{ (r.timestamp|lima).strftime('%H:%M:%S') }}</td>
         <td>
           {% if r.latitud is not none %}
           <a href="https://www.google.com/maps?q={{ r.latitud }},{{ r.longitud }}" target="_blank">
@@ -71,9 +71,14 @@
     <h2>Registrar marcación manual (corrección)</h2>
     <p class="muted">Úsalo si alguien olvidó marcar o todavía no tiene cuenta propia en el sistema.</p>
     <form method="post" action="/rrhh/asistencia/manual" class="inline-form">
-      <div class="field">
-        <label>Trabajador (ID)</label>
-        <input type="number" name="employee_id" required placeholder="Ver ID en su ficha">
+      <div class="field" style="flex:2;">
+        <label>Trabajador (nombre o documento)</label>
+        <select name="employee_id" required>
+          <option value="">Buscar…</option>
+          {% for e in todos_activos %}
+          <option value="{{ e.id }}">{{ e.nombre_completo }} — {{ (e.ficha_data or {}).get('numero_documento','sin doc.') }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="field">
         <label>Tipo</label>

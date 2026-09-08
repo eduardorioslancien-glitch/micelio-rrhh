@@ -25,7 +25,7 @@
     </div>
     <table>
       <tr>
-        <th>Código</th><th>Cargo solicitado</th><th>Empresa</th><th>Área</th><th>Cant.</th><th>Urgencia</th>
+        <th>Código</th><th>Cargo solicitado</th><th>Empresa</th><th>Área</th><th>Base</th><th>Cant.</th><th>Urgencia</th>
         <th>Solicitante</th><th>Fecha tope</th><th>Estado</th><th></th>
       </tr>
       {% for p in pedidos %}
@@ -38,6 +38,7 @@
         </td>
         <td>{{ p.empresa.nombre if p.empresa else "—" }}</td>
         <td>{{ p.area or "—" }}</td>
+        <td class="muted">{{ p.base.nombre if p.base else "—" }}</td>
         <td>{{ p.cantidad }}</td>
         <td>{{ p.urgencia or "—" }}</td>
         <td>{{ p.solicitante or "—" }}</td>
@@ -54,12 +55,13 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="10" class="muted">Todavía no hay pedidos de personal registrados.</td></tr>
+      <tr><td colspan="11" class="muted">Todavía no hay pedidos de personal registrados.</td></tr>
       {% endfor %}
     </table>
 
+    {% if puede_generar %}
     <h3 style="margin-top:22px;">Registrar nuevo pedido</h3>
-    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo" id="form-pedido">
+    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo" id="form-pedido" onsubmit="return validarBaseObligatoria()">
       <div class="grid3">
         <div class="field">
           <label>Cargo Solicitado</label>
@@ -85,12 +87,28 @@
           </select>
         </div>
         <div class="field">
+          <label>Base (zona)</label>
+          <select name="base_id" id="base_id">
+            <option value="">— Ninguna —</option>
+            {% for b in bases %}<option value="{{ b.id }}">{{ b.empresa.nombre if b.empresa else "?" }} — {{ b.nombre }}</option>{% endfor %}
+          </select>
+          <div class="muted" style="font-size:11px; margin-top:3px;">Obligatoria para Técnico, Guardián de la Experiencia, Líder de Base y Almacenero.</div>
+        </div>
+        {% if user.rol == 'administrador' %}
+        <div class="field">
           <label>Solicitante (jefe/gerencia que lo pide)</label>
           <select name="solicitante">
             <option value="">Seleccionar…</option>
             {% for emp in empleados %}<option value="{{ emp.nombre_completo }}">{{ emp.nombre_completo }}</option>{% endfor %}
           </select>
         </div>
+        {% else %}
+        <div class="field">
+          <label>Solicitante</label>
+          <input type="text" value="{{ user.nombre_completo }}" disabled>
+          <div class="muted" style="font-size:11px; margin-top:3px;">Quedas registrado tú como solicitante.</div>
+        </div>
+        {% endif %}
         <div class="field">
           <label>Motivo</label>
           <select name="motivo">
@@ -124,11 +142,24 @@
 
       <button class="btn" type="submit" style="margin-top:14px;">Registrar pedido</button>
     </form>
+    {% else %}
+    <p class="muted" style="margin-top:16px;">Solo Jefes/Gerentes (con usuario de Operaciones) o un administrador pueden registrar un pedido nuevo.</p>
+    {% endif %}
   </div>
 
 </div>
 <script>
   const COMPENSACION_POR_CARGO = {{ compensacion_por_cargo | tojson }};
+  const CARGOS_REQUIEREN_BASE = {{ cargos_requieren_base | tojson }};
+  function validarBaseObligatoria() {
+    const cargo = (document.getElementById("cargo_solicitado").value || "").toLowerCase();
+    const requiereBase = CARGOS_REQUIEREN_BASE.some(k => cargo.includes(k));
+    if (requiereBase && !document.getElementById("base_id").value) {
+      alert("Este cargo requiere indicar la Base (zona) donde va a trabajar.");
+      return false;
+    }
+    return true;
+  }
   function sugerirCompensacion() {
     const cargo = document.getElementById("cargo_solicitado").value;
     const comp = COMPENSACION_POR_CARGO[cargo] || {};

@@ -130,8 +130,14 @@
       <div class="field"><label>Cargo</label>
         <select id="cargo"><option value="">Seleccionar…</option>{% for n in cargos_activos %}<option>{{ n }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label>Sede</label>
-        <select id="sede"><option value="">Seleccionar…</option>{% for n in catalogos.sede %}<option>{{ n }}</option>{% endfor %}</select>
+      <div class="field"><label>Base</label>
+        <select id="sede">
+          <option value="">Seleccionar…</option>
+          {% for n in bases_activas %}<option>{{ n }}</option>{% endfor %}
+        </select>
+        {% if not bases_activas %}<div class="muted" style="font-size:11px; margin-top:3px;">
+          {{ 'Esta empresa todavía no tiene Bases creadas (Parámetros &gt; Bases).' if e.empresa_id else 'Asigna primero una empresa a este trabajador para poder elegir su Base.' }}
+        </div>{% endif %}
       </div>
       <div class="field"><label>Centro de Costos</label>
         <select id="centro_costos"><option value="">Seleccionar…</option>{% for n in catalogos.centro_costo %}<option>{{ n }}</option>{% endfor %}</select>
@@ -144,6 +150,15 @@
       <div class="field"><label>Fecha de Vencimiento de Contrato</label><input type="date" id="fecha_fin_contrato"></div>
       <div class="field"><label>Tipo de Contrato</label>
         <select id="tipo_contrato"><option value="">Seleccionar…</option><option>Plazo Indeterminado</option><option>Plazo Fijo</option><option>Por Obra o Servicio</option><option>Part Time</option><option>Locación de Servicios</option><option>Practicante</option></select>
+      </div>
+      <div class="field"><label>Régimen Laboral</label>
+        <select id="regimen_laboral_persona" title="Define si a esta persona le corresponde planilla o locación de servicios">
+          <option value="">Seleccionar…</option>
+          <option>Régimen General</option>
+          <option>MYPE</option>
+          <option>APE (Aprendizaje con Predominio en la Empresa)</option>
+          <option>RHE (Recibo por Honorarios Electrónico)</option>
+        </select>
       </div>
       <div class="field"><label>Modalidad</label>
         <select id="modalidad"><option value="">Seleccionar…</option><option>Presencial</option><option>Remoto</option><option>Híbrido</option></select>
@@ -560,7 +575,7 @@ function collectFicha() {
     "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_celular_codigo","emerg1_direccion",
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_celular_codigo","emerg2_direccion",
     "lab_codigo","area","gerencia","cargo","sede","centro_costos","jefe_inmediato",
-    "fecha_ingreso","fecha_contrato","fecha_fin_contrato","tipo_contrato","modalidad","horario","jornada","turno",
+    "fecha_ingreso","fecha_contrato","fecha_fin_contrato","tipo_contrato","regimen_laboral_persona","modalidad","horario","jornada","turno",
     "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar","movilidad",
     "banco_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
     "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",

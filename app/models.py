@@ -41,7 +41,7 @@ import datetime
 import uuid
 
 from sqlalchemy import (
-    Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float
+    Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -118,10 +118,11 @@ NIVELES_EDUCATIVOS = ["Primaria", "Secundaria", "Técnica", "Universitaria", "Po
 CATALOGO_TIPOS = [
     ("area", "Área"),
     ("gerencia", "Gerencia"),
-    ("sede", "Sede"),
     ("banco", "Banco"),
     ("centro_costo", "Centro de Costos"),
 ]
+# "sede" ya no vive acá: ver BaseOperativa (Parametrización > Bases) — zona
+# geográfica por distritos, propia de cada Empresa, en vez de una lista plana.
 CATALOGO_TIPO_KEYS = [c[0] for c in CATALOGO_TIPOS]
 
 
@@ -255,6 +256,35 @@ class LineaProducto(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     empresa = relationship("Empresa", back_populates="lineas_producto")
+
+
+class BaseOperativa(Base):
+    """Base (Parametrización): zona geográfica de trabajo de los puestos con
+    mayor rotación (técnicos, Guardianes de la Experiencia, Líder de Base,
+    almaceneros) — reemplaza al antiguo catálogo plano "Sede". Es propia de
+    cada Empresa (dos empresas pueden tener una base con el mismo nombre pero
+    cubriendo distritos distintos) y agrupa uno o más distritos.
+
+    No tiene relación con SedeGeocerca (Sedes y Geocercas, GPS para marcar
+    asistencia) — son dos conceptos distintos: esta es una zona de trabajo
+    para RR.HH./Pedidos de Personal, esa es un punto físico con coordenadas."""
+    __tablename__ = "bases_operativas"
+    __table_args__ = (UniqueConstraint("empresa_id", "nombre", name="uq_base_empresa_nombre"),)
+
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False)
+    nombre = Column(String(150), nullable=False)
+    # Se guarda también el departamento (aunque los nombres de distrito ya
+    # son "suficientes" para mostrar) porque en el Perú real hay distritos
+    # con el mismo nombre en departamentos distintos (p.ej. "Comas" existe
+    # en Lima y en Junín) — sin esto, no habría forma confiable de precargar
+    # el selector de departamento al editar una Base.
+    departamento = Column(String(100), nullable=True)
+    distritos = Column(JSON, default=list)  # lista de nombres de distrito (ver ubigeo_peru.json)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    empresa = relationship("Empresa")
 
 
 class Catalogo(Base):
@@ -673,6 +703,10 @@ class PedidoPersonal(Base):
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=True)
     cargo_solicitado = Column(String(150), nullable=False)
     area = Column(String(150), nullable=True)
+    # Puestos de mayor rotación (técnicos, Guardianes de la Experiencia,
+    # Líder de Base, almaceneros) requieren referencia a una Base (zona
+    # geográfica) — opcional para el resto de cargos.
+    base_id = Column(Integer, ForeignKey("bases_operativas.id"), nullable=True)
     cantidad = Column(Integer, default=1)
     motivo = Column(String(60), nullable=True)  # uno de MOTIVOS_PEDIDO
     urgencia = Column(String(20), nullable=True)  # uno de URGENCIAS_PEDIDO
@@ -694,6 +728,7 @@ class PedidoPersonal(Base):
     cerrado_at = Column(DateTime, nullable=True)
 
     empresa = relationship("Empresa")
+    base = relationship("BaseOperativa")
     leads = relationship("LeadCandidato", back_populates="pedido")
 
 

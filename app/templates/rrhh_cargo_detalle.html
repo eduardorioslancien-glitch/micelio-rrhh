@@ -18,7 +18,7 @@
     <h2>{{ cargo.nombre }} — Manual de Organización y Funciones</h2>
     <form method="post" action="/rrhh/parametrizacion/cargo/{{ cargo.id }}/editar">
       <div class="grid2">
-        <div class="field"><label>Nombre del cargo</label><input type="text" name="nombre" value="{{ cargo.nombre }}" required></div>
+        <div class="field"><label>Nombre del cargo</label><input type="text" name="nombre" value="{{ cargo.nombre }}" required style="text-transform:uppercase;"></div>
         <div class="field">
           <label>Reporta a</label>
           <select name="reporta_a_id">

@@ -8,7 +8,7 @@
 <body>
 {% include "_rrhh_topbar.html" %}
 
-  <a class="btn secondary" href="/rrhh/reclutamiento/leads">&larr; Volver a Control de Leads</a>
+  <a class="btn secondary" href="/rrhh/reclutamiento/leads{{ '?pedido_id=' ~ lead.pedido_id if lead.pedido_id else '' }}">&larr; Volver a Gestión de Leads</a>
 
   {% if request.query_params.get('ok') == 'correo_enviado' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado correctamente.</p></div>

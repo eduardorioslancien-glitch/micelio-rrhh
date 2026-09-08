@@ -22,7 +22,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import User
+from .models import User, Employee
 
 PBKDF2_ITERATIONS = 260_000
 
@@ -93,6 +93,31 @@ def require_role(*roles: str):
             return user
         raise Forbidden()
     return dependency
+
+
+def es_jefe_o_gerente(user: User, db: Session) -> bool:
+    """Registro de Pedidos de Personal: además de RR.HH. (administrador/
+    conta/opeoka en general para gestionar el pipeline), puede GENERAR un
+    pedido nuevo un usuario con rol Operaciones cuyo Cargo (en su ficha)
+    contenga "Jefe" o "Gerente" — así los jefes/gerentes de área piden
+    personal ellos mismos, sin depender de que RR.HH. lo cargue por ellos."""
+    if user.rol == "administrador":
+        return True
+    if user.rol != "opeoka" or not user.employee_id:
+        return False
+    emp = db.query(Employee).get(user.employee_id)
+    cargo = ((emp.ficha_data or {}).get("cargo") or "") if emp else ""
+    cargo = cargo.lower()
+    return "jefe" in cargo or "gerente" in cargo
+
+
+def require_jefe_o_gerente(request: Request, db: Session = Depends(get_db)) -> User:
+    """Dependencia para el POST que crea un Pedido de Personal: administrador
+    o un Jefe/Gerente (ver es_jefe_o_gerente)."""
+    user = require_login(request, db)
+    if es_jefe_o_gerente(user, db):
+        return user
+    raise Forbidden()
 
 
 def can_see_planilla(user: User) -> bool:

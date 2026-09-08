@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Bases — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=14">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Bases</h2>
+    <p class="muted">Una Base es la zona geográfica (uno o más distritos) donde trabajan los puestos de mayor
+      rotación (técnicos, Guardianes de la Experiencia, Líder de Base, almaceneros). Cada Empresa tiene sus
+      propias Bases — dos empresas pueden tener una base con el mismo nombre cubriendo distritos distintos.</p>
+
+    <form method="get" action="/rrhh/parametrizacion/bases" class="inline-form" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Empresa</label>
+        <select name="empresa_id" onchange="this.form.submit()">
+          <option value="">— Todas —</option>
+          {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+    </form>
+
+    <table>
+      <tr><th>Empresa</th><th>Base</th><th>Distritos</th><th>Estado</th><th></th></tr>
+      {% for b in bases %}
+      <tr>
+        <td class="muted">{{ b.empresa.nombre if b.empresa else "—" }}</td>
+        <td><strong>{{ b.nombre }}</strong></td>
+        <td class="muted">{{ (b.distritos or [])|join(', ') if b.distritos else '—' }}</td>
+        <td><span class="badge {{ 'firmado' if b.activo else 'pendiente' }}">{{ 'activo' if b.activo else 'inactivo' }}</span></td>
+        <td class="icon-btn-row">
+          <details class="details-inline">
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
+            <div class="edit-popover" style="position:absolute; right:0; z-index:5; min-width:340px;">
+              <div class="edit-popover-section">Editar Base — {{ b.empresa.nombre if b.empresa else "" }}</div>
+              <form method="post" action="/rrhh/parametrizacion/bases/{{ b.id }}/editar">
+                <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ b.nombre }}" required></div>
+                <div class="field">
+                  <label>Departamento</label>
+                  <select class="dep-selector" name="departamento" data-target="dist-edit-{{ b.id }}">
+                    <option value="">Seleccionar…</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Distritos</label>
+                  <div class="dist-checkboxes" id="dist-edit-{{ b.id }}" data-nombre="distritos"
+                       data-departamento="{{ b.departamento or '' }}"
+                       data-seleccionados='{{ (b.distritos or [])|tojson }}'
+                       style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:5px; padding:8px;">
+                    <span class="muted" style="font-size:11px;">Elige un departamento para ver sus distritos…</span>
+                  </div>
+                </div>
+                <button class="btn small" type="submit">Guardar</button>
+              </form>
+            </div>
+          </details>
+          <form method="post" action="/rrhh/parametrizacion/bases/{{ b.id }}/toggle" style="display:inline;">
+            <button class="icon-btn {{ 'icon-btn-desactivar' if b.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if b.activo else 'Activar' }}"></button>
+          </form>
+          {% if not bloqueados[b.id] %}
+          <form method="post" action="/rrhh/parametrizacion/bases/{{ b.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar {{ b.nombre }}? No se puede deshacer.');">
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
+          </form>
+          {% else %}
+          <span class="muted" style="font-size:11px;">Hay personal registrado con esta base</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Todavía no hay bases registradas.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3 style="margin-top:22px;">Agregar Base</h3>
+    <form method="post" action="/rrhh/parametrizacion/bases" class="inline-form" style="flex-wrap:wrap;">
+      <div class="field">
+        <label>Empresa</label>
+        <select name="empresa_id" required>
+          <option value="">Seleccionar…</option>
+          {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if f_empresa == e.id|string else '' }}>{{ e.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Nombre de la Base</label><input type="text" name="nombre" placeholder="Lima Norte" required></div>
+      <div class="field">
+        <label>Departamento</label>
+        <select class="dep-selector" name="departamento" data-target="dist-nueva">
+          <option value="">Seleccionar…</option>
+        </select>
+      </div>
+      <div class="field" style="flex-basis:100%;">
+        <label>Distritos</label>
+        <div class="dist-checkboxes" id="dist-nueva" data-nombre="distritos"
+             style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:5px; padding:8px;">
+          <span class="muted" style="font-size:11px;">Elige un departamento para ver sus distritos…</span>
+        </div>
+      </div>
+      <button class="btn" type="submit">Crear Base</button>
+    </form>
+  </div>
+
+</div>
+<script>
+  let UBIGEO_BASES = [];
+
+  function pintarDistritos(contenedorId, distritosDelDepartamento) {
+    const cont = document.getElementById(contenedorId);
+    const seleccionados = JSON.parse(cont.dataset.seleccionados || "[]");
+    cont.innerHTML = "";
+    if (!distritosDelDepartamento.length) {
+      cont.innerHTML = '<span class="muted" style="font-size:11px;">Elige un departamento para ver sus distritos…</span>';
+      return;
+    }
+    distritosDelDepartamento.forEach(dist => {
+      const label = document.createElement("label");
+      label.style.cssText = "display:inline-flex; align-items:center; gap:4px; margin:2px 10px 2px 0; font-weight:400; text-transform:none; font-size:13px;";
+      const chk = document.createElement("input");
+      chk.type = "checkbox"; chk.name = "distritos"; chk.value = dist; chk.style.width = "auto";
+      if (seleccionados.includes(dist)) chk.checked = true;
+      label.appendChild(chk);
+      label.appendChild(document.createTextNode(dist));
+      cont.appendChild(label);
+    });
+  }
+
+  function distritosDeDepartamento(depNombre) {
+    const dep = UBIGEO_BASES.find(d => d.departamento === depNombre);
+    if (!dep) return [];
+    // Aplanado: todos los distritos de todas las provincias de ese departamento,
+    // sin duplicados (una Base cubre zonas, no hace falta la provincia).
+    const set = new Set();
+    dep.provincias.forEach(p => p.distritos.forEach(d => set.add(d)));
+    return Array.from(set).sort();
+  }
+
+  fetch("/static/ubigeo_peru.json").then(r => r.json()).then(data => {
+    UBIGEO_BASES = data;
+    document.querySelectorAll(".dep-selector").forEach(sel => {
+      UBIGEO_BASES.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d.departamento; opt.textContent = d.departamento;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener("change", function () {
+        pintarDistritos(this.dataset.target, distritosDeDepartamento(this.value));
+      });
+      // Si esta Base editada ya tenía departamento/distritos guardados, se
+      // precargan directo (el departamento se guarda explícito porque en
+      // Perú hay distritos con el mismo nombre en departamentos distintos
+      // — p.ej. "Comas" existe en Lima y en Junín — así que "adivinarlo"
+      // a partir de los distritos ya no es confiable).
+      try {
+        const targetEl = document.getElementById(sel.dataset.target);
+        const depGuardado = targetEl.dataset.departamento;
+        if (depGuardado) {
+          sel.value = depGuardado;
+          pintarDistritos(sel.dataset.target, distritosDeDepartamento(depGuardado));
+        }
+      } catch (e) { /* una fila con datos viejos/raros no debe frenar a las demás */ }
+    });
+  });
+</script>
+</body>
+</html>

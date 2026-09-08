@@ -21,7 +21,7 @@ from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion, EsquemaPago,
     Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
-    SedeGeocerca, ConsentimientoAsistencia,
+    SedeGeocerca, ConsentimientoAsistencia, BaseOperativa,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -48,6 +48,20 @@ os.makedirs(SIGNATURES_DIR, exist_ok=True)
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 router = APIRouter()
+
+
+def _a_lima(dt):
+    """Convierte un datetime naive guardado en UTC (datetime.utcnow, el
+    estándar en todo el modelo) a la hora de Lima (UTC-5, sin horario de
+    verano) para mostrarlo en pantalla. Usar SOLO para mostrar — nunca para
+    guardar. Ver Control de Asistencia: las marcaciones se guardaban y
+    mostraban en UTC tal cual, apareciendo 5 horas adelantadas."""
+    if dt is None:
+        return dt
+    return dt - datetime.timedelta(hours=5)
+
+
+templates.env.filters["lima"] = _a_lima
 
 ATTACHMENT_LABELS = dict(ATTACHMENT_TYPES)
 ROLE_LABELS = dict(ROLES)
@@ -423,7 +437,7 @@ def _catalogo_en_uso(db: Session, tipo: str, nombre: str) -> bool:
     en su ficha — no es una FK real (ficha_data es JSON de texto libre), pero
     igual bloqueamos el borrado para no perder de vista que sigue en uso."""
     campos = {
-        "area": ["area"], "gerencia": ["gerencia"], "sede": ["sede"],
+        "area": ["area"], "gerencia": ["gerencia"],
         "banco": ["banco_haberes", "banco_cts"], "centro_costo": ["centro_costos"],
     }.get(tipo, [])
     if not campos:
@@ -858,6 +872,100 @@ def eliminar_item_catalogo(item_id: int, db: Session = Depends(get_db),
 
 
 # ---------------------------------------------------------------------------
+# Bases (Parametrización) — zona geográfica de trabajo (distritos) de los
+# puestos con mayor rotación, propia de cada Empresa. Reemplaza al antiguo
+# catálogo plano "Sede"; ver BaseOperativa en models.py para la nota de
+# por qué es un modelo aparte y no se fusiona con "Sedes y Geocercas" (GPS).
+# ---------------------------------------------------------------------------
+def _base_en_uso(db: Session, base: BaseOperativa) -> bool:
+    for e in db.query(Employee).filter(Employee.empresa_id == base.empresa_id).all():
+        if (e.ficha_data or {}).get("sede") == base.nombre:
+            return True
+    return False
+
+
+@router.get("/rrhh/parametrizacion/bases", response_class=HTMLResponse)
+def bases_list(request: Request, empresa_id: str = "", error: str = "",
+               db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    query = db.query(BaseOperativa)
+    if empresa_id:
+        query = query.filter(BaseOperativa.empresa_id == int(empresa_id))
+    bases = query.order_by(BaseOperativa.empresa_id, BaseOperativa.nombre).all()
+    bloqueados = {b.id: _base_en_uso(db, b) for b in bases}
+    return templates.TemplateResponse(request, "rrhh_bases.html", _ctx(
+        request, user, empresas=empresas, bases=bases, bloqueados=bloqueados,
+        f_empresa=empresa_id, error=error, active="sede",
+    ))
+
+
+@router.post("/rrhh/parametrizacion/bases")
+def crear_base(empresa_id: int = Form(...), nombre: str = Form(...), departamento: str = Form(""),
+                distritos: list[str] = Form([]),
+                db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    nombre = nombre.strip()
+    existe = db.query(BaseOperativa).filter(
+        BaseOperativa.empresa_id == empresa_id, BaseOperativa.nombre == nombre).first()
+    if existe:
+        return RedirectResponse(_con_error(f"/rrhh/parametrizacion/bases?empresa_id={empresa_id}",
+            "Ya existe una base con ese nombre para esta empresa."), status_code=303)
+    db.add(BaseOperativa(empresa_id=empresa_id, nombre=nombre, departamento=departamento or None, distritos=distritos))
+    db.commit()
+    return RedirectResponse(f"/rrhh/parametrizacion/bases?empresa_id={empresa_id}", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/bases/{base_id}/editar")
+def editar_base(base_id: int, nombre: str = Form(...), departamento: str = Form(""),
+                 distritos: list[str] = Form([]),
+                 db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    base = db.query(BaseOperativa).get(base_id)
+    if base:
+        nombre_viejo = base.nombre
+        base.nombre = nombre.strip()
+        base.departamento = departamento or None
+        base.distritos = distritos
+        # El nombre de la Base se guarda como texto libre en la ficha de cada
+        # trabajador (ficha_data.sede) — si se renombra, hay que corregir esa
+        # referencia para que no quede huérfana.
+        if nombre_viejo != base.nombre:
+            for e in db.query(Employee).filter(Employee.empresa_id == base.empresa_id).all():
+                if (e.ficha_data or {}).get("sede") == nombre_viejo:
+                    f = dict(e.ficha_data or {})
+                    f["sede"] = base.nombre
+                    e.ficha_data = f
+        db.commit()
+        return RedirectResponse(f"/rrhh/parametrizacion/bases?empresa_id={base.empresa_id}", status_code=303)
+    return RedirectResponse("/rrhh/parametrizacion/bases", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/bases/{base_id}/toggle")
+def toggle_base(base_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    base = db.query(BaseOperativa).get(base_id)
+    if base:
+        if base.activo and _base_en_uso(db, base):
+            return RedirectResponse(_con_error(f"/rrhh/parametrizacion/bases?empresa_id={base.empresa_id}",
+                "No se puede desactivar: hay personal registrado con esta base."), status_code=303)
+        base.activo = not base.activo
+        db.commit()
+        return RedirectResponse(f"/rrhh/parametrizacion/bases?empresa_id={base.empresa_id}", status_code=303)
+    return RedirectResponse("/rrhh/parametrizacion/bases", status_code=303)
+
+
+@router.post("/rrhh/parametrizacion/bases/{base_id}/eliminar")
+def eliminar_base(base_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    base = db.query(BaseOperativa).get(base_id)
+    if base:
+        if _base_en_uso(db, base):
+            return RedirectResponse(_con_error(f"/rrhh/parametrizacion/bases?empresa_id={base.empresa_id}",
+                "No se puede eliminar: hay personal registrado con esta base."), status_code=303)
+        empresa_id = base.empresa_id
+        db.delete(base)
+        db.commit()
+        return RedirectResponse(f"/rrhh/parametrizacion/bases?empresa_id={empresa_id}", status_code=303)
+    return RedirectResponse("/rrhh/parametrizacion/bases", status_code=303)
+
+
+# ---------------------------------------------------------------------------
 # Principios, Valores y Competencias
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/parametrizacion/competencias", response_class=HTMLResponse)
@@ -963,7 +1071,7 @@ def cargos_list(request: Request, error: str = "", db: Session = Depends(get_db)
 @router.post("/rrhh/parametrizacion/cargo")
 def crear_cargo(nombre: str = Form(...), db: Session = Depends(get_db),
                  user: User = Depends(require_role("administrador"))):
-    cargo = Cargo(nombre=nombre.strip())
+    cargo = Cargo(nombre=nombre.strip().upper())
     db.add(cargo)
     db.commit()
     db.refresh(cargo)
@@ -1016,7 +1124,7 @@ def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form
     nuevo_reporta_a = int(reporta_a_id) if reporta_a_id else None
     if nuevo_reporta_a == cargo_id:
         raise HTTPException(400, "Un cargo no puede reportarse a sí mismo.")
-    cargo.nombre = nombre.strip()
+    cargo.nombre = nombre.strip().upper()
     cargo.descripcion = descripcion.strip() or None
     cargo.funciones = _lista_desde_textarea(funciones)
     cargo.responsabilidades = _lista_desde_textarea(responsabilidades)
@@ -1547,10 +1655,18 @@ def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depe
         .filter(Employee.estado == "activo", Employee.status == "completo", Employee.id != employee_id)
         .order_by(Employee.nombre_completo).all()
     ]
+    # Bases (reemplaza a la antigua Sede): propias de la empresa del
+    # trabajador — si todavía no tiene empresa asignada, no hay de dónde
+    # sacarlas y el select queda vacío hasta que se le asigne una.
+    bases_activas = []
+    if emp.empresa_id:
+        bases_activas = [b.nombre for b in db.query(BaseOperativa).filter(
+            BaseOperativa.empresa_id == emp.empresa_id, BaseOperativa.activo == True,  # noqa: E712
+        ).order_by(BaseOperativa.nombre).all()]
     return templates.TemplateResponse(request, "rrhh_personal_ficha.html", _ctx(
         request, user, e=emp, catalogos=catalogos, cargos_activos=cargos_activos,
         empleados_activos=empleados_activos, tipos_licencia=TIPOS_LICENCIA,
-        niveles_educativos=NIVELES_EDUCATIVOS, active="personal",
+        niveles_educativos=NIVELES_EDUCATIVOS, bases_activas=bases_activas, active="personal",
     ))
 
 
@@ -1752,14 +1868,18 @@ def marcar_asistencia(request: Request, employee_id: int, tipo: str = Form(...),
 def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
                      db: Session = Depends(get_db),
                      user: User = Depends(require_role("administrador", "conta", "opeoka"))):
-    dia = datetime.date.today()
+    # "Hoy" y el rango del día se calculan en hora de Lima (UTC-5), no en la
+    # del servidor (UTC) — si no, entre las 19:00 y medianoche hora Lima las
+    # marcaciones (guardadas en UTC) caían en el "día siguiente" y el filtro
+    # por defecto podía mostrar la fecha equivocada.
+    dia = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
     if fecha:
         try:
             dia = datetime.datetime.strptime(fecha, "%Y-%m-%d").date()
         except ValueError:
             pass
-    inicio = datetime.datetime.combine(dia, datetime.time.min)
-    fin = datetime.datetime.combine(dia, datetime.time.max)
+    inicio = datetime.datetime.combine(dia, datetime.time.min) + datetime.timedelta(hours=5)
+    fin = datetime.datetime.combine(dia, datetime.time.max) + datetime.timedelta(hours=5)
 
     query = db.query(AsistenciaRegistro).filter(
         AsistenciaRegistro.timestamp >= inicio, AsistenciaRegistro.timestamp <= fin,
@@ -1777,9 +1897,11 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
     sin_marcar = [e for e in empleados_activos if e.id not in marcaron_ids]
 
     empresas = db.query(Empresa).order_by(Empresa.nombre).all()
+    todos_activos = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
     return templates.TemplateResponse(request, "rrhh_asistencia.html", _ctx(
         request, user, registros=registros, dia=dia, empresas=empresas, f_empresa=empresa_id,
         sin_marcar=sin_marcar, total_activos=len(empleados_activos), active="asistencia",
+        todos_activos=todos_activos,
     ))
 
 
@@ -1789,7 +1911,10 @@ def asistencia_manual(employee_id: int = Form(...), tipo: str = Form(...), fecha
                        user: User = Depends(require_role("administrador", "opeoka"))):
     if tipo not in ("entrada", "salida"):
         raise HTTPException(400, "Tipo de marcación inválido.")
-    ts = datetime.datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
+    # RR.HH. escribe la hora en hora de Lima (lo que vio/le dijeron) — se
+    # convierte a UTC antes de guardar, igual que todas las demás marcaciones
+    # (datetime.utcnow), para que no queden desalineadas entre sí.
+    ts = datetime.datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M") + datetime.timedelta(hours=5)
     db.add(AsistenciaRegistro(
         employee_id=employee_id, tipo=tipo, timestamp=ts,
         registrado_por=f"{user.nombre_completo} (registro manual)",

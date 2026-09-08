@@ -10,16 +10,21 @@ import os
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import (
-    PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago,
+    PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
 )
-from .auth import require_role
+from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import _ctx, _enviar_correo, _public_base_url, _ensure_documents
+
+# Cargos de mayor rotación que necesitan referencia obligatoria a una Base
+# (zona geográfica) — ver punto 2 del pedido sobre Registro de Pedidos.
+CARGOS_REQUIEREN_BASE = ["tecnico", "técnico", "guardian", "guardián", "lider de base", "líder de base", "almacenero"]
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
@@ -116,6 +121,9 @@ def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_d
     cargos = db.query(Cargo).filter(Cargo.activo == True).order_by(Cargo.nombre).all()  # noqa: E712
     areas = db.query(Catalogo).filter(Catalogo.tipo == "area", Catalogo.activo == True).order_by(Catalogo.nombre).all()  # noqa: E712
     empleados = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
+    bases = db.query(BaseOperativa).filter(BaseOperativa.activo == True).order_by(  # noqa: E712
+        BaseOperativa.empresa_id, BaseOperativa.nombre).all()
+    puede_generar = es_jefe_o_gerente(user, db)
     compensacion_por_cargo = {
         c.nombre: {
             "sueldo_base": c.esquema_pago.sueldo_base if c.esquema_pago else None,
@@ -128,26 +136,36 @@ def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_d
     return templates.TemplateResponse(request, "rrhh_pedidos.html", _ctx(
         request, user, pedidos=pedidos, empresas=empresas, estados=ESTADOS_PEDIDO,
         estado_labels=ESTADO_LABELS, motivos=MOTIVOS_PEDIDO, urgencias=URGENCIAS_PEDIDO,
-        cargos=cargos, areas=areas, empleados=empleados, compensacion_por_cargo=compensacion_por_cargo,
+        cargos=cargos, areas=areas, empleados=empleados, bases=bases,
+        compensacion_por_cargo=compensacion_por_cargo, puede_generar=puede_generar,
+        cargos_requieren_base=CARGOS_REQUIEREN_BASE,
         f_estado=estado, active="pedidos",
     ))
 
 
 @router.post("/rrhh/reclutamiento/pedidos/nuevo")
 def pedidos_crear(cargo_solicitado: str = Form(...), cantidad: int = Form(1),
-                   empresa_id: str = Form(""), area: str = Form(""),
+                   empresa_id: str = Form(""), area: str = Form(""), base_id: str = Form(""),
                    solicitante: str = Form(""), motivo: str = Form(""), urgencia: str = Form(""),
                    fecha_requerida: str = Form(""), observaciones: str = Form(""),
                    sueldo_base_ofrecido: str = Form(""), comision_ofrecida: str = Form(""),
                    movilidad_ofrecida: str = Form(""), combustible_ofrecido: str = Form(""),
                    otros_ingresos_ofrecido: str = Form(""),
                    db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador", "conta", "opeoka"))):
+                   user: User = Depends(require_jefe_o_gerente)):
+    # Punto 3 del pedido: si quien registra NO es administrador (es un Jefe/
+    # Gerente generando su propio pedido), el Solicitante es él mismo — se
+    # ignora cualquier otro valor que llegue del formulario.
+    if user.rol == "administrador":
+        solicitante_final = solicitante.strip() or None
+    else:
+        solicitante_final = user.nombre_completo
     db.add(PedidoPersonal(
         codigo=_generar_codigo_pedido(db),
         cargo_solicitado=cargo_solicitado.strip(), area=area.strip() or None,
-        empresa_id=int(empresa_id) if empresa_id else None, cantidad=max(cantidad, 1),
-        motivo=motivo or None, urgencia=urgencia or None, solicitante=solicitante.strip() or None,
+        empresa_id=int(empresa_id) if empresa_id else None, base_id=int(base_id) if base_id else None,
+        cantidad=max(cantidad, 1),
+        motivo=motivo or None, urgencia=urgencia or None, solicitante=solicitante_final,
         fecha_requerida=_parse_fecha(fecha_requerida), observaciones=observaciones.strip() or None,
         sueldo_base_ofrecido=_monto_o_none(sueldo_base_ofrecido), comision_ofrecida=_monto_o_none(comision_ofrecida),
         movilidad_ofrecida=_monto_o_none(movilidad_ofrecida), combustible_ofrecido=_monto_o_none(combustible_ofrecido),
@@ -184,21 +202,44 @@ def _orden_leads(lead: LeadCandidato):
 @router.get("/rrhh/reclutamiento/leads", response_class=HTMLResponse)
 def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Session = Depends(get_db),
                 user: User = Depends(require_role("administrador", "conta", "opeoka"))):
-    query = db.query(LeadCandidato)
-    if etapa:
-        query = query.filter(LeadCandidato.etapa == etapa)
-    if pedido_id:
-        query = query.filter(LeadCandidato.pedido_id == int(pedido_id))
-    leads = sorted(query.all(), key=_orden_leads)
     pedidos_abiertos = (
         db.query(PedidoPersonal)
         .filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
         .order_by(PedidoPersonal.created_at.desc()).all()
     )
+
+    # Punto pedido por el usuario: la pantalla principal de Gestión de Leads
+    # muestra primero los Pedidos abiertos/en proceso (cargo + cantidad); al
+    # entrar a uno se filtran/registran los candidatos de ESE pedido. "Sin
+    # pedido" (pedido_id=none) muestra los pocos candidatos sueltos que no
+    # quedaron ligados a ninguno (siempre fue posible dejarlo así al
+    # registrar manualmente).
+    pedido_actual = None
+    if pedido_id and pedido_id != "none":
+        pedido_actual = db.query(PedidoPersonal).get(int(pedido_id))
+
+    leads = []
+    if pedido_id:
+        query = db.query(LeadCandidato)
+        if pedido_id == "none":
+            query = query.filter(LeadCandidato.pedido_id.is_(None))
+        else:
+            query = query.filter(LeadCandidato.pedido_id == int(pedido_id))
+        if etapa:
+            query = query.filter(LeadCandidato.etapa == etapa)
+        leads = sorted(query.all(), key=_orden_leads)
+
+    leads_por_pedido = {
+        pid: cnt for pid, cnt in
+        db.query(LeadCandidato.pedido_id, func.count(LeadCandidato.id))
+        .group_by(LeadCandidato.pedido_id).all()
+    }
+
     return templates.TemplateResponse(request, "rrhh_leads.html", _ctx(
         request, user, leads=leads, pedidos_abiertos=pedidos_abiertos, etapas=ETAPAS_LEAD,
-        etapa_labels=ETAPA_LABELS, origenes=ORIGENES_LEAD, f_etapa=etapa, f_pedido=pedido_id,
-        active="leads",
+        etapa_labels=ETAPA_LABELS, estado_labels=ESTADO_LABELS, origenes=ORIGENES_LEAD,
+        f_etapa=etapa, f_pedido=pedido_id,
+        pedido_actual=pedido_actual, leads_por_pedido=leads_por_pedido, active="leads",
     ))
 
 
@@ -213,7 +254,8 @@ def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), celular
         registrado_por=user.nombre_completo,
     ))
     db.commit()
-    return RedirectResponse("/rrhh/reclutamiento/leads", status_code=303)
+    destino = f"/rrhh/reclutamiento/leads?pedido_id={pedido_id}" if pedido_id else "/rrhh/reclutamiento/leads?pedido_id=none"
+    return RedirectResponse(destino, status_code=303)
 
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/etapa")
