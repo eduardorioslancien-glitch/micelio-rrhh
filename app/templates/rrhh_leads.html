@@ -16,19 +16,20 @@
     <p class="muted">Elige un pedido de personal abierto o en proceso para ver o registrar a los postulantes
       que hayan llegado (correo, WhatsApp, etc.).</p>
     <table>
-      <tr><th>Código</th><th>Cargo</th><th>Empresa</th><th>Cantidad</th><th>Estado</th><th>Candidatos</th><th></th></tr>
+      <tr><th>Código</th><th>Cargo</th><th>Empresa</th><th>Base</th><th>Cantidad</th><th>Candidatos</th><th>Estado</th><th></th></tr>
       {% for p in pedidos_abiertos %}
       <tr>
         <td class="muted">{{ p.codigo or "—" }}</td>
         <td><strong>{{ p.cargo_solicitado }}</strong></td>
         <td>{{ p.empresa.nombre if p.empresa else "—" }}</td>
+        <td>{{ p.base.nombre if p.base else "—" }}</td>
         <td>{{ p.cantidad }}</td>
-        <td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) if estado_labels else p.estado }}</span></td>
         <td>{{ leads_por_pedido.get(p.id, 0) }}</td>
+        <td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) if estado_labels else p.estado }}</span></td>
         <td><a class="btn small" href="/rrhh/reclutamiento/leads?pedido_id={{ p.id }}">Ver candidatos</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="muted">No hay pedidos de personal abiertos ni en proceso en este momento.</td></tr>
+      <tr><td colspan="8" class="muted">No hay pedidos de personal abiertos ni en proceso en este momento.</td></tr>
       {% endfor %}
     </table>
     {% if leads_por_pedido.get(none, 0) %}
