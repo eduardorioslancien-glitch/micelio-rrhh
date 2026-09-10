@@ -285,8 +285,11 @@ class BaseOperativa(Base):
     # son "suficientes" para mostrar) porque en el Perú real hay distritos
     # con el mismo nombre en departamentos distintos (p.ej. "Comas" existe
     # en Lima y en Junín) — sin esto, no habría forma confiable de precargar
-    # el selector de departamento al editar una Base.
+    # el selector de departamento al editar una Base. Ídem con provincia:
+    # los distritos de una Base pertenecen a una sola provincia (se elige
+    # Departamento -> Provincia -> Distritos).
     departamento = Column(String(100), nullable=True)
+    provincia = Column(String(100), nullable=True)
     distritos = Column(JSON, default=list)  # lista de nombres de distrito (ver ubigeo_peru.json)
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

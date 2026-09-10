@@ -901,7 +901,7 @@ def bases_list(request: Request, empresa_id: str = "", error: str = "",
 
 @router.post("/rrhh/parametrizacion/bases")
 def crear_base(empresa_id: int = Form(...), nombre: str = Form(...), departamento: str = Form(""),
-                distritos: list[str] = Form([]),
+                provincia: str = Form(""), distritos: list[str] = Form([]),
                 db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     nombre = nombre.strip()
     existe = db.query(BaseOperativa).filter(
@@ -909,20 +909,22 @@ def crear_base(empresa_id: int = Form(...), nombre: str = Form(...), departament
     if existe:
         return RedirectResponse(_con_error(f"/rrhh/parametrizacion/bases?empresa_id={empresa_id}",
             "Ya existe una base con ese nombre para esta empresa."), status_code=303)
-    db.add(BaseOperativa(empresa_id=empresa_id, nombre=nombre, departamento=departamento or None, distritos=distritos))
+    db.add(BaseOperativa(empresa_id=empresa_id, nombre=nombre, departamento=departamento or None,
+                          provincia=provincia or None, distritos=distritos))
     db.commit()
     return RedirectResponse(f"/rrhh/parametrizacion/bases?empresa_id={empresa_id}", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/bases/{base_id}/editar")
 def editar_base(base_id: int, nombre: str = Form(...), departamento: str = Form(""),
-                 distritos: list[str] = Form([]),
+                 provincia: str = Form(""), distritos: list[str] = Form([]),
                  db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     base = db.query(BaseOperativa).get(base_id)
     if base:
         nombre_viejo = base.nombre
         base.nombre = nombre.strip()
         base.departamento = departamento or None
+        base.provincia = provincia or None
         base.distritos = distritos
         # El nombre de la Base se guarda como texto libre en la ficha de cada
         # trabajador (ficha_data.sede) — si se renombra, hay que corregir esa
@@ -1650,9 +1652,13 @@ def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depe
     }
     cargos_activos = [c.nombre for c in db.query(Cargo).filter(Cargo.activo == True)  # noqa: E712
                        .order_by(Cargo.nombre).all()]
+    # Jefe Inmediato: cualquier trabajador activo sirve como opción (antes se
+    # exigía status == "completo", lo que dejaba fuera a casi todos porque
+    # recién contratados tienen su legajo pendiente — solo aparecía quien ya
+    # lo había terminado).
     empleados_activos = [
         nombre for (nombre,) in db.query(Employee.nombre_completo)
-        .filter(Employee.estado == "activo", Employee.status == "completo", Employee.id != employee_id)
+        .filter(Employee.estado == "activo", Employee.id != employee_id)
         .order_by(Employee.nombre_completo).all()
     ]
     # Bases (reemplaza a la antigua Sede): propias de la empresa del
@@ -1802,6 +1808,41 @@ async def subir_documento_rrhh(employee_id: int, tipo: str = Form(...), archivo:
     return RedirectResponse(f"/rrhh/personal/{employee_id}#documentos", status_code=303)
 
 
+@router.post("/rrhh/personal/{employee_id}/documentos/{attachment_id}/eliminar")
+def eliminar_adjunto_rrhh(employee_id: int, attachment_id: int, db: Session = Depends(get_db),
+                           user: User = Depends(require_role("administrador"))):
+    """Borra un adjunto del legajo (para limpiar duplicados) — también borra
+    el archivo del disco si existe."""
+    a = db.query(Attachment).get(attachment_id)
+    if a and a.employee_id == employee_id:
+        try:
+            if a.file_path and os.path.exists(a.file_path):
+                os.remove(a.file_path)
+        except OSError:
+            pass
+        db.delete(a)
+        db.commit()
+    return RedirectResponse(f"/rrhh/personal/{employee_id}#documentos", status_code=303)
+
+
+@router.post("/rrhh/personal/{employee_id}/legajo-doc/{document_id}/eliminar")
+def eliminar_documento_legajo(employee_id: int, document_id: int, db: Session = Depends(get_db),
+                               user: User = Depends(require_role("administrador"))):
+    """Borra un documento del Legajo de Selección (Declaración Jurada, etc.),
+    pensado para quitar duplicados. Borra en cascada su firma y el PDF."""
+    from .models import Document
+    d = db.query(Document).get(document_id)
+    if d and d.employee_id == employee_id:
+        try:
+            if d.pdf_path and os.path.exists(d.pdf_path):
+                os.remove(d.pdf_path)
+        except OSError:
+            pass
+        db.delete(d)
+        db.commit()
+    return RedirectResponse(f"/rrhh/personal/{employee_id}", status_code=303)
+
+
 @router.post("/rrhh/personal/{employee_id}/empresa")
 def asignar_empresa(employee_id: int, empresa_id: str = Form(""), db: Session = Depends(get_db),
                      user: User = Depends(require_role("administrador"))):
@@ -1890,7 +1931,21 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
     if empresa_id:
         query = query.join(Employee, AsistenciaRegistro.employee_id == Employee.id).filter(
             Employee.empresa_id == int(empresa_id))
-    registros = query.order_by(AsistenciaRegistro.timestamp.desc()).all()
+    registros = query.order_by(AsistenciaRegistro.timestamp.asc()).all()
+
+    # Una sola fila por persona: su primera entrada y su última salida del
+    # día (con la ubicación de la entrada, que es la que suele importar).
+    por_empleado = {}
+    for r in registros:
+        d = por_empleado.setdefault(r.employee_id, {
+            "employee": r.employee, "entrada": None, "salida": None, "marcas": 0,
+        })
+        d["marcas"] += 1
+        if r.tipo == "entrada" and d["entrada"] is None:
+            d["entrada"] = r
+        elif r.tipo == "salida":
+            d["salida"] = r
+    filas_asistencia = sorted(por_empleado.values(), key=lambda x: x["employee"].nombre_completo)
 
     empleados_activos = db.query(Employee).filter(Employee.estado == "activo")
     if empresa_id:
@@ -1902,7 +1957,7 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
     empresas = db.query(Empresa).order_by(Empresa.nombre).all()
     todos_activos = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
     return templates.TemplateResponse(request, "rrhh_asistencia.html", _ctx(
-        request, user, registros=registros, dia=dia, empresas=empresas, f_empresa=empresa_id,
+        request, user, filas_asistencia=filas_asistencia, dia=dia, empresas=empresas, f_empresa=empresa_id,
         sin_marcar=sin_marcar, total_activos=len(empleados_activos), active="asistencia",
         todos_activos=todos_activos,
     ))

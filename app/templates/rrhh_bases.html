@@ -12,9 +12,10 @@
 
   <div class="card">
     <h2>Bases</h2>
-    <p class="muted">Una Base es la zona geográfica (uno o más distritos) donde trabajan los puestos de mayor
-      rotación (técnicos, Guardianes de la Experiencia, Líder de Base, almaceneros). Cada Empresa tiene sus
-      propias Bases — dos empresas pueden tener una base con el mismo nombre cubriendo distritos distintos.</p>
+    <p class="muted">Una Base es la zona geográfica (uno o más distritos de una misma provincia) donde trabajan
+      los puestos de mayor rotación (técnicos, Guardianes de la Experiencia, Líder de Base, almaceneros). Cada
+      Empresa tiene sus propias Bases — dos empresas pueden tener una base con el mismo nombre cubriendo
+      distritos distintos.</p>
 
     <form method="get" action="/rrhh/parametrizacion/bases" class="inline-form" style="margin-bottom:16px;">
       <div class="field">
@@ -27,11 +28,12 @@
     </form>
 
     <table>
-      <tr><th>Empresa</th><th>Base</th><th>Distritos</th><th>Estado</th><th></th></tr>
+      <tr><th>Empresa</th><th>Base</th><th>Departamento / Provincia</th><th>Distritos</th><th>Estado</th><th></th></tr>
       {% for b in bases %}
       <tr>
         <td class="muted">{{ b.empresa.nombre if b.empresa else "—" }}</td>
         <td><strong>{{ b.nombre }}</strong></td>
+        <td class="muted">{{ b.departamento or "—" }}{% if b.provincia %} / {{ b.provincia }}{% endif %}</td>
         <td class="muted">{{ (b.distritos or [])|join(', ') if b.distritos else '—' }}</td>
         <td><span class="badge {{ 'firmado' if b.activo else 'pendiente' }}">{{ 'activo' if b.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
@@ -48,12 +50,19 @@
                   </select>
                 </div>
                 <div class="field">
+                  <label>Provincia</label>
+                  <select class="prov-selector" name="provincia" data-target="dist-edit-{{ b.id }}" disabled>
+                    <option value="">Elige un departamento primero…</option>
+                  </select>
+                </div>
+                <div class="field">
                   <label>Distritos</label>
                   <div class="dist-checkboxes" id="dist-edit-{{ b.id }}" data-nombre="distritos"
                        data-departamento="{{ b.departamento or '' }}"
+                       data-provincia="{{ b.provincia or '' }}"
                        data-seleccionados='{{ (b.distritos or [])|tojson }}'
                        style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:5px; padding:8px;">
-                    <span class="muted" style="font-size:11px;">Elige un departamento para ver sus distritos…</span>
+                    <span class="muted" style="font-size:11px;">Elige un departamento y una provincia…</span>
                   </div>
                 </div>
                 <button class="btn small" type="submit">Guardar</button>
@@ -74,7 +83,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="muted">Todavía no hay bases registradas.</td></tr>
+      <tr><td colspan="6" class="muted">Todavía no hay bases registradas.</td></tr>
       {% endfor %}
     </table>
 
@@ -94,11 +103,17 @@
           <option value="">Seleccionar…</option>
         </select>
       </div>
+      <div class="field">
+        <label>Provincia</label>
+        <select class="prov-selector" name="provincia" data-target="dist-nueva" disabled>
+          <option value="">Elige un departamento primero…</option>
+        </select>
+      </div>
       <div class="field" style="flex-basis:100%;">
         <label>Distritos</label>
         <div class="dist-checkboxes" id="dist-nueva" data-nombre="distritos"
              style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:5px; padding:8px;">
-          <span class="muted" style="font-size:11px;">Elige un departamento para ver sus distritos…</span>
+          <span class="muted" style="font-size:11px;">Elige un departamento y una provincia…</span>
         </div>
       </div>
       <button class="btn" type="submit">Crear Base</button>
@@ -109,15 +124,39 @@
 <script>
   let UBIGEO_BASES = [];
 
-  function pintarDistritos(contenedorId, distritosDelDepartamento) {
+  function provinciasDeDepartamento(depNombre) {
+    const dep = UBIGEO_BASES.find(d => d.departamento === depNombre);
+    return dep ? dep.provincias.map(p => p.provincia) : [];
+  }
+
+  function distritosDeProvincia(depNombre, provNombre) {
+    const dep = UBIGEO_BASES.find(d => d.departamento === depNombre);
+    const prov = dep && dep.provincias.find(p => p.provincia === provNombre);
+    return prov ? prov.distritos.slice().sort() : [];
+  }
+
+  function pintarProvincias(provSel, depNombre, provSeleccionar) {
+    provSel.innerHTML = '<option value="">Seleccionar…</option>';
+    const provs = provinciasDeDepartamento(depNombre);
+    if (!provs.length) { provSel.disabled = true; return; }
+    provs.forEach(nombre => {
+      const opt = document.createElement("option");
+      opt.value = nombre; opt.textContent = nombre;
+      provSel.appendChild(opt);
+    });
+    provSel.disabled = false;
+    if (provSeleccionar) provSel.value = provSeleccionar;
+  }
+
+  function pintarDistritos(contenedorId, distritos) {
     const cont = document.getElementById(contenedorId);
     const seleccionados = JSON.parse(cont.dataset.seleccionados || "[]");
     cont.innerHTML = "";
-    if (!distritosDelDepartamento.length) {
-      cont.innerHTML = '<span class="muted" style="font-size:11px;">Elige un departamento para ver sus distritos…</span>';
+    if (!distritos.length) {
+      cont.innerHTML = '<span class="muted" style="font-size:11px;">Elige un departamento y una provincia…</span>';
       return;
     }
-    distritosDelDepartamento.forEach(dist => {
+    distritos.forEach(dist => {
       const label = document.createElement("label");
       label.style.cssText = "display:inline-flex; align-items:center; gap:4px; margin:2px 10px 2px 0; font-weight:400; text-transform:none; font-size:13px;";
       const chk = document.createElement("input");
@@ -129,38 +168,43 @@
     });
   }
 
-  function distritosDeDepartamento(depNombre) {
-    const dep = UBIGEO_BASES.find(d => d.departamento === depNombre);
-    if (!dep) return [];
-    // Aplanado: todos los distritos de todas las provincias de ese departamento,
-    // sin duplicados (una Base cubre zonas, no hace falta la provincia).
-    const set = new Set();
-    dep.provincias.forEach(p => p.distritos.forEach(d => set.add(d)));
-    return Array.from(set).sort();
+  function provSelectorDe(targetId) {
+    return document.querySelector('.prov-selector[data-target="' + targetId + '"]');
   }
 
   fetch("/static/ubigeo_peru.json").then(r => r.json()).then(data => {
     UBIGEO_BASES = data;
-    document.querySelectorAll(".dep-selector").forEach(sel => {
+
+    document.querySelectorAll(".dep-selector").forEach(depSel => {
       UBIGEO_BASES.forEach(d => {
         const opt = document.createElement("option");
         opt.value = d.departamento; opt.textContent = d.departamento;
-        sel.appendChild(opt);
+        depSel.appendChild(opt);
       });
-      sel.addEventListener("change", function () {
-        pintarDistritos(this.dataset.target, distritosDeDepartamento(this.value));
+      const targetId = depSel.dataset.target;
+      const provSel = provSelectorDe(targetId);
+
+      depSel.addEventListener("change", function () {
+        pintarProvincias(provSel, this.value, null);
+        pintarDistritos(targetId, []);
       });
-      // Si esta Base editada ya tenía departamento/distritos guardados, se
-      // precargan directo (el departamento se guarda explícito porque en
-      // Perú hay distritos con el mismo nombre en departamentos distintos
-      // — p.ej. "Comas" existe en Lima y en Junín — así que "adivinarlo"
-      // a partir de los distritos ya no es confiable).
+      if (provSel) {
+        provSel.addEventListener("change", function () {
+          pintarDistritos(targetId, distritosDeProvincia(depSel.value, this.value));
+        });
+      }
+
+      // Precarga al editar (departamento + provincia + distritos guardados).
       try {
-        const targetEl = document.getElementById(sel.dataset.target);
-        const depGuardado = targetEl.dataset.departamento;
+        const cont = document.getElementById(targetId);
+        const depGuardado = cont.dataset.departamento;
+        const provGuardada = cont.dataset.provincia;
         if (depGuardado) {
-          sel.value = depGuardado;
-          pintarDistritos(sel.dataset.target, distritosDeDepartamento(depGuardado));
+          depSel.value = depGuardado;
+          pintarProvincias(provSel, depGuardado, provGuardada || null);
+          if (provGuardada) {
+            pintarDistritos(targetId, distritosDeProvincia(depGuardado, provGuardada));
+          }
         }
       } catch (e) { /* una fila con datos viejos/raros no debe frenar a las demás */ }
     });

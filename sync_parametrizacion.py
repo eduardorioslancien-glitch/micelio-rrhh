@@ -80,7 +80,8 @@ def export_data(out_path: str):
             ],
             "bases": [
                 {
-                    "nombre": b.nombre, "departamento": b.departamento, "distritos": b.distritos or [],
+                    "nombre": b.nombre, "departamento": b.departamento, "provincia": b.provincia,
+                    "distritos": b.distritos or [],
                     "activo": b.activo, "empresa_nombre": b.empresa.nombre if b.empresa else None,
                 }
                 for b in db.query(BaseOperativa).order_by(BaseOperativa.nombre).all()
@@ -218,6 +219,7 @@ def import_data(in_path: str):
                 obj = BaseOperativa(nombre=b["nombre"], empresa_id=empresa.id)
                 db.add(obj)
             obj.departamento = b.get("departamento")
+            obj.provincia = b.get("provincia")
             obj.distritos = b.get("distritos") or []
             obj.activo = b.get("activo", True)
         db.commit()

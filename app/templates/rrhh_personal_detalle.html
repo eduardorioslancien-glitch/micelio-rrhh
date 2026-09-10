@@ -93,12 +93,20 @@
     </div>
     {% endif %}
     <table>
-      <tr><th>Documento</th><th>Estado</th><th></th></tr>
+      <tr><th>Documento</th><th>Estado</th><th></th>{% if can_edit %}<th></th>{% endif %}</tr>
       {% for d in e.documents %}
       <tr>
         <td>{{ doc_type_labels.get(d.doc_type, d.doc_type) }}</td>
         <td><span class="badge {{ d.status }}">{{ d.status }}</span></td>
         <td>{% if d.status == 'firmado' %}<a class="btn small" href="/descargas/{{ d.id }}">Descargar PDF</a>{% endif %}</td>
+        {% if can_edit %}
+        <td>
+          <form method="post" action="/rrhh/personal/{{ e.id }}/legajo-doc/{{ d.id }}/eliminar" style="margin:0;"
+                onsubmit="return confirm('¿Eliminar este documento del legajo{{ ' (está FIRMADO)' if d.status == 'firmado' else '' }}? No se puede deshacer.');">
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar (duplicado)"></button>
+          </form>
+        </td>
+        {% endif %}
       </tr>
       {% endfor %}
     </table>
@@ -366,17 +374,23 @@
       <button class="btn small" type="submit">Subir</button>
     </form>
     <table>
-      <tr><th>Tipo</th><th>Archivo</th><th>Subido por</th><th>Fecha</th><th></th></tr>
+      <tr><th>Tipo</th><th>Archivo</th><th>Subido por</th><th>Fecha</th><th></th><th></th></tr>
       {% for a in e.attachments %}
       <tr>
         <td>{{ attachment_labels.get(a.tipo, a.tipo) }}</td>
         <td>{{ a.filename }}</td>
         <td class="muted">{{ a.subido_por or '—' }}</td>
-        <td class="muted">{{ a.uploaded_at.strftime('%d/%m/%Y %H:%M') if a.uploaded_at else '—' }}</td>
+        <td class="muted">{{ (a.uploaded_at|lima).strftime('%d/%m/%Y %H:%M') if a.uploaded_at else '—' }}</td>
         <td><a class="btn small secondary" href="/adjuntos/{{ a.id }}">Descargar</a></td>
+        <td>
+          <form method="post" action="/rrhh/personal/{{ e.id }}/documentos/{{ a.id }}/eliminar" style="margin:0;"
+                onsubmit="return confirm('¿Eliminar el adjunto \'{{ a.filename }}\'? No se puede deshacer.');">
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar (duplicado)"></button>
+          </form>
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="muted">Sin documentos adjuntos todavía.</td></tr>
+      <tr><td colspan="6" class="muted">Sin documentos adjuntos todavía.</td></tr>
       {% endfor %}
     </table>
   </div>
