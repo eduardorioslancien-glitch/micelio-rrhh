@@ -23,9 +23,15 @@
       <p class="muted">
         {{ pedido.empresa.nombre if pedido.empresa else "DIGETEL GROUP" }}
         {% if pedido.area %} · {{ pedido.area }}{% endif %}
+        {% if base_nombre %} · Base: {{ base_nombre }}{% endif %}
+        {% if pedido.cantidad and pedido.cantidad > 1 %} · {{ pedido.cantidad }} vacantes{% else %} · 1 vacante{% endif %}
       </p>
 
-      {% if cargo %}
+      {% if pedido.observaciones %}
+      <p style="margin-top:8px;">{{ pedido.observaciones }}</p>
+      {% endif %}
+
+      {% if cargo and (cargo.descripcion or cargo.funciones or cargo.requisito_academico or cargo.requisito_experiencia or cargo.requisito_conocimientos) %}
         {% if cargo.descripcion %}<p>{{ cargo.descripcion }}</p>{% endif %}
         {% if cargo.funciones %}
         <div class="section-title">Funciones</div>
@@ -39,6 +45,8 @@
           {% if cargo.requisito_conocimientos %}<li><strong>Conocimientos:</strong> {{ cargo.requisito_conocimientos }}</li>{% endif %}
         </ul>
         {% endif %}
+      {% elif not pedido.observaciones %}
+        <p class="muted">Envíanos tu CV y te contamos los detalles del puesto en la entrevista.</p>
       {% endif %}
     </div>
 

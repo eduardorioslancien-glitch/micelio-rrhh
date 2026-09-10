@@ -25,8 +25,11 @@
         <p class="muted" style="margin:0 0 8px;">
           {{ v.pedido.empresa.nombre if v.pedido.empresa else "DIGETEL GROUP" }}
           {% if v.pedido.area %} · {{ v.pedido.area }}{% endif %}
+          {% if v.base_nombre %} · Base: {{ v.base_nombre }}{% endif %}
+          {% if v.pedido.cantidad and v.pedido.cantidad > 1 %} · {{ v.pedido.cantidad }} vacantes{% endif %}
         </p>
-        {% if v.cargo and v.cargo.descripcion %}<p style="margin:0 0 10px;">{{ v.cargo.descripcion }}</p>{% endif %}
+        {% if v.cargo and v.cargo.descripcion %}<p style="margin:0 0 10px;">{{ v.cargo.descripcion }}</p>
+        {% elif v.pedido.observaciones %}<p style="margin:0 0 10px;">{{ v.pedido.observaciones }}</p>{% endif %}
         <a class="btn small" href="/trabaja-con-nosotros/{{ v.pedido.id }}">Ver vacante y postular</a>
       </div>
       {% endfor %}

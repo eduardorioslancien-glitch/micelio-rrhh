@@ -40,7 +40,7 @@ def _vacantes_abiertas(db: Session):
     resultado = []
     for p in pedidos:
         cargo = db.query(Cargo).filter(Cargo.nombre == p.cargo_solicitado, Cargo.activo == True).first()  # noqa: E712
-        resultado.append({"pedido": p, "cargo": cargo})
+        resultado.append({"pedido": p, "cargo": cargo, "base_nombre": p.base.nombre if p.base else None})
     return resultado
 
 
@@ -57,9 +57,12 @@ def landing_vacante_detalle(request: Request, pedido_id: int, db: Session = Depe
     pedido = db.query(PedidoPersonal).get(pedido_id)
     if not pedido or pedido.estado not in ("abierto", "en_proceso"):
         raise HTTPException(404)
+    # El match del Cargo es por nombre exacto; si no calza (o el cargo está
+    # inactivo) igual se muestra la vacante con los datos del pedido.
     cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado, Cargo.activo == True).first()  # noqa: E712
+    base_nombre = pedido.base.nombre if pedido.base else None
     return templates.TemplateResponse(request, "public_vacante_detalle.html", {
-        "pedido": pedido, "cargo": cargo, "contacto_email": CONTACTO_EMAIL,
+        "pedido": pedido, "cargo": cargo, "base_nombre": base_nombre, "contacto_email": CONTACTO_EMAIL,
         "tipos_documento": TIPOS_DOCUMENTO_POSTULANTE, "error": request.query_params.get("error"),
     })
 
