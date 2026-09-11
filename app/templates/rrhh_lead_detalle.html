@@ -14,6 +14,10 @@
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado correctamente.</p></div>
   {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor).</p></div>
+  {% elif request.query_params.get('ok') == 'cv_analizado' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">CV analizado correctamente.</p></div>
+  {% elif request.query_params.get('cv_error') %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">{{ request.query_params.get('cv_error')|replace('+', ' ') }}</p></div>
   {% endif %}
   {% if request.query_params.get('enlace') %}
   <div class="card" style="margin-top:16px;">
@@ -55,6 +59,13 @@
     {% endif %}
     {% if lead.analisis_ia %}
     <p style="white-space:pre-wrap;">{{ lead.analisis_ia }}</p>
+    {% endif %}
+    {% if lead.cv_path %}
+    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/analizar-cv" style="margin-top:10px;">
+      <button class="btn small secondary" type="submit">{{ "Volver a analizar con IA" if lead.estrellas else "Analizar CV con IA" }}</button>
+    </form>
+    {% else %}
+    <p class="hint" style="margin-top:10px;">Este candidato no tiene CV adjunto, no se puede calificar.</p>
     {% endif %}
   </div>
 

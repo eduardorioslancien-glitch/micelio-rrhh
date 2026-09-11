@@ -82,7 +82,7 @@
 
     <h3 style="margin-top:22px;">Registrar candidato</h3>
     <p class="hint">Ingresa manualmente a quien haya llegado por correo, WhatsApp u otro medio (en un futuro esto se automatiza con n8n).</p>
-    <form method="post" action="/rrhh/reclutamiento/leads/nuevo">
+    <form method="post" action="/rrhh/reclutamiento/leads/nuevo" enctype="multipart/form-data">
       <input type="hidden" name="pedido_id" value="{{ '' if f_pedido == 'none' else f_pedido }}">
       <div class="grid3">
         <div class="field"><label>Nombre Completo</label><input type="text" name="nombre_completo" required></div>
@@ -96,6 +96,7 @@
           </select>
         </div>
         <div class="field"><label>Notas</label><input type="text" name="notas"></div>
+        <div class="field"><label>CV (PDF o Word, opcional)</label><input type="file" name="cv" accept=".pdf,.doc,.docx"></div>
       </div>
       <button class="btn" type="submit">Registrar candidato</button>
     </form>

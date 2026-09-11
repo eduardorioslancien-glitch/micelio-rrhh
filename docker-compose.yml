@@ -13,8 +13,9 @@ services:
       # - SMTP_USER=
       # - SMTP_PASS=
       # - SMTP_FROM=
-      # Necesaria para que "Trabaja con Nosotros" pueda calificar CVs con IA:
-      # - ANTHROPIC_API_KEY=
+      # Necesaria para que "Trabaja con Nosotros" pueda calificar CVs con IA
+      # (el valor real va en .env del servidor, nunca en este archivo):
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - TRABAJA_CON_NOSOTROS_EMAIL=trabajaconnosotros@digetelperu.com
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
     volumes:

@@ -6,9 +6,10 @@ paso a Selección) y Onboarding (Fase 3 + mejoras posteriores).
 """
 import datetime
 import os
+import uuid
 from urllib.parse import quote
 
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -23,6 +24,8 @@ from .models import (
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import _ctx, _enviar_correo, _public_base_url, _ensure_documents
+from .cv_analysis import extraer_texto_cv, analizar_cv
+from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
 # Cargos de mayor rotación que necesitan referencia obligatoria a una Base
 # (zona geográfica) — ver punto 2 del pedido sobre Registro de Pedidos.
@@ -246,16 +249,46 @@ def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Sessi
 
 
 @router.post("/rrhh/reclutamiento/leads/nuevo")
-def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), celular: str = Form(""),
-                 origen: str = Form(""), pedido_id: str = Form(""), notas: str = Form(""),
-                 db: Session = Depends(get_db),
-                 user: User = Depends(require_role("administrador"))):
-    db.add(LeadCandidato(
+async def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), celular: str = Form(""),
+                       origen: str = Form(""), pedido_id: str = Form(""), notas: str = Form(""),
+                       cv: UploadFile = File(None),
+                       db: Session = Depends(get_db),
+                       user: User = Depends(require_role("administrador"))):
+    lead = LeadCandidato(
         nombre_completo=nombre_completo.strip(), email=email.strip() or None, celular=celular.strip() or None,
         origen=origen or None, pedido_id=int(pedido_id) if pedido_id else None, notas=notas.strip() or None,
         registrado_por=user.nombre_completo,
-    ))
+    )
+
+    # CV opcional al registrar manualmente (candidatos que llegan por correo,
+    # WhatsApp, etc.) — mismo criterio de validación que "Trabaja con
+    # Nosotros" para que después se pueda calificar con IA igual que ahí.
+    nombre_archivo = (cv.filename or "") if cv else ""
+    if nombre_archivo:
+        if nombre_archivo.lower().endswith(EXTENSIONES_CV_VALIDAS):
+            contenido = await cv.read()
+            if len(contenido) <= TAMANO_MAXIMO_CV:
+                nombre_seguro = f"{uuid.uuid4().hex[:10]}_{nombre_archivo}"
+                ruta = os.path.join(CV_DIR, nombre_seguro)
+                with open(ruta, "wb") as f:
+                    f.write(contenido)
+                lead.cv_path = ruta
+                lead.cv_filename = nombre_archivo
+
+    db.add(lead)
     db.commit()
+    db.refresh(lead)
+
+    if lead.cv_path and lead.pedido_id:
+        pedido = db.query(PedidoPersonal).get(lead.pedido_id)
+        cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first() if pedido else None
+        if cargo:
+            texto_cv = extraer_texto_cv(lead.cv_path, cv.content_type if cv else None)
+            estrellas, analisis = analizar_cv(texto_cv, cargo)
+            lead.estrellas = estrellas
+            lead.analisis_ia = analisis
+            db.commit()
+
     destino = f"/rrhh/reclutamiento/leads?pedido_id={pedido_id}" if pedido_id else "/rrhh/reclutamiento/leads?pedido_id=none"
     return RedirectResponse(destino, status_code=303)
 
@@ -281,6 +314,39 @@ def lead_cv(lead_id: int, db: Session = Depends(get_db),
     if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
         raise HTTPException(404)
     return FileResponse(lead.cv_path, filename=lead.cv_filename or "cv.pdf")
+
+
+@router.post("/rrhh/reclutamiento/leads/{lead_id}/analizar-cv")
+def lead_analizar_cv(lead_id: int, db: Session = Depends(get_db),
+                      user: User = Depends(require_role("administrador"))):
+    """Corre (o vuelve a correr) la calificación de IA sobre el CV de un
+    candidato — a pedido, no solo automático al postular, para poder
+    calificar leads registrados manualmente o volver a intentar después de
+    configurar ANTHROPIC_API_KEY o de actualizar el MOF del cargo."""
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead:
+        raise HTTPException(404)
+    destino = f"/rrhh/reclutamiento/leads/{lead_id}"
+    if not lead.cv_path or not os.path.exists(lead.cv_path):
+        return RedirectResponse(f"{destino}?cv_error=Este+candidato+no+tiene+un+CV+adjunto+valido.", status_code=303)
+
+    cargo = None
+    if lead.pedido and lead.pedido.cargo_solicitado:
+        cargo = db.query(Cargo).filter(Cargo.nombre == lead.pedido.cargo_solicitado).first()
+    if not cargo:
+        return RedirectResponse(
+            f"{destino}?cv_error=No+se+encontro+el+Cargo+del+pedido+asignado+(o+el+lead+no+tiene+pedido)+para+comparar+el+CV.",
+            status_code=303,
+        )
+
+    texto_cv = extraer_texto_cv(lead.cv_path, None)
+    estrellas, analisis = analizar_cv(texto_cv, cargo)
+    lead.estrellas = estrellas
+    lead.analisis_ia = analisis
+    db.commit()
+    if estrellas is None:
+        return RedirectResponse(f"{destino}?cv_error={quote(analisis)}", status_code=303)
+    return RedirectResponse(f"{destino}?ok=cv_analizado", status_code=303)
 
 
 @router.get("/rrhh/reclutamiento/leads/{lead_id}", response_class=HTMLResponse)
