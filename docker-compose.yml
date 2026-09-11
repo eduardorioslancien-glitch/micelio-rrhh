@@ -16,6 +16,10 @@ services:
       # Necesaria para que "Trabaja con Nosotros" pueda calificar CVs con IA
       # (el valor real va en .env del servidor, nunca en este archivo):
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Clave compartida para /api/leads y /api/pedidos-abiertos (usada por
+      # n8n u otra automatización externa para centralizar leads de correo
+      # o WhatsApp) — el valor real va en .env del servidor, nunca aquí:
+      - LEADS_API_KEY=${LEADS_API_KEY:-}
       - TRABAJA_CON_NOSOTROS_EMAIL=trabajaconnosotros@digetelperu.com
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
     volumes:
