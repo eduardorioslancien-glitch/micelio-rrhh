@@ -40,7 +40,7 @@ from .rrhh import MAN_ACADEMY_URL
 router = APIRouter()
 
 MAN_ACADEMY_SSO_SECRET = os.environ.get("MAN_ACADEMY_SSO_SECRET", "")
-SSO_TOKEN_TTL_SECONDS = 120  # el enlace de ingreso vale por 2 minutos
+SSO_TOKEN_TTL_SECONDS = 300  # el enlace de ingreso vale por 5 minutos (antes 2, muy justo con DNS lento)
 
 
 def _b64url_encode(data: bytes) -> str:
