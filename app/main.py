@@ -43,6 +43,7 @@ from . import reclutamiento as reclutamiento_module
 from . import clima as clima_module
 from . import public_landing as public_landing_module
 from . import api_leads as api_leads_module
+from . import man_academy as man_academy_module
 from .seed import seed_initial_data
 from .pdf_signed import build_pdf
 
@@ -97,6 +98,7 @@ app.include_router(reclutamiento_module.router)
 app.include_router(clima_module.router)
 app.include_router(public_landing_module.router)
 app.include_router(api_leads_module.router)
+app.include_router(man_academy_module.router)
 
 
 @app.exception_handler(NotAuthenticated)

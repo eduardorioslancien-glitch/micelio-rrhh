@@ -22,6 +22,15 @@ services:
       - LEADS_API_KEY=${LEADS_API_KEY:-}
       - TRABAJA_CON_NOSOTROS_EMAIL=trabajaconnosotros@digetelperu.com
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
+      # Integración con Man Academy (menú Capacitación): URL pública de esa
+      # app y un secreto largo y aleatorio compartido con ella (mismo valor
+      # en su .env allá, como MAN_ACADEMY_SSO_SECRET) para que MICELIO le
+      # firme el ingreso sin clave (SSO) y le diga a qué cursos/rutas puede
+      # entrar cada trabajador. Sin estos dos, el enlace queda deshabilitado
+      # ("Falta URL"). El valor real del secreto va en .env del servidor,
+      # nunca en este archivo.
+      - MAN_ACADEMY_URL=https://manacademy.digetelperu.com
+      - MAN_ACADEMY_SSO_SECRET=${MAN_ACADEMY_SSO_SECRET:-}
     volumes:
       # Todo lo que la app escribe en tiempo de ejecución (base de datos,
       # PDFs firmados, adjuntos, fotos, firmas) queda en el host — así

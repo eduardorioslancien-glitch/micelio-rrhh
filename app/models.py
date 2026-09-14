@@ -477,6 +477,7 @@ class Employee(Base):
                                order_by="desc(OnboardingRegistro.created_at)")
     renovaciones_contrato = relationship("ContratoRenovacion", back_populates="employee", cascade="all, delete-orphan",
                                           order_by="desc(ContratoRenovacion.created_at)")
+    man_academy_accesos = relationship("ManAcademyAcceso", back_populates="employee", cascade="all, delete-orphan")
 
 
 class Document(Base):
@@ -645,6 +646,40 @@ class ContratoRenovacion(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     employee = relationship("Employee", back_populates="renovaciones_contrato")
+
+
+class ManAcademyCatalogItem(Base):
+    """Caché local del catálogo de Man Academy (cursos y rutas de
+    aprendizaje), refrescada a pedido de un administrador desde
+    /rrhh/man-academy/sincronizar (llama a api_catalog.php de Man Academy).
+    Sirve solo para poblar el selector de accesos por trabajador — Man
+    Academy sigue siendo la fuente de verdad del contenido en sí."""
+    __tablename__ = "man_academy_catalogo"
+    __table_args__ = (UniqueConstraint("tipo", "man_id", name="uq_man_academy_catalogo_tipo_id"),)
+
+    id = Column(Integer, primary_key=True)
+    tipo = Column(String(10), nullable=False)  # 'curso' | 'ruta'
+    man_id = Column(Integer, nullable=False)  # id del curso/ruta en Man Academy
+    titulo = Column(String(200), nullable=False)
+    categoria = Column(String(100), nullable=True)
+    synced_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class ManAcademyAcceso(Base):
+    """Qué cursos/rutas de Man Academy puede ver un trabajador. Se le manda
+    a Man Academy en el token SSO cada vez que entra por
+    /rrhh/man-academy/entrar (ver app/man_academy.py); Man Academy
+    reemplaza el acceso de ese usuario ahí por esta lista completa."""
+    __tablename__ = "man_academy_accesos"
+    __table_args__ = (UniqueConstraint("employee_id", "tipo", "man_id", name="uq_man_academy_acceso"),)
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    tipo = Column(String(10), nullable=False)  # 'curso' | 'ruta'
+    man_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    employee = relationship("Employee", back_populates="man_academy_accesos")
 
 
 ESTADOS_SOLICITUD_RENOVACION = [

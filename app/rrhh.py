@@ -21,7 +21,7 @@ from .models import (
     Employee, UnidadNegocio, Empresa, User, BitacoraEntry, Attachment, AsistenciaRegistro, Catalogo,
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion, EsquemaPago,
     Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
-    SedeGeocerca, ConsentimientoAsistencia, BaseOperativa,
+    SedeGeocerca, ConsentimientoAsistencia, BaseOperativa, ManAcademyAcceso, ManAcademyCatalogItem,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -1418,6 +1418,14 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         if not (f.get("cargo") or "").strip():
             faltan_datos.append("Cargo / Datos Laborales (Sección IV)")
 
+    man_academy_catalogo = db.query(ManAcademyCatalogItem).order_by(
+        ManAcademyCatalogItem.tipo, ManAcademyCatalogItem.titulo
+    ).all()
+    man_academy_otorgados = {
+        (a.tipo, a.man_id) for a in
+        db.query(ManAcademyAcceso).filter(ManAcademyAcceso.employee_id == employee_id).all()
+    }
+
     return templates.TemplateResponse(request, "rrhh_personal_detalle.html", _ctx(
         request, user, e=emp, empresas=empresas, attachment_types=ATTACHMENT_TYPES,
         attachment_labels=ATTACHMENT_LABELS, tipos_bitacora=TIPOS_BITACORA,
@@ -1430,6 +1438,7 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         etapa_onboarding_labels=dict(ETAPAS_ONBOARDING), estado_onboarding_labels=dict(ESTADOS_ONBOARDING),
         faltan_datos=faltan_datos, renovaciones=emp.renovaciones_contrato,
         organigrama=_organigrama_de(db, emp), doc_type_labels=dict(DOC_TYPES),
+        man_academy_catalogo=man_academy_catalogo, man_academy_otorgados=man_academy_otorgados,
         active="personal",
     ))
 

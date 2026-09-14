@@ -149,6 +149,7 @@
     {% if can_planilla %}<a href="#planilla">Planilla</a>{% endif %}
     {% if can_mark_own and user.rol == 'usuario' %}<a href="#asistencia">Asistencia</a>{% endif %}
     {% if can_edit %}<a href="#onboarding">Onboarding</a>{% endif %}
+    {% if can_edit %}<a href="#man-academy">Man Academy</a>{% endif %}
     {% if can_edit %}<a href="#bitacora">Bitácora</a>{% endif %}
     {% if can_edit %}<a href="#documentos">Documentos</a>{% endif %}
   </div>
@@ -335,6 +336,53 @@
       <tr><td colspan="5" class="muted">Sin registros de onboarding todavía.</td></tr>
       {% endfor %}
     </table>
+  </div>
+
+  <div class="card" id="man-academy">
+    <h2>Man Academy</h2>
+    <p class="muted">Cursos y rutas de aprendizaje a los que {{ e.nombre_completo }} puede entrar cuando ingresa a Man Academy
+      desde el botón "Capacitación &gt; Man Academy" (entra sin volver a loguearse, solo ve lo que marques acá).</p>
+
+    <form method="post" action="/rrhh/man-academy/sincronizar" style="margin-bottom:16px;">
+      <input type="hidden" name="redirect_to" value="/rrhh/personal/{{ e.id }}#man-academy">
+      <button class="btn small secondary" type="submit">Sincronizar catálogo con Man Academy</button>
+      <span class="muted" style="margin-left:8px;">Trae la lista actual de cursos/rutas activos allá.</span>
+    </form>
+
+    {% if not man_academy_catalogo %}
+    <p class="muted">Todavía no hay catálogo sincronizado (o Man Academy no tiene cursos/rutas activos). Usa el botón de arriba.</p>
+    {% else %}
+    <form method="post" action="/rrhh/personal/{{ e.id }}/man-academy">
+      <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:260px;">
+          <h3>Cursos</h3>
+          {% for item in man_academy_catalogo if item.tipo == 'curso' %}
+          <label style="display:block; margin-bottom:6px;">
+            <input type="checkbox" name="curso_ids" value="{{ item.man_id }}"
+              {{ 'checked' if ('curso', item.man_id) in man_academy_otorgados else '' }}>
+            {{ item.titulo }}{% if item.categoria %} <span class="muted">({{ item.categoria }})</span>{% endif %}
+          </label>
+          {% else %}
+          <p class="muted">Sin cursos en el catálogo.</p>
+          {% endfor %}
+        </div>
+        <div style="flex:1; min-width:260px;">
+          <h3>Rutas de Aprendizaje</h3>
+          {% for item in man_academy_catalogo if item.tipo == 'ruta' %}
+          <label style="display:block; margin-bottom:6px;">
+            <input type="checkbox" name="ruta_ids" value="{{ item.man_id }}"
+              {{ 'checked' if ('ruta', item.man_id) in man_academy_otorgados else '' }}>
+            {{ item.titulo }}
+          </label>
+          {% else %}
+          <p class="muted">Sin rutas en el catálogo.</p>
+          {% endfor %}
+          <p class="muted" style="margin-top:8px;">Marcar una ruta da acceso a todos sus cursos, aunque no estén marcados en la columna de al lado.</p>
+        </div>
+      </div>
+      <button class="btn small" type="submit" style="margin-top:12px;">Guardar Accesos</button>
+    </form>
+    {% endif %}
   </div>
 
   <div class="card" id="bitacora">
