@@ -103,177 +103,212 @@
     {
       "tipo": "area",
       "nombre": "ADMINISTRACION Y FINANZAS",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "CALIDAD",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "CX",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "DOTACION",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "GROWTH",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "INVENTARIOS",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "LEGAL",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "MARKETING",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "OKA",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "PRODUCTO",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "RECURSOS HUMANOS",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "SOPORTE TI",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "TESORERIA",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "area",
       "nombre": "VENTAS",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "BBVA Perú",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "BanBif",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco Falabella",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco GNB Perú",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco Pichincha",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco Ripley",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco Santander Perú",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco de Crédito del Perú (BCP)",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Banco de la Nación",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Citibank Perú",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Interbank",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Mibanco",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "banco",
       "nombre": "Scotiabank Perú",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "centro_costo",
       "nombre": "UMD",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "centro_costo",
       "nombre": "UMI",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "centro_costo",
       "nombre": "UMS",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "gerencia",
       "nombre": "GERENCIA GENERAL",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "gerencia",
       "nombre": "GERENCIA UM DIGITAL",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "gerencia",
       "nombre": "GERENCIA UM SERVICIOS",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "sede",
       "nombre": "LIMA NORTE",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     },
     {
       "tipo": "sede",
       "nombre": "LIMA SUR",
-      "activo": true
+      "activo": true,
+      "cuenta_contable": null
     }
   ],
   "bases": [],
