@@ -28,13 +28,16 @@
     </form>
 
     <table>
-      <tr><th>Empresa</th><th>Base</th><th>Departamento / Provincia</th><th>Distritos</th><th>Estado</th><th></th></tr>
+      <tr><th>Empresa — Base</th><th>Departamento / Provincia</th><th>Distritos</th><th>Estado</th><th></th></tr>
       {% for b in bases %}
       <tr>
-        <td class="muted">{{ b.empresa.nombre if b.empresa else "—" }}</td>
-        <td><strong>{{ b.nombre }}</strong></td>
+        <td><strong>{{ b.empresa.nombre if b.empresa else "—" }} — {{ b.nombre }}</strong></td>
         <td class="muted">{{ b.departamento or "—" }}{% if b.provincia %} / {{ b.provincia }}{% endif %}</td>
-        <td class="muted">{{ (b.distritos or [])|join(', ') if b.distritos else '—' }}</td>
+        <td class="muted">
+          {% if b.distritos %}
+          {% for d in b.distritos %}{{ d }}<br>{% endfor %}
+          {% else %}—{% endif %}
+        </td>
         <td><span class="badge {{ 'firmado' if b.activo else 'pendiente' }}">{{ 'activo' if b.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
           <details class="details-inline">
@@ -83,7 +86,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="muted">Todavía no hay bases registradas.</td></tr>
+      <tr><td colspan="5" class="muted">Todavía no hay bases registradas.</td></tr>
       {% endfor %}
     </table>
 

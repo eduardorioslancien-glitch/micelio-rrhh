@@ -8,6 +8,8 @@
 <body>
 {% include "_rrhh_topbar.html" %}
 
+  {% if error %}<div class="alert-error" style="margin-top:16px;">{{ error }}</div>{% endif %}
+
   <div class="card">
     <h2>Usuarios del sistema ({{ usuarios|length }})</h2>
     <table>
@@ -33,6 +35,35 @@
               </form>
             </div>
           </details>
+          <details style="display:inline-block;">
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar acceso y vínculo"></summary>
+            <div class="edit-popover">
+              <form method="post" action="/rrhh/usuarios/{{ u.id }}/editar">
+                <div class="field"><label>Rol</label>
+                  <select name="rol" required>
+                    {% for k, lbl in roles %}<option value="{{ k }}" {{ 'selected' if u.rol == k else '' }}>{{ lbl }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="field"><label>Empresa (alcance opcional)</label>
+                  <select name="empresa_id">
+                    <option value="">— Todas —</option>
+                    {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if u.empresa_id == e.id else '' }}>{{ e.nombre }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="field"><label>Vincular a trabajador</label>
+                  <select name="employee_id">
+                    <option value="">— Ninguno —</option>
+                    {% for emp in empleados %}<option value="{{ emp.id }}" {{ 'selected' if u.employee_id == emp.id else '' }}>{{ emp.nombre_completo }}</option>{% endfor %}
+                  </select>
+                </div>
+                <button class="btn small" type="submit" style="margin-top:8px;">Guardar</button>
+              </form>
+            </div>
+          </details>
+          <form method="post" action="/rrhh/usuarios/{{ u.id }}/eliminar" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar definitivamente al usuario {{ u.username }}? Esto no se puede deshacer.');">
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar definitivamente" {{ 'disabled' if u.id == user.id else '' }}></button>
+          </form>
         </td>
       </tr>
       {% endfor %}

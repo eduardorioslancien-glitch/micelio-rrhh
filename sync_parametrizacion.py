@@ -75,7 +75,7 @@ def export_data(out_path: str):
                 for lp in db.query(LineaProducto).all()
             ],
             "catalogos": [
-                {"tipo": c.tipo, "nombre": c.nombre, "activo": c.activo}
+                {"tipo": c.tipo, "nombre": c.nombre, "activo": c.activo, "cuenta_contable": c.cuenta_contable}
                 for c in db.query(Catalogo).order_by(Catalogo.tipo, Catalogo.nombre).all()
             ],
             "bases": [
@@ -205,6 +205,8 @@ def import_data(in_path: str):
                 obj = Catalogo(tipo=c["tipo"], nombre=c["nombre"])
                 db.add(obj)
             obj.activo = c.get("activo", True)
+            if "cuenta_contable" in c:
+                obj.cuenta_contable = c.get("cuenta_contable")
         db.commit()
 
         # 4b. Bases (resuelve empresa_id por nombre; upsert por empresa+nombre)

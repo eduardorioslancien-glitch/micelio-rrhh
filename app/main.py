@@ -431,6 +431,20 @@ async def firmar_documento(token: str, doc_type: str, request: Request, db: Sess
     ensure_documents(db, emp)
     doc = next(d for d in emp.documents if d.doc_type == doc_type)
 
+    # Idempotencia (bug del 15/09 — "muchos han tenido error al firmar y no
+    # han podido continuar"): en el log de producción esto siempre era el
+    # mismo error, sqlite3.IntegrityError UNIQUE constraint failed:
+    # signatures.document_id — un reintento del navegador (doble tap, una
+    # conexión lenta en el celular que reenvía la misma petición) volvía a
+    # mandar la firma de un documento que YA se había guardado bien, y el
+    # segundo intento chocaba al tratar de insertar una segunda Signature
+    # para el mismo documento. Sin este chequeo no había forma de salir de
+    # ahí: cada reintento repetía el mismo Internal Server Error. Si el
+    # documento ya está firmado, se devuelve el resultado existente en vez
+    # de volver a procesar nada.
+    if doc.status == STATUS_FIRMADO:
+        return {"ok": True, "status": doc.status, "hash": (doc.content_hash or "")[:16]}
+
     payload = await request.json()
     sig_b64 = payload.get("signature_image", "")
     if not sig_b64 or "," not in sig_b64:

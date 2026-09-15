@@ -148,6 +148,7 @@
     {% if can_operativo %}<a href="#laboral">Laboral</a>{% endif %}
     {% if can_planilla %}<a href="#planilla">Planilla</a>{% endif %}
     {% if can_mark_own and user.rol == 'usuario' %}<a href="#asistencia">Asistencia</a>{% endif %}
+    {% if can_mark_own or can_edit %}<a href="#vacaciones">Vacaciones</a>{% endif %}
     {% if can_edit %}<a href="#onboarding">Onboarding</a>{% endif %}
     {% if can_edit %}<a href="#man-academy">Man Academy</a>{% endif %}
     {% if can_edit %}<a href="#bitacora">Bitácora</a>{% endif %}
@@ -299,6 +300,52 @@
       </tr>
       {% else %}
       <tr><td colspan="4" class="muted">Sin marcaciones todavía.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if can_mark_own or can_edit %}
+  <div class="card" id="vacaciones">
+    <h2>Vacaciones</h2>
+    {% if can_mark_own %}
+    <form method="post" action="/rrhh/personal/{{ e.id }}/vacaciones/solicitar" class="inline-form" style="margin-bottom:16px;">
+      <div class="field"><label>Desde</label><input type="date" name="fecha_inicio" required></div>
+      <div class="field"><label>Hasta</label><input type="date" name="fecha_fin" required></div>
+      <div class="field" style="flex:2;"><label>Comentario (opcional)</label><input type="text" name="comentario" placeholder="Motivo o alguna aclaración"></div>
+      <button class="btn small" type="submit">Pedir vacaciones</button>
+    </form>
+    {% endif %}
+    <table>
+      <tr><th>Desde</th><th>Hasta</th><th>Comentario</th><th>Estado</th><th>Respuesta</th>{% if can_edit %}<th></th>{% endif %}</tr>
+      {% for s in solicitudes_vacaciones %}
+      <tr>
+        <td>{{ s.fecha_inicio }}</td>
+        <td>{{ s.fecha_fin }}</td>
+        <td class="muted">{{ s.comentario or "—" }}</td>
+        <td><span class="badge {{ 'firmado' if s.estado == 'aprobada' else ('cancelado' if s.estado == 'rechazada' else 'pendiente') }}">{{ estados_vacaciones.get(s.estado, s.estado) }}</span></td>
+        <td class="muted">{{ s.respuesta_admin or "—" }}</td>
+        {% if can_edit %}
+        <td>
+          {% if s.estado == 'pendiente' %}
+          <details class="details-inline">
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Resolver"></summary>
+            <div class="edit-popover" style="position:absolute; right:0; z-index:5; min-width:260px;">
+              <form method="post" action="/rrhh/personal/{{ e.id }}/vacaciones/{{ s.id }}/resolver">
+                <div class="field"><label>Respuesta (opcional)</label><input type="text" name="respuesta_admin"></div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                  <button class="btn small" type="submit" name="estado" value="aprobada">Aprobar</button>
+                  <button class="btn small secondary" type="submit" name="estado" value="rechazada">Rechazar</button>
+                </div>
+              </form>
+            </div>
+          </details>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ 6 if can_edit else 5 }}" class="muted">Sin pedidos de vacaciones todavía.</td></tr>
       {% endfor %}
     </table>
   </div>

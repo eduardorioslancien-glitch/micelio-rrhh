@@ -148,6 +148,22 @@
       </div>
       <button class="btn" type="submit">Guardar entrevista</button>
     </form>
+
+    {% set historial_entrevistas = (lead.entrevista_data or {}).get('historial') or [] %}
+    {% if historial_entrevistas %}
+    <details style="margin-top:18px;">
+      <summary style="cursor:pointer; font-weight:600;">Historial de evaluaciones anteriores ({{ historial_entrevistas|length }})</summary>
+      {% for h in historial_entrevistas|reverse %}
+      <div class="card" style="background:var(--bg-soft, #f7f7f7); margin-top:10px;">
+        <p class="muted" style="margin:0 0 6px;"><strong>{{ h.fecha }}</strong> — {{ h.entrevistador or "—" }}</p>
+        {% if h.disc %}
+        <p class="muted" style="margin:0 0 6px;">Perfil DISC dominante: {{ disc_dimensiones.get(h.disc.get('perfil_dominante'), '—') }}</p>
+        {% endif %}
+        {% if h.conclusion %}<p style="white-space:pre-wrap; margin:0;">{{ h.conclusion }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </details>
+    {% endif %}
   </div>
 
   {% if lead.etapa not in ('oferta', 'contratado', 'descartado') %}

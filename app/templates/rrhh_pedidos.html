@@ -15,10 +15,10 @@
         <div class="field">
           <label>Estado</label>
           <select name="estado" onchange="this.form.submit()">
-            <option value="">Todos</option>
             {% for key, label in estados %}
             <option value="{{ key }}" {{ 'selected' if f_estado == key else '' }}>{{ label }}</option>
             {% endfor %}
+            <option value="todos" {{ 'selected' if f_estado == 'todos' else '' }}>Todos</option>
           </select>
         </div>
       </form>

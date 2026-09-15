@@ -69,6 +69,7 @@ _MIGRACIONES_COLUMNAS = [
     ("asistencia_registros", "distancia_metros", "FLOAT"),
     ("asistencia_registros", "fuera_de_zona", "BOOLEAN"),
     ("asistencia_registros", "hash_registro", "VARCHAR(64)"),
+    ("catalogos", "cuenta_contable", "VARCHAR(50)"),
 ]
 
 

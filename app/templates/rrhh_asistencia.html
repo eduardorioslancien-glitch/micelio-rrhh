@@ -25,7 +25,7 @@
     <p class="muted">{{ total_activos - sin_marcar|length }} de {{ total_activos }} trabajadores activos marcaron entrada este día.</p>
 
     <table>
-      <tr><th>Trabajador</th><th>Entrada</th><th>Salida</th><th>Ubicación (entrada)</th><th>Registrado por</th><th>Nota</th></tr>
+      <tr><th>Trabajador</th><th>Entrada</th><th>Salida</th><th>Horas trabajadas</th><th>Ubicación (entrada)</th><th>Ubicación (salida)</th><th>Registrado por</th></tr>
       {% for fila in filas_asistencia %}
       {% set ent = fila.entrada %}
       {% set sal = fila.salida %}
@@ -33,6 +33,7 @@
         <td>{{ fila.employee.nombre_completo }}</td>
         <td>{{ (ent.timestamp|lima).strftime('%H:%M:%S') if ent else '—' }}</td>
         <td>{{ (sal.timestamp|lima).strftime('%H:%M:%S') if sal else '—' }}</td>
+        <td class="muted">{{ fila.horas or '—' }}</td>
         <td>
           {% if ent and ent.latitud is not none %}
           <a href="https://www.google.com/maps?q={{ ent.latitud }},{{ ent.longitud }}" target="_blank">
@@ -43,11 +44,20 @@
           <span class="muted">sin ubicación</span>
           {% endif %}
         </td>
+        <td>
+          {% if sal and sal.latitud is not none %}
+          <a href="https://www.google.com/maps?q={{ sal.latitud }},{{ sal.longitud }}" target="_blank">
+            {{ sal.sede_geocerca_nombre or "ver mapa" }}{% if sal.distancia_metros is not none %} ({{ sal.distancia_metros|round|int }} m){% endif %}
+          </a>
+          {% if sal.fuera_de_zona %}<br><span class="badge cancelado" style="margin-top:2px;">fuera de zona</span>{% endif %}
+          {% else %}
+          <span class="muted">sin ubicación</span>
+          {% endif %}
+        </td>
         <td class="muted">{{ (ent.registrado_por if ent else (sal.registrado_por if sal else None)) or '—' }}</td>
-        <td class="muted">{{ (ent.nota if ent and ent.nota else (sal.nota if sal else None)) or '—' }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="muted">Sin marcaciones ese día.</td></tr>
+      <tr><td colspan="7" class="muted">Sin marcaciones ese día.</td></tr>
       {% endfor %}
     </table>
   </div>

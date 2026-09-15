@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import PedidoPersonal, LeadCandidato, Cargo, TIPOS_DOCUMENTO_POSTULANTE
 from .cv_analysis import extraer_texto_cv, analizar_cv
+from .rrhh import _pedido_recibio_lead
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "cv_postulantes")
@@ -27,7 +28,7 @@ router = APIRouter()
 
 CONTACTO_EMAIL = os.environ.get("TRABAJA_CON_NOSOTROS_EMAIL", "trabajaconnosotros@digetelperu.com")
 EXTENSIONES_CV_VALIDAS = (".pdf", ".doc", ".docx")
-TAMANO_MAXIMO_CV = 8 * 1024 * 1024  # 8 MB
+TAMANO_MAXIMO_CV = 20 * 1024 * 1024  # 20 MB — bug del 15/09: un CV de 19MB daba 413 en nginx (ver client_max_body_size)
 
 
 def _vacantes_abiertas(db: Session):
@@ -85,7 +86,7 @@ async def landing_postular(request: Request, pedido_id: int, nombre_completo: st
     contenido = await cv.read()
     if len(contenido) > TAMANO_MAXIMO_CV:
         return RedirectResponse(
-            f"/trabaja-con-nosotros/{pedido_id}?error=El+archivo+supera+el+tamano+maximo+permitido+(8+MB).",
+            f"/trabaja-con-nosotros/{pedido_id}?error=El+archivo+supera+el+tamano+maximo+permitido+(20+MB).",
             status_code=303,
         )
 
@@ -105,6 +106,9 @@ async def landing_postular(request: Request, pedido_id: int, nombre_completo: st
     db.add(lead)
     db.commit()
     db.refresh(lead)
+
+    _pedido_recibio_lead(pedido)
+    db.commit()
 
     cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first()
     if cargo:

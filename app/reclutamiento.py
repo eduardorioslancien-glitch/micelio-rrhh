@@ -23,7 +23,7 @@ from .models import (
     CLASIFICACIONES_LEAD,
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
-from .rrhh import _ctx, _enviar_correo, _public_base_url, _ensure_documents
+from .rrhh import _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead, _pedido_cubre_vacante
 from .cv_analysis import extraer_texto_cv, analizar_cv
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
@@ -118,9 +118,13 @@ def _generar_codigo_pedido(db: Session) -> str:
 @router.get("/rrhh/reclutamiento/pedidos", response_class=HTMLResponse)
 def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_db),
                   user: User = Depends(require_role("administrador", "opeoka"))):
+    # Punto 2 del pedido (15/09): al entrar sin filtro elegido, se ven solo
+    # los pedidos ABIERTOS (lo que RR.HH. necesita mirar primero). "Todos"
+    # es una opción explícita del selector, no el estado por defecto.
+    f_estado = estado if estado else "abierto"
     query = db.query(PedidoPersonal)
-    if estado:
-        query = query.filter(PedidoPersonal.estado == estado)
+    if f_estado != "todos":
+        query = query.filter(PedidoPersonal.estado == f_estado)
     pedidos = query.order_by(PedidoPersonal.created_at.desc()).all()
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
     cargos = db.query(Cargo).filter(Cargo.activo == True).order_by(Cargo.nombre).all()  # noqa: E712
@@ -144,7 +148,7 @@ def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_d
         cargos=cargos, areas=areas, empleados=empleados, bases=bases,
         compensacion_por_cargo=compensacion_por_cargo, puede_generar=puede_generar,
         cargos_requieren_base=CARGOS_REQUIEREN_BASE,
-        f_estado=estado, active="pedidos",
+        f_estado=f_estado, active="pedidos",
     ))
 
 
@@ -279,9 +283,13 @@ async def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), c
     db.commit()
     db.refresh(lead)
 
-    if lead.cv_path and lead.pedido_id:
-        pedido = db.query(PedidoPersonal).get(lead.pedido_id)
-        cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first() if pedido else None
+    pedido = db.query(PedidoPersonal).get(lead.pedido_id) if lead.pedido_id else None
+    if pedido:
+        _pedido_recibio_lead(pedido)
+        db.commit()
+
+    if lead.cv_path and pedido:
+        cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first()
         if cargo:
             texto_cv = extraer_texto_cv(lead.cv_path, cv.content_type if cv else None)
             estrellas, analisis = analizar_cv(texto_cv, cargo)
@@ -448,11 +456,20 @@ async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = 
     disc_resultado = _calcular_disc(disc_respuestas) if disc_respuestas else (lead.entrevista_data or {}).get("disc")
 
     entrevista_data = dict(lead.entrevista_data or {})
+    historial = list(entrevista_data.get("historial") or [])
+    # Punto 5 del pedido (15/09): si ya había una entrevista guardada antes,
+    # se archiva tal cual (competencias, DISC, conclusión, quién y cuándo)
+    # en el historial antes de sobrescribirla, para poder comparar qué
+    # cambió en una re-evaluación.
+    if entrevista_data.get("fecha"):
+        historial.append({k: v for k, v in entrevista_data.items() if k != "historial"})
+
     entrevista_data["competencias"] = competencias or entrevista_data.get("competencias")
     entrevista_data["disc"] = disc_resultado
     entrevista_data["conclusion"] = form.get("conclusion") or entrevista_data.get("conclusion")
     entrevista_data["entrevistador"] = user.nombre_completo
     entrevista_data["fecha"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    entrevista_data["historial"] = historial
     lead.entrevista_data = entrevista_data
     if form.get("clasificacion"):
         lead.clasificacion = form.get("clasificacion")
@@ -527,8 +544,6 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
 # armado (Eduardo lo confirma y lo manda él mismo) — MICELIO no tiene hoy
 # ninguna integración de WhatsApp Business API para mandarlo solo.
 # ---------------------------------------------------------------------------
-CLASIFICACIONES_ELEGIBLES = ["EXCELENTE", "MUY BUENO", "BUENO"]
-
 
 def _celular_completo(ficha: dict, campo: str = "celular") -> str:
     """Código de país + número, todo junto y solo dígitos (formato que
@@ -541,10 +556,18 @@ def _celular_completo(ficha: dict, campo: str = "celular") -> str:
 @router.get("/rrhh/reclutamiento/seleccion", response_class=HTMLResponse)
 def seleccion_list(request: Request, db: Session = Depends(get_db),
                     user: User = Depends(require_role("administrador"))):
+    # Punto 7 del pedido (15/09): antes solo entraban acá los que ya tenían
+    # clasificacion_entrevista en EXCELENTE/MUY BUENO/BUENO — pero esa
+    # clasificación no siempre queda cargada al momento de aprobar el lead
+    # (se llena en la Entrevista por Competencias, un paso previo y
+    # opcional). El criterio correcto es: toda persona que llegó acá por el
+    # pipeline de reclutamiento (tiene codigo_pedido_seleccion) y todavía no
+    # fue aprobada en Selección — la clasificación, si existe, se sigue
+    # mostrando en el detalle para priorizar a quién ver primero.
     candidatos = [
         e for e in db.query(Employee).filter(Employee.estado == "activo")
         .order_by(Employee.nombre_completo).all()
-        if (e.ficha_data or {}).get("clasificacion_entrevista") in CLASIFICACIONES_ELEGIBLES
+        if (e.ficha_data or {}).get("codigo_pedido_seleccion")
         and not (e.ficha_data or {}).get("seleccion_aprobado")
     ]
     return templates.TemplateResponse(request, "rrhh_seleccion.html", _ctx(
@@ -631,6 +654,15 @@ def seleccion_aprobar(employee_id: int, db: Session = Depends(get_db),
     f["seleccion_aprobado"] = True
     emp.ficha_data = f
     db.commit()
+
+    # Punto 1 del pedido (15/09): aprobar en Selección resta una vacante del
+    # pedido de origen; si llega a cero, el pedido pasa a CUBIERTO solo.
+    if f.get("codigo_pedido_seleccion"):
+        pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
+        if pedido:
+            _pedido_cubre_vacante(pedido)
+            db.commit()
+
     return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}", status_code=303)
 
 

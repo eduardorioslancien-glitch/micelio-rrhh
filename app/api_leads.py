@@ -20,6 +20,7 @@ from .database import get_db
 from .models import Cargo, LeadCandidato, PedidoPersonal
 from .cv_analysis import analizar_cv, extraer_texto_cv
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
+from .rrhh import _pedido_recibio_lead
 
 router = APIRouter()
 
@@ -94,7 +95,7 @@ async def api_crear_lead(
             raise HTTPException(400, "Formato de CV no válido. Solo se acepta PDF o Word (.pdf, .doc, .docx).")
         contenido = await cv.read()
         if len(contenido) > TAMANO_MAXIMO_CV:
-            raise HTTPException(400, "El CV supera el tamaño máximo permitido (8 MB).")
+            raise HTTPException(400, "El CV supera el tamaño máximo permitido (20 MB).")
         nombre_seguro = f"{uuid.uuid4().hex[:10]}_{nombre_archivo}"
         ruta = os.path.join(CV_DIR, nombre_seguro)
         with open(ruta, "wb") as f:
@@ -105,6 +106,9 @@ async def api_crear_lead(
     db.add(lead)
     db.commit()
     db.refresh(lead)
+
+    _pedido_recibio_lead(pedido)
+    db.commit()
 
     resultado = {
         "id": lead.id, "nombre_completo": lead.nombre_completo,

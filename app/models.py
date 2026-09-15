@@ -148,7 +148,7 @@ ETAPAS_LEAD = [
 ]
 ETAPA_LEAD_KEYS = [e[0] for e in ETAPAS_LEAD]
 ORIGENES_LEAD = [
-    "Trabaja con Nosotros", "Correo (trabajaconnosotros@digetelperu.com)",
+    "Trabaja con Nosotros", "Correo (trabajaconnosotros@digetelperu.com)", "WhatsApp",
     "LinkedIn", "Referido", "Bolsa de Trabajo", "Feria Laboral", "Otro",
 ]
 TIPOS_DOCUMENTO_POSTULANTE = ["DNI", "CE", "Pasaporte"]
@@ -307,6 +307,7 @@ class Catalogo(Base):
     tipo = Column(String(20), nullable=False)  # uno de CATALOGO_TIPO_KEYS
     nombre = Column(String(150), nullable=False)
     logo_path = Column(String(500), nullable=True)  # PNG del logo (por ahora solo se usa en tipo="area")
+    cuenta_contable = Column(String(50), nullable=True)  # solo se usa en tipo="centro_costo"
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -923,6 +924,38 @@ class SaludoCumpleanos(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)  # a quién se saluda
     autor = Column(String(200), nullable=False)  # nombre de quien saluda
     mensaje = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    employee = relationship("Employee")
+
+
+ESTADOS_SOLICITUD_VACACIONES = [
+    ("pendiente", "Pendiente"),
+    ("aprobada", "Aprobada"),
+    ("rechazada", "Rechazada"),
+]
+
+
+class SolicitudVacaciones(Base):
+    """Punto 2 de Personal (pedido 15/09): que la persona pueda pedir
+    vacaciones desde su propia ficha. Por ahora es solo el pedido y la
+    respuesta de RR.HH. (aprobar/rechazar) — el cálculo de días disponibles,
+    devengo, etc. es parte del módulo de Remuneraciones > Vacaciones,
+    todavía no construido."""
+    __tablename__ = "solicitudes_vacaciones"
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+
+    fecha_inicio = Column(String(20), nullable=False)
+    fecha_fin = Column(String(20), nullable=False)
+    comentario = Column(String(500), nullable=True)  # de quien pide
+
+    estado = Column(String(20), default="pendiente")  # uno de ESTADOS_SOLICITUD_VACACIONES
+    respuesta_admin = Column(String(500), nullable=True)
+    resuelto_por = Column(String(200), nullable=True)
+    resuelto_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     employee = relationship("Employee")

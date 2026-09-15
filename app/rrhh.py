@@ -22,6 +22,7 @@ from .models import (
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion, EsquemaPago,
     Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
     SedeGeocerca, ConsentimientoAsistencia, BaseOperativa, ManAcademyAcceso, ManAcademyCatalogItem,
+    SolicitudVacaciones, ESTADOS_SOLICITUD_VACACIONES,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -113,6 +114,28 @@ def _enviar_correo(destinatarios: list, asunto: str, cuerpo: str, cc: list = Non
     return True
 
 
+def _pedido_recibio_lead(pedido) -> None:
+    """Punto 1 del pedido de Reclutamiento (15/09): si un Pedido de Personal
+    está recién ABIERTO y le llega un lead (de cualquier canal: manual,
+    Trabaja con Nosotros, o la API externa/n8n), pasa automáticamente a EN
+    PROCESO. Vive acá (no en reclutamiento.py) para que public_landing.py
+    también lo pueda usar sin crear un import circular. CANCELADO sigue
+    siendo siempre manual — nunca se pisa acá."""
+    if pedido and pedido.estado == "abierto":
+        pedido.estado = "en_proceso"
+
+
+def _pedido_cubre_vacante(pedido) -> None:
+    """Al aprobar a alguien en Selección se resta una vacante del pedido;
+    si llega a cero pasa automáticamente a CUBIERTO."""
+    if not pedido:
+        return
+    pedido.cantidad = max((pedido.cantidad or 0) - 1, 0)
+    if pedido.cantidad == 0 and pedido.estado not in ("cubierto", "cancelado"):
+        pedido.estado = "cubierto"
+        pedido.cerrado_at = datetime.datetime.utcnow()
+
+
 def _documento_duplicado(db: Session, tipo_documento: str, numero_documento: str, excluir_employee_id: int = None) -> bool:
     """Punto 2 del pedido: no puede haber dos trabajadores con el mismo tipo
     y número de documento de identidad. Compara contra todos los demás
@@ -135,6 +158,20 @@ def _documento_duplicado(db: Session, tipo_documento: str, numero_documento: str
 # no inventar una URL — definir MAN_ACADEMY_URL como variable de entorno
 # cuando se sepa el dominio final.
 MAN_ACADEMY_URL = os.environ.get("MAN_ACADEMY_URL", "")
+
+# Remuneraciones (punto 2 del pedido 15/09): por ahora solo la estructura del
+# menú con páginas "Próximamente" — cada uno de estos módulos necesita reglas
+# de cálculo reales (planilla, CTS, gratificaciones, etc.) que todavía no
+# están definidas, así que no se inventa lógica de negocio acá.
+REMUNERACIONES_MODULOS = {
+    "planilla": "Planilla",
+    "rhe": "RHE — Locador de Servicios",
+    "ape": "APE",
+    "vacaciones": "Vacaciones",
+    "gratificaciones": "Gratificaciones",
+    "cts": "CTS",
+    "liquidaciones": "Liquidaciones",
+}
 
 
 def _ctx(request: Request, user, **extra):
@@ -251,9 +288,15 @@ def agregar_saludo_cumpleanos(employee_id: int, mensaje: str = Form(...),
 def _con_error(url: str, mensaje: str) -> str:
     """Agrega un mensaje de error a una URL de redirección, para que la
     página de listado lo muestre en vez de tirar un error crudo (por ejemplo,
-    al intentar eliminar algo que todavía está en uso)."""
+    al intentar eliminar algo que todavía está en uso). Bug del 15/09: si
+    `url` ya traía un query string propio (p.ej. "...?empresa_id=3"), usar
+    "?" de nuevo generaba "...?empresa_id=3?error=..." — un solo query
+    string inválido que el endpoint de destino no podía parsear
+    (`int("3?error=...")` reventaba con Internal Server Error). Se usa "&"
+    cuando ya hay un "?" en la URL."""
     from urllib.parse import quote
-    return f"{url}?error={quote(mensaje)}"
+    separador = "&" if "?" in url else "?"
+    return f"{url}{separador}error={quote(mensaje)}"
 
 
 def _empresa_tiene_activos(db: Session, empresa_id: int) -> bool:
@@ -797,21 +840,25 @@ def catalogo_list(request: Request, tipo: str, error: str = "", db: Session = De
 
 
 @router.post("/rrhh/parametrizacion/catalogo")
-def crear_item_catalogo(tipo: str = Form(...), nombre: str = Form(...),
+def crear_item_catalogo(tipo: str = Form(...), nombre: str = Form(...), cuenta_contable: str = Form(""),
                          db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     if tipo not in CATALOGO_TIPO_KEYS:
         raise HTTPException(400, "Tipo de catálogo inválido.")
-    db.add(Catalogo(tipo=tipo, nombre=nombre.strip()))
+    db.add(Catalogo(tipo=tipo, nombre=nombre.strip(),
+                     cuenta_contable=(cuenta_contable.strip() or None) if tipo == "centro_costo" else None))
     db.commit()
     return RedirectResponse(f"/rrhh/parametrizacion/catalogo/{tipo}", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/catalogo/{item_id}/editar")
-def editar_item_catalogo(item_id: int, nombre: str = Form(...), db: Session = Depends(get_db),
+def editar_item_catalogo(item_id: int, nombre: str = Form(...), cuenta_contable: str = Form(""),
+                          db: Session = Depends(get_db),
                           user: User = Depends(require_role("administrador"))):
     item = db.query(Catalogo).get(item_id)
     if item:
         item.nombre = nombre.strip()
+        if item.tipo == "centro_costo":
+            item.cuenta_contable = cuenta_contable.strip() or None
         db.commit()
         return RedirectResponse(f"/rrhh/parametrizacion/catalogo/{item.tipo}", status_code=303)
     return RedirectResponse("/rrhh/parametrizacion", status_code=303)
@@ -1232,13 +1279,14 @@ def esquema_pago_guardar(cargo_id: int, sueldo_base: str = Form(""), comision_va
 # Usuarios del sistema (solo administrador)
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/usuarios", response_class=HTMLResponse)
-def usuarios_list(request: Request, db: Session = Depends(get_db),
+def usuarios_list(request: Request, error: str = "", db: Session = Depends(get_db),
                    user: User = Depends(require_role("administrador"))):
     usuarios = db.query(User).order_by(User.username).all()
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
     empleados = db.query(Employee).order_by(Employee.nombre_completo).all()
     return templates.TemplateResponse(request, "rrhh_usuarios.html", _ctx(
-        request, user, usuarios=usuarios, empresas=empresas, roles=ROLES, empleados=empleados, active="usuarios",
+        request, user, usuarios=usuarios, empresas=empresas, roles=ROLES, empleados=empleados,
+        error=error, active="usuarios",
     ))
 
 
@@ -1278,6 +1326,50 @@ def reset_password(user_id: int, nueva_password: str = Form(...), db: Session = 
     return RedirectResponse("/rrhh/usuarios", status_code=303)
 
 
+@router.post("/rrhh/usuarios/{user_id}/editar")
+def editar_usuario(user_id: int, rol: str = Form(...), empresa_id: str = Form(""), employee_id: str = Form(""),
+                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+    """Punto 1 de Parámetros (pedido 15/09): poder modificar el nivel de
+    acceso de un usuario y a qué persona de Personal está vinculado, sin
+    tener que borrarlo y volver a crearlo."""
+    u = db.query(User).get(user_id)
+    if not u:
+        return RedirectResponse("/rrhh/usuarios", status_code=303)
+    nuevo_employee_id = int(employee_id) if employee_id else None
+    if nuevo_employee_id:
+        otro = db.query(User).filter(User.employee_id == nuevo_employee_id, User.id != user_id).first()
+        if otro:
+            return RedirectResponse(_con_error("/rrhh/usuarios",
+                f"Ese trabajador ya está vinculado al usuario \"{otro.username}\"."), status_code=303)
+    u.rol = rol
+    u.empresa_id = int(empresa_id) if empresa_id else None
+    u.employee_id = nuevo_employee_id
+    db.commit()
+    return RedirectResponse("/rrhh/usuarios", status_code=303)
+
+
+@router.post("/rrhh/usuarios/{user_id}/eliminar")
+def eliminar_usuario(user_id: int, db: Session = Depends(get_db),
+                      user: User = Depends(require_role("administrador"))):
+    """Eliminación definitiva (no solo desactivar) — para limpiar usuarios
+    duplicados o de prueba. No se puede borrar la propia cuenta, ni dejar el
+    sistema sin ningún administrador activo."""
+    u = db.query(User).get(user_id)
+    if not u:
+        return RedirectResponse("/rrhh/usuarios", status_code=303)
+    if u.id == user.id:
+        return RedirectResponse(_con_error("/rrhh/usuarios", "No puedes eliminar tu propia cuenta."), status_code=303)
+    if u.rol == "administrador":
+        otros_admins = db.query(User).filter(
+            User.rol == "administrador", User.activo == True, User.id != u.id).count()  # noqa: E712
+        if otros_admins == 0:
+            return RedirectResponse(_con_error("/rrhh/usuarios",
+                "No puedes eliminar el último administrador activo."), status_code=303)
+    db.delete(u)
+    db.commit()
+    return RedirectResponse("/rrhh/usuarios", status_code=303)
+
+
 @router.get("/rrhh/mi-cuenta", response_class=HTMLResponse)
 def mi_cuenta(request: Request, forzado: str = "", user: User = Depends(require_login)):
     return templates.TemplateResponse(request, "rrhh_mi_cuenta.html", _ctx(
@@ -1300,6 +1392,17 @@ def cambiar_mi_password(request: Request, actual: str = Form(...), nueva: str = 
     # Punto 1 del pedido: después de cambiar la contraseña, va a la pantalla
     # de entrada (menú + imagen de MICELIO), no se queda en Mi cuenta.
     return RedirectResponse("/rrhh", status_code=303)
+
+
+@router.get("/rrhh/remuneraciones/{modulo}", response_class=HTMLResponse)
+def remuneraciones_proximamente(request: Request, modulo: str, db: Session = Depends(get_db),
+                                 user: User = Depends(require_role("administrador"))):
+    titulo = REMUNERACIONES_MODULOS.get(modulo)
+    if not titulo:
+        raise HTTPException(404)
+    return templates.TemplateResponse(request, "rrhh_proximamente.html", _ctx(
+        request, user, titulo=titulo, active="remuneraciones",
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -1439,8 +1542,47 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         faltan_datos=faltan_datos, renovaciones=emp.renovaciones_contrato,
         organigrama=_organigrama_de(db, emp), doc_type_labels=dict(DOC_TYPES),
         man_academy_catalogo=man_academy_catalogo, man_academy_otorgados=man_academy_otorgados,
+        solicitudes_vacaciones=db.query(SolicitudVacaciones).filter(
+            SolicitudVacaciones.employee_id == employee_id).order_by(SolicitudVacaciones.created_at.desc()).all(),
+        estados_vacaciones=dict(ESTADOS_SOLICITUD_VACACIONES),
         active="personal",
     ))
+
+
+@router.post("/rrhh/personal/{employee_id}/vacaciones/solicitar")
+def solicitar_vacaciones(employee_id: int, fecha_inicio: str = Form(...), fecha_fin: str = Form(...),
+                          comentario: str = Form(""), db: Session = Depends(get_db),
+                          user: User = Depends(require_login)):
+    """Punto 2 de Personal (pedido 15/09): botón en la propia ficha para
+    pedir vacaciones. Cualquiera puede pedir en su propia ficha; un
+    administrador puede además registrar el pedido a nombre de alguien
+    desde la ficha de esa persona."""
+    _check_own_or_staff(user, employee_id)
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    db.add(SolicitudVacaciones(
+        employee_id=employee_id, fecha_inicio=fecha_inicio.strip(), fecha_fin=fecha_fin.strip(),
+        comentario=comentario.strip() or None,
+    ))
+    db.commit()
+    return RedirectResponse(f"/rrhh/personal/{employee_id}#vacaciones", status_code=303)
+
+
+@router.post("/rrhh/personal/{employee_id}/vacaciones/{solicitud_id}/resolver")
+def resolver_vacaciones(employee_id: int, solicitud_id: int, estado: str = Form(...),
+                         respuesta_admin: str = Form(""), db: Session = Depends(get_db),
+                         user: User = Depends(require_role("administrador"))):
+    if estado not in ("aprobada", "rechazada"):
+        raise HTTPException(400, "Estado inválido.")
+    s = db.query(SolicitudVacaciones).get(solicitud_id)
+    if s and s.employee_id == employee_id:
+        s.estado = estado
+        s.respuesta_admin = respuesta_admin.strip() or None
+        s.resuelto_por = user.nombre_completo
+        s.resuelto_at = datetime.datetime.utcnow()
+        db.commit()
+    return RedirectResponse(f"/rrhh/personal/{employee_id}#vacaciones", status_code=303)
 
 
 @router.post("/rrhh/personal/{employee_id}/renovar-contrato")
@@ -1955,6 +2097,13 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
         elif r.tipo == "salida":
             d["salida"] = r
     filas_asistencia = sorted(por_empleado.values(), key=lambda x: x["employee"].nombre_completo)
+    # Punto de Eduardo (15/09): horas trabajadas = salida - entrada del día.
+    for fila in filas_asistencia:
+        fila["horas"] = None
+        if fila["entrada"] and fila["salida"] and fila["salida"].timestamp > fila["entrada"].timestamp:
+            segundos = (fila["salida"].timestamp - fila["entrada"].timestamp).total_seconds()
+            horas, minutos = divmod(int(segundos // 60), 60)
+            fila["horas"] = f"{horas}h {minutos:02d}m"
 
     empleados_activos = db.query(Employee).filter(Employee.estado == "activo")
     if empresa_id:

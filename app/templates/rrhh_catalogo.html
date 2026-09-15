@@ -13,7 +13,7 @@
   <div class="card">
     <h2>{{ label }}s</h2>
     <table>
-      <tr>{% if tipo == 'area' %}<th>Logo</th>{% endif %}<th>Nombre</th><th>Estado</th><th></th></tr>
+      <tr>{% if tipo == 'area' %}<th>Logo</th>{% endif %}<th>Nombre</th>{% if tipo == 'centro_costo' %}<th>Cuenta contable</th>{% endif %}<th>Estado</th><th></th></tr>
       {% for item in items %}
       <tr>
         {% if tipo == 'area' %}
@@ -23,14 +23,18 @@
         </td>
         {% endif %}
         <td><strong>{{ item.nombre }}</strong></td>
+        {% if tipo == 'centro_costo' %}<td class="muted">{{ item.cuenta_contable or "—" }}</td>{% endif %}
         <td><span class="badge {{ 'firmado' if item.activo else 'pendiente' }}">{{ 'activo' if item.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
           <details>
             <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
             <div class="edit-popover">
               <div class="edit-popover-section">Nombre</div>
-              <form method="post" action="/rrhh/parametrizacion/catalogo/{{ item.id }}/editar" style="display:flex; gap:8px;">
+              <form method="post" action="/rrhh/parametrizacion/catalogo/{{ item.id }}/editar" style="display:flex; flex-direction:column; gap:8px;">
                 <input type="text" name="nombre" value="{{ item.nombre }}" required>
+                {% if tipo == 'centro_costo' %}
+                <input type="text" name="cuenta_contable" value="{{ item.cuenta_contable or '' }}" placeholder="Número de cuenta contable">
+                {% endif %}
                 <button class="btn small" type="submit">Guardar</button>
               </form>
               {% if tipo == 'area' %}
@@ -56,7 +60,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="{{ 4 if tipo == 'area' else 3 }}" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
+      <tr><td colspan="{{ 4 if tipo in ('area', 'centro_costo') else 3 }}" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
       {% endfor %}
     </table>
 
@@ -64,6 +68,9 @@
     <form method="post" action="/rrhh/parametrizacion/catalogo" class="inline-form">
       <input type="hidden" name="tipo" value="{{ tipo }}">
       <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
+      {% if tipo == 'centro_costo' %}
+      <div class="field"><label>Cuenta contable</label><input type="text" name="cuenta_contable" placeholder="Número de cuenta"></div>
+      {% endif %}
       <button class="btn" type="submit">Agregar</button>
     </form>
   </div>
