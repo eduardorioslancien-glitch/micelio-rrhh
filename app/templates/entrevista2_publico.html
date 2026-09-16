@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Segunda entrevista — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=15">
+</head>
+<body>
+<div class="login-wrap" style="max-width:640px;">
+  <div class="logo-row"><img src="/static/dg_logo.png" alt="DG"></div>
+  <div class="card">
+    <h2 style="text-align:center;">Segunda entrevista</h2>
+    <p class="muted" style="text-align:center; margin-top:-8px;">{{ ficha.get('vacante_cargo', '') }}</p>
+
+    <table style="margin-top:14px;">
+      <tr><td style="width:180px;"><strong>Candidato/a</strong></td><td>{{ e.nombre_completo }}</td></tr>
+      <tr><td><strong>Correo</strong></td><td>{{ e.email or '—' }}</td></tr>
+      <tr><td><strong>Clasificación (1.ª entrevista)</strong></td><td>{{ ficha.get('clasificacion_entrevista', '—') }}</td></tr>
+    </table>
+
+    {% if ficha.get('disc_resultado') %}
+    <div class="section-title" style="margin-top:16px;">Evaluación DISC</div>
+    <div class="kpi-grid">
+      {% for dim, label in disc_dimensiones.items() %}
+      <div class="kpi-card">
+        <div class="kpi-value">{{ ficha.disc_resultado.get(dim, 0) }}%</div>
+        <div class="kpi-label">{{ label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="muted" style="margin-top:6px;">Perfil dominante: {{ disc_dimensiones.get(ficha.disc_resultado.get('perfil_dominante'), '—') }}</p>
+    {% endif %}
+
+    {% if ficha.get('competencias_entrevista') %}
+    <div class="section-title" style="margin-top:16px;">Entrevista por Competencias</div>
+    <table>
+      <tr><th>Competencia</th><th>Requerido</th><th>Observado</th><th>Notas</th></tr>
+      {% for c in ficha.competencias_entrevista %}
+      <tr>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.nivel_requerido }}/4</td>
+        <td>{{ c.nivel_observado }}/4</td>
+        <td class="muted">{{ c.notas or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    {% set v = ficha.get('segunda_entrevista_veredicto') %}
+    {% if ok or v %}
+    <div class="alert-ok" style="text-align:center; margin-top:18px;">
+      Gracias — tu veredicto (<strong>{{ v|upper }}</strong>) quedó registrado el {{ ficha.get('segunda_entrevista_veredicto_at', '') }}.
+      {% if ficha.get('segunda_entrevista_comentario') %}<br><span class="muted">"{{ ficha.get('segunda_entrevista_comentario') }}"</span>{% endif %}
+    </div>
+    <p class="muted" style="text-align:center; margin-top:10px;">Si necesitas corregirlo, vuelve a llenar el formulario de abajo — se reemplaza el anterior.</p>
+    {% endif %}
+
+    <div class="section-title" style="margin-top:16px;">Tu evaluación</div>
+    <form method="post" action="/entrevista2/{{ token }}">
+      <div class="field">
+        <label>¿Cómo calificas a este candidato/a después de la segunda entrevista?</label>
+        <select name="veredicto" required>
+          <option value="">Seleccionar…</option>
+          <option value="aprobado" {{ 'selected' if v == 'aprobado' else '' }}>APROBADO</option>
+          <option value="descartado" {{ 'selected' if v == 'descartado' else '' }}>DESCARTADO</option>
+          <option value="revisar" {{ 'selected' if v == 'revisar' else '' }}>REVISAR (necesito más tiempo)</option>
+        </select>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Comentario — cuéntanos por qué</label>
+        <textarea name="comentario" rows="4">{{ ficha.get('segunda_entrevista_comentario', '') }}</textarea>
+      </div>
+      <button class="btn" type="submit" style="width:100%; margin-top:14px;">Registrar evaluación</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

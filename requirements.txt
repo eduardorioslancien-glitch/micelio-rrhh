@@ -12,3 +12,5 @@ a2wsgi>=1.10      # adapta la app ASGI (FastAPI) a WSGI para Passenger (cPanel S
 requests>=2.31   # solo lo usa test_e2e.py (prueba automatizada), no el servidor
 anthropic>=0.40   # califica CVs de "Trabaja con Nosotros" contra el cargo (necesita ANTHROPIC_API_KEY)
 python-docx>=1.1   # extrae texto de CVs en Word (.docx) para el análisis anterior
+google-api-python-client>=2.100   # agenda en Calendar y genera el Meet real al "Coordinar Meet"
+google-auth>=2.23                 # autenticación de la Cuenta de Servicio (Domain-Wide Delegation)

@@ -10,22 +10,29 @@
 
   <div class="card">
     <h2>Selección — Candidatos elegibles</h2>
-    <p class="muted">Candidatos aprobados desde Gestión de Leads (clasificación Excelente, Muy Bueno o Bueno) a la
-      espera de la segunda entrevista con el área a la que postulan y su aprobación final.</p>
+    <p class="muted">Candidatos aprobados desde Gestión de Leads, a la espera de la segunda entrevista con el área
+      a la que postulan y la confirmación final de RR.HH.</p>
     <table>
-      <tr><th>Nombre</th><th>Vacante</th><th>Empresa</th><th>Clasificación</th><th>Segunda entrevista</th><th></th></tr>
+      <tr><th>Nombre</th><th>Vacante</th><th>Empresa</th><th>Clasificación</th><th>Segunda entrevista</th><th>Veredicto</th><th></th></tr>
       {% for c in candidatos %}
       {% set f = c.ficha_data or {} %}
+      {% set v = f.get('segunda_entrevista_veredicto') %}
       <tr>
         <td><strong>{{ c.nombre_completo }}</strong></td>
         <td>{{ f.get('vacante_cargo', '—') }}</td>
         <td>{{ c.empresa_rel.nombre if c.empresa_rel else (c.empresa or "—") }}</td>
         <td><span class="badge {{ 'firmado' if f.get('clasificacion_entrevista') in ('EXCELENTE','MUY BUENO') else 'pendiente' }}">{{ f.get('clasificacion_entrevista', '—') }}</span></td>
         <td class="muted">{{ f.get('segunda_entrevista_entrevistador_nombre') or 'Sin asignar' }}</td>
+        <td>
+          {% if v == 'aprobado' %}<span class="badge firmado">Aprobado — falta confirmar</span>
+          {% elif v == 'descartado' %}<span class="badge cancelado">Descartado — falta confirmar</span>
+          {% elif v == 'revisar' %}<span class="badge pendiente">En revisión</span>
+          {% else %}<span class="muted">Esperando evaluación</span>{% endif %}
+        </td>
         <td><a class="btn small" href="/rrhh/reclutamiento/seleccion/{{ c.id }}">Ver</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="muted">No hay candidatos elegibles esperando segunda entrevista en este momento.</td></tr>
+      <tr><td colspan="7" class="muted">No hay candidatos elegibles esperando segunda entrevista en este momento.</td></tr>
       {% endfor %}
     </table>
   </div>

@@ -373,24 +373,52 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
     disc_resultado = None
     if lead.entrevista_data and lead.entrevista_data.get("disc"):
         disc_resultado = lead.entrevista_data["disc"]
+    disc_respuestas_guardadas = (lead.entrevista_data or {}).get("disc_respuestas") or {}
+    entrevistadores = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
     return templates.TemplateResponse(request, "rrhh_lead_detalle.html", _ctx(
         request, user, lead=lead, cargo=cargo, disc_preguntas=DISC_PREGUNTAS,
         disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado,
+        disc_respuestas_guardadas=disc_respuestas_guardadas, entrevistadores=entrevistadores,
         clasificaciones=CLASIFICACIONES_LEAD, active="leads",
     ))
 
 
 def _correo_coordinar_meet(lead: LeadCandidato) -> bool:
-    meet_link = "https://meet.google.com/new"
-    cuerpo = (
-        f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
-        "Gracias por tu interés en postular a DIGETEL GROUP. Nos gustaría coordinar una "
-        "breve entrevista por videollamada.\n\n"
-        f"Aquí tienes un enlace de Google Meet para la reunión: {meet_link}\n\n"
-        "Por favor respóndenos a este correo proponiendo 2-3 horarios en los que puedas "
-        "conectarte en los próximos días y te confirmamos el que mejor calce.\n\n"
-        "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
+    # Punto del pedido (16/09): si Google Calendar está configurado (ver
+    # app/google_calendar.py), agenda de verdad en un horario libre del
+    # calendario de la persona configurada en GOOGLE_CALENDAR_IMPERSONATE y
+    # usa el link de Meet real de esa reunión. Si no está configurado (o
+    # algo falla), cae de vuelta al link genérico de antes — nunca bloquea
+    # el envío del correo.
+    from . import google_calendar
+    reunion = google_calendar.agendar_reunion(
+        titulo=f"Entrevista — {lead.nombre_completo}",
+        descripcion=f"Entrevista de selección con {lead.nombre_completo} ({lead.email or 'sin correo'}).",
+        invitado_email=lead.email,
     )
+    if reunion:
+        cuerpo = (
+            f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
+            "Gracias por tu interés en postular a DIGETEL GROUP. Te hemos agendado una breve "
+            "entrevista por videollamada:\n\n"
+            f"Fecha: {reunion['fecha_texto']}\n"
+            f"Hora: {reunion['hora_texto']}\n"
+            f"Enlace de Google Meet: {reunion['meet_link']}\n\n"
+            "Si ese horario no te funciona, respóndenos a este correo proponiendo 2-3 horarios "
+            "alternativos y te confirmamos el que mejor calce.\n\n"
+            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
+        )
+    else:
+        meet_link = "https://meet.google.com/new"
+        cuerpo = (
+            f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
+            "Gracias por tu interés en postular a DIGETEL GROUP. Nos gustaría coordinar una "
+            "breve entrevista por videollamada.\n\n"
+            f"Aquí tienes un enlace de Google Meet para la reunión: {meet_link}\n\n"
+            "Por favor respóndenos a este correo proponiendo 2-3 horarios en los que puedas "
+            "conectarte en los próximos días y te confirmamos el que mejor calce.\n\n"
+            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
+        )
     return _enviar_correo([lead.email], "Coordinemos tu entrevista — DIGETEL GROUP", cuerpo)
 
 
@@ -470,6 +498,12 @@ async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = 
 
     entrevista_data["competencias"] = competencias or entrevista_data.get("competencias")
     entrevista_data["disc"] = disc_resultado
+    # Punto del pedido (16/09): que las respuestas del DISC no se pierdan al
+    # volver a entrar — antes solo se guardaba el resultado calculado
+    # (porcentajes), nunca las respuestas 1-5 de cada afirmación, así que el
+    # formulario siempre se veía vacío al recargar aunque ya estuviera
+    # guardado.
+    entrevista_data["disc_respuestas"] = disc_respuestas or entrevista_data.get("disc_respuestas")
     entrevista_data["conclusion"] = form.get("conclusion") or entrevista_data.get("conclusion")
     entrevista_data["entrevistador"] = user.nombre_completo
     # Hora de Lima (UTC-5), no la del servidor (UTC) — mismo bug corregido
@@ -485,11 +519,107 @@ async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = 
     return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}", status_code=303)
 
 
+def _competencias_resueltas(lead: LeadCandidato, db: Session):
+    """Convierte entrevista_data['competencias'] (guardado por id de
+    competencia, {id: {nivel_observado, notas}}) en una lista con nombres y
+    nivel requerido, para poder mostrarla/mandarla una vez que el Lead ya no
+    existe como tal (pasó a ser un Employee en Selección)."""
+    comp_data = (lead.entrevista_data or {}).get("competencias") or {}
+    if not comp_data or not lead.pedido or not lead.pedido.cargo_solicitado:
+        return []
+    cargo_obj = db.query(Cargo).filter(Cargo.nombre == lead.pedido.cargo_solicitado).first()
+    if not cargo_obj:
+        return []
+    resultado = []
+    for req in cargo_obj.requisitos_competencias:
+        info = comp_data.get(str(req.competencia_id)) or {}
+        if info.get("nivel_observado"):
+            resultado.append({
+                "nombre": req.competencia.nombre if req.competencia else "—",
+                "nivel_requerido": req.nivel_requerido,
+                "nivel_observado": info.get("nivel_observado"),
+                "notas": info.get("notas"),
+            })
+    return resultado
+
+
+def _employee_por_segunda_entrevista_token(db: Session, token: str):
+    for e in db.query(Employee).filter(Employee.estado == "activo").all():
+        if (e.ficha_data or {}).get("segunda_entrevista_token") == token:
+            return e
+    return None
+
+
+def _notificar_entrevistador(emp: Employee, entrevistador: Employee):
+    """Punto del pedido (16/09): al elegir a quién le toca la segunda
+    entrevista, se le avisa por correo y (link de) WhatsApp — con los datos
+    del candidato, DISC y competencias — y el enlace para que registre su
+    propio veredicto (APROBADO/DESCARTADO/REVISAR) una vez la haga, sin
+    necesitar usuario ni clave en MICELIO. Devuelve (correo_enviado, wa_link)."""
+    f = emp.ficha_data or {}
+    ef = entrevistador.ficha_data or {}
+    correo = ef.get("correo_corporativo") or entrevistador.email or ef.get("correo_personal")
+    enlace = _public_base_url() + f"entrevista2/{f.get('segunda_entrevista_token')}"
+
+    disc = f.get("disc_resultado") or {}
+    disc_txt = ""
+    if disc:
+        disc_txt = (
+            f"D: {disc.get('D', 0)}%  I: {disc.get('I', 0)}%  S: {disc.get('S', 0)}%  C: {disc.get('C', 0)}%\n"
+            f"Perfil dominante: {DISC_DIMENSIONES.get(disc.get('perfil_dominante'), '—')}"
+        )
+    comp_txt = ""
+    comp_list = f.get("competencias_entrevista") or []
+    if comp_list:
+        comp_txt = "\n".join(
+            f"- {c['nombre']}: nivel {c.get('nivel_observado', '—')}/4 (requerido {c.get('nivel_requerido', '—')}/4)"
+            + (f" — {c['notas']}" if c.get("notas") else "")
+            for c in comp_list
+        )
+
+    enviado = False
+    if correo:
+        cuerpo = (
+            f"Hola {entrevistador.nombre_completo.split()[0]},\n\n"
+            f"Le escribimos de Recursos Humanos de DIGETEL GROUP para informarle que "
+            f"{emp.nombre_completo} ha sido seleccionado/a para continuar el proceso de selección "
+            f"al puesto de {f.get('vacante_cargo') or 'la vacante'}, y usted ha sido designado/a "
+            "para llevar a cabo la segunda entrevista correspondiente a su área.\n\n"
+            "Datos del candidato/a:\n"
+            f"Nombre: {emp.nombre_completo}\nCorreo: {emp.email or '—'}\n\n"
+            + (f"Resultado de la Evaluación DISC:\n{disc_txt}\n\n" if disc_txt else "")
+            + (f"Resultado de la Entrevista por Competencias:\n{comp_txt}\n\n" if comp_txt else "")
+            + f"Clasificación de la primera entrevista: {f.get('clasificacion_entrevista') or '—'}\n\n"
+            "Le pedimos coordinar y realizar la entrevista a la brevedad. Una vez concluida, por "
+            f"favor ingrese al siguiente enlace para registrar su evaluación:\n{enlace}\n\n"
+            "Quedamos atentos a cualquier consulta.\n\nSaludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
+        )
+        enviado = _enviar_correo([correo], f"Segunda entrevista — {emp.nombre_completo}", cuerpo)
+
+    wa_link = None
+    wa_numero = _celular_completo(ef)
+    if wa_numero:
+        texto_wa = (
+            f"Hola {entrevistador.nombre_completo.split()[0]}, le escribimos de Recursos Humanos de "
+            f"DIGETEL GROUP. {emp.nombre_completo} ha sido seleccionado/a para el puesto de "
+            f"{f.get('vacante_cargo') or 'la vacante'} y usted llevará a cabo la segunda entrevista. "
+            f"Le compartimos su correo: {emp.email or 'sin correo'}. Revise su correo institucional "
+            "para ver el detalle completo (DISC y competencias) y el enlace para registrar su "
+            f"evaluación: {enlace}"
+        )
+        wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
+
+    return enviado, wa_link
+
+
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/aprobar")
-def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
+def lead_aprobar(lead_id: int, entrevistador_id: str = Form(""), db: Session = Depends(get_db),
                   user: User = Depends(require_role("administrador"))):
     """Aprobado -> pasa a Selección: crea el legajo (Employee pendiente con
-    token) y le manda al candidato su enlace de autoservicio."""
+    token) y notifica a quien se eligió para la segunda entrevista. El
+    enlace de autoservicio de la ficha ya NO se manda acá al candidato —
+    ver punto del pedido (16/09): solo se manda cuando RR.HH. confirma un
+    veredicto APROBADO en Selección (seleccion_confirmar_aprobado)."""
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
@@ -510,6 +640,16 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
     disc = (lead.entrevista_data or {}).get("disc")
     if disc:
         ficha_inicial["disc_resultado"] = disc
+    competencias_resueltas = _competencias_resueltas(lead, db)
+    if competencias_resueltas:
+        ficha_inicial["competencias_entrevista"] = competencias_resueltas
+
+    entrevistador = db.query(Employee).get(int(entrevistador_id)) if entrevistador_id else None
+    if entrevistador:
+        ficha_inicial["segunda_entrevista_entrevistador_id"] = entrevistador.id
+        ficha_inicial["segunda_entrevista_entrevistador_nombre"] = entrevistador.nombre_completo
+        ficha_inicial["segunda_entrevista_token"] = uuid.uuid4().hex
+
     emp = Employee(
         nombre_completo=lead.nombre_completo.strip(), email=lead.email or None,
         empresa_id=empresa.id if empresa else None, empresa=empresa.nombre if empresa else None,
@@ -522,20 +662,15 @@ def lead_aprobar(lead_id: int, db: Session = Depends(get_db),
     lead.etapa = "oferta"
     db.commit()
 
-    enlace = _public_base_url() + f"f/{emp.token}"
-    enviado = False
-    if lead.email:
-        cuerpo = (
-            f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
-            "¡Buenas noticias! Nos gustaría avanzar contigo en el proceso de selección de "
-            "DIGETEL GROUP.\n\n"
-            f"El siguiente paso es completar tu ficha de datos y documentos aquí:\n{enlace}\n\n"
-            "Cualquier duda que tengas, escríbenos respondiendo este correo.\n\n"
-            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
-        )
-        enviado = _enviar_correo([lead.email], "Siguiente paso en tu proceso — DIGETEL GROUP", cuerpo)
-    mensaje = "correo_enviado" if enviado else "correo_no_configurado"
-    return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok={mensaje}&enlace={emp.token}", status_code=303)
+    destino = f"/rrhh/reclutamiento/leads/{lead_id}"
+    if not entrevistador:
+        return RedirectResponse(f"{destino}?ok=sin_entrevistador", status_code=303)
+
+    enviado, wa_link = _notificar_entrevistador(emp, entrevistador)
+    mensaje = "entrevistador_notificado" if enviado else "entrevistador_no_configurado"
+    if wa_link:
+        return RedirectResponse(f"{destino}?ok={mensaje}&wa={quote(wa_link)}", status_code=303)
+    return RedirectResponse(f"{destino}?ok={mensaje}", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -559,6 +694,11 @@ def _celular_completo(ficha: dict, campo: str = "celular") -> str:
     return f"{codigo}{numero}" if numero else ""
 
 
+def _ya_lleno_ficha(emp: Employee) -> bool:
+    f = emp.ficha_data or {}
+    return bool((f.get("apellido_paterno") or "").strip() and (f.get("nombres") or "").strip())
+
+
 @router.get("/rrhh/reclutamiento/seleccion", response_class=HTMLResponse)
 def seleccion_list(request: Request, db: Session = Depends(get_db),
                     user: User = Depends(require_role("administrador"))):
@@ -568,13 +708,13 @@ def seleccion_list(request: Request, db: Session = Depends(get_db),
     # (se llena en la Entrevista por Competencias, un paso previo y
     # opcional). El criterio correcto es: toda persona que llegó acá por el
     # pipeline de reclutamiento (tiene codigo_pedido_seleccion) y todavía no
-    # fue aprobada en Selección — la clasificación, si existe, se sigue
-    # mostrando en el detalle para priorizar a quién ver primero.
+    # tiene una decisión final confirmada por RR.HH. (aprobado o descartado)
+    # — la clasificación, si existe, se sigue mostrando para priorizar.
     candidatos = [
         e for e in db.query(Employee).filter(Employee.estado == "activo")
         .order_by(Employee.nombre_completo).all()
         if (e.ficha_data or {}).get("codigo_pedido_seleccion")
-        and not (e.ficha_data or {}).get("seleccion_aprobado")
+        and (e.ficha_data or {}).get("seleccion_rrhh_confirmado") not in ("aprobado", "descartado")
     ]
     return templates.TemplateResponse(request, "rrhh_seleccion.html", _ctx(
         request, user, candidatos=candidatos, active="seleccion",
@@ -597,21 +737,10 @@ def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(
     entrevistador_actual = None
     if f.get("segunda_entrevista_entrevistador_id"):
         entrevistador_actual = db.query(Employee).get(f["segunda_entrevista_entrevistador_id"])
-    wa_link = None
-    if entrevistador_actual:
-        wa_numero = _celular_completo(entrevistador_actual.ficha_data or {})
-        if wa_numero:
-            texto = (
-                f"Hola {entrevistador_actual.nombre_completo.split()[0]}, te comparto los datos de "
-                f"{emp.nombre_completo}, candidato/a a {f.get('vacante_cargo') or 'la vacante'} en tu área, "
-                "para coordinar la segunda entrevista. "
-                f"Correo: {emp.email or 'sin correo'}. Cuando tengas tu evaluación, avísame para "
-                "registrarlo en MICELIO."
-            )
-            wa_link = f"https://wa.me/{wa_numero}?text={quote(texto)}"
     return templates.TemplateResponse(request, "rrhh_seleccion_detalle.html", _ctx(
         request, user, e=emp, ficha=f, entrevistadores=entrevistadores,
-        entrevistador_actual=entrevistador_actual, wa_link=wa_link, active="seleccion",
+        entrevistador_actual=entrevistador_actual, ya_lleno_ficha=_ya_lleno_ficha(emp),
+        disc_dimensiones=DISC_DIMENSIONES, active="seleccion",
     ))
 
 
@@ -619,6 +748,10 @@ def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(
 def seleccion_asignar(employee_id: int, entrevistador_id: int = Form(...),
                        db: Session = Depends(get_db),
                        user: User = Depends(require_role("administrador"))):
+    """Asigna (o reasigna) a quién le toca la segunda entrevista — mismo
+    aviso por correo/WhatsApp que al aprobar el lead con un entrevistador
+    elegido (ver _notificar_entrevistador), por si hay que cambiarlo o
+    todavía no se había elegido a nadie."""
     emp = db.query(Employee).get(employee_id)
     entrevistador = db.query(Employee).get(entrevistador_id)
     if not emp or not entrevistador:
@@ -626,38 +759,36 @@ def seleccion_asignar(employee_id: int, entrevistador_id: int = Form(...),
     f = dict(emp.ficha_data or {})
     f["segunda_entrevista_entrevistador_id"] = entrevistador.id
     f["segunda_entrevista_entrevistador_nombre"] = entrevistador.nombre_completo
-    f["seleccion_aprobado"] = False
+    if not f.get("segunda_entrevista_token"):
+        f["segunda_entrevista_token"] = uuid.uuid4().hex
+    # Al reasignar, se limpia el veredicto anterior (si lo hubiera) — es una
+    # entrevista nueva, con otra persona.
+    f["segunda_entrevista_veredicto"] = None
+    f["segunda_entrevista_comentario"] = None
     emp.ficha_data = f
     db.commit()
 
-    ef = entrevistador.ficha_data or {}
-    correo = ef.get("correo_corporativo") or entrevistador.email
-    enviado = False
-    if correo:
-        cuerpo = (
-            f"Hola {entrevistador.nombre_completo.split()[0]},\n\n"
-            f"Te compartimos los datos de {emp.nombre_completo}, candidato/a a "
-            f"{f.get('vacante_cargo') or 'la vacante'} en tu área, para que coordines con él/ella la "
-            "segunda entrevista.\n\n"
-            f"Nombre: {emp.nombre_completo}\nCorreo: {emp.email or '—'}\n"
-            f"Vacante: {f.get('vacante_cargo') or '—'}\n"
-            f"Clasificación de la primera entrevista: {f.get('clasificacion_entrevista') or '—'}\n\n"
-            "Cuando tengas tu evaluación, avísale a RR.HH. para dejarlo registrado en MICELIO.\n\n"
-            "Saludos,\nRecursos Humanos — DIGETEL GROUP"
-        )
-        enviado = _enviar_correo([correo], f"Segunda entrevista — {emp.nombre_completo}", cuerpo)
+    enviado, wa_link = _notificar_entrevistador(emp, entrevistador)
     mensaje = "correo_enviado" if enviado else "correo_no_configurado"
-    return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}", status_code=303)
+    destino = f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}"
+    if wa_link:
+        destino += f"&wa={quote(wa_link)}"
+    return RedirectResponse(destino, status_code=303)
 
 
-@router.post("/rrhh/reclutamiento/seleccion/{employee_id}/aprobar")
-def seleccion_aprobar(employee_id: int, db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+@router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-aprobado")
+def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db),
+                                  user: User = Depends(require_role("administrador"))):
+    """RR.HH. confirma el veredicto APROBADO del entrevistador — punto 1 del
+    pedido (16/09): recién acá se le manda al candidato el enlace de
+    autoservicio para llenar su ficha (antes se mandaba al aprobar el lead,
+    demasiado pronto)."""
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
     f = dict(emp.ficha_data or {})
     f["seleccion_aprobado"] = True
+    f["seleccion_rrhh_confirmado"] = "aprobado"
     emp.ficha_data = f
     db.commit()
 
@@ -669,7 +800,119 @@ def seleccion_aprobar(employee_id: int, db: Session = Depends(get_db),
             _pedido_cubre_vacante(pedido)
             db.commit()
 
-    return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}", status_code=303)
+    enlace = _public_base_url() + f"f/{emp.token}"
+    enviado = False
+    if emp.email:
+        cuerpo = (
+            f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''},\n\n"
+            "¡Buenas noticias! Has sido seleccionado/a para continuar el proceso de selección de "
+            "DIGETEL GROUP.\n\n"
+            f"El siguiente paso es completar tu ficha de datos y documentos aquí:\n{enlace}\n\n"
+            "Cualquier duda que tengas, escríbenos respondiendo este correo.\n\n"
+            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
+        )
+        enviado = _enviar_correo([emp.email], "¡Felicitaciones! Siguiente paso — DIGETEL GROUP", cuerpo)
+
+    wa_link = None
+    wa_numero = _celular_completo(f)
+    if wa_numero:
+        texto_wa = (
+            f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''}, te escribimos de "
+            "Recursos Humanos de DIGETEL GROUP. ¡Felicitaciones! Has sido seleccionado/a para continuar "
+            f"el proceso. El siguiente paso es completar tu ficha de datos aquí: {enlace}"
+        )
+        wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
+
+    mensaje = "correo_enviado" if enviado else "correo_no_configurado"
+    destino = f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}"
+    if wa_link:
+        destino += f"&wa={quote(wa_link)}"
+    return RedirectResponse(destino, status_code=303)
+
+
+@router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-descartado")
+def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_db),
+                                    user: User = Depends(require_role("administrador"))):
+    """RR.HH. confirma el veredicto DESCARTADO del entrevistador — punto 2
+    del pedido (16/09): se le manda al candidato un correo/WhatsApp de
+    agradecimiento. No se toca Employee.estado (sigue "activo" en la BD de
+    Personal) — es una decisión aparte, de alcance de Selección solamente."""
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    f = dict(emp.ficha_data or {})
+    f["seleccion_rrhh_confirmado"] = "descartado"
+    emp.ficha_data = f
+    db.commit()
+
+    enviado = False
+    if emp.email:
+        cuerpo = (
+            f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''},\n\n"
+            "Gracias por tu tiempo e interés en participar en el proceso de selección de DIGETEL "
+            "GROUP, y por la entrevista que tuviste con nuestro equipo.\n\n"
+            "Luego de revisar con cuidado tu postulación, en esta oportunidad hemos decidido "
+            "continuar el proceso con otro candidato cuyo perfil se ajusta un poco más a lo que "
+            "necesitamos para esta posición en particular. Esto no es en absoluto un reflejo de tu "
+            "valor profesional, y nos encantaría que sigas atento a futuras vacantes que calcen "
+            "mejor con tu perfil.\n\n"
+            "Te deseamos mucho éxito en tu búsqueda y en tus próximos pasos profesionales.\n\n"
+            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
+        )
+        enviado = _enviar_correo([emp.email], "Sobre tu proceso de selección — DIGETEL GROUP", cuerpo)
+
+    wa_link = None
+    wa_numero = _celular_completo(f)
+    if wa_numero:
+        texto_wa = (
+            f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''}, te escribimos de "
+            "Recursos Humanos de DIGETEL GROUP. Gracias por tu tiempo y por la entrevista — en esta "
+            "oportunidad decidimos continuar con otro candidato. Te deseamos mucho éxito en tu "
+            "búsqueda y quedas en nuestra base para futuras vacantes. ¡Gracias!"
+        )
+        wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
+
+    mensaje = "correo_enviado" if enviado else "correo_no_configurado"
+    destino = f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}"
+    if wa_link:
+        destino += f"&wa={quote(wa_link)}"
+    return RedirectResponse(destino, status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Enlace público de la segunda entrevista: quien fue elegido para hacerla
+# entra sin usuario ni clave (mismo criterio que /f/{token} en main.py), ve
+# los datos del candidato/a (correo, DISC, competencias) y marca su
+# veredicto — APROBADO, DESCARTADO o REVISAR — con un comentario.
+# ---------------------------------------------------------------------------
+@router.get("/entrevista2/{token}", response_class=HTMLResponse)
+def entrevista2_form(request: Request, token: str, db: Session = Depends(get_db)):
+    emp = _employee_por_segunda_entrevista_token(db, token)
+    if not emp:
+        raise HTTPException(404)
+    f = emp.ficha_data or {}
+    return templates.TemplateResponse(request, "entrevista2_publico.html", {
+        "request": request, "e": emp, "ficha": f, "token": token, "disc_dimensiones": DISC_DIMENSIONES,
+        "ok": request.query_params.get("ok"),
+    })
+
+
+@router.post("/entrevista2/{token}")
+def entrevista2_guardar(token: str, veredicto: str = Form(...), comentario: str = Form(""),
+                         db: Session = Depends(get_db)):
+    if veredicto not in ("aprobado", "descartado", "revisar"):
+        raise HTTPException(400, "Veredicto inválido.")
+    emp = _employee_por_segunda_entrevista_token(db, token)
+    if not emp:
+        raise HTTPException(404)
+    f = dict(emp.ficha_data or {})
+    f["segunda_entrevista_veredicto"] = veredicto
+    f["segunda_entrevista_comentario"] = comentario.strip() or None
+    # Hora de Lima (UTC-5), no la del servidor (UTC).
+    f["segunda_entrevista_veredicto_at"] = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).strftime("%Y-%m-%d %H:%M")
+    emp.ficha_data = f
+    db.commit()
+    return RedirectResponse(f"/entrevista2/{token}?ok=1", status_code=303)
 
 
 # ---------------------------------------------------------------------------

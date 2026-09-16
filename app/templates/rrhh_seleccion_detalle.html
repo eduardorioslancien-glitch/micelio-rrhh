@@ -11,16 +11,24 @@
   <a class="btn secondary" href="/rrhh/reclutamiento/seleccion">&larr; Volver a Selección</a>
 
   {% if request.query_params.get('ok') == 'correo_enviado' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado al entrevistador.</p></div>
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado correctamente.</p></div>
   {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Se asignó el entrevistador, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor, o el entrevistador no tiene correo corporativo registrado).</p></div>
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor, o falta un correo cargado).</p></div>
+  {% endif %}
+  {% if request.query_params.get('wa') %}
+  <div class="card" style="margin-top:16px;">
+    <p class="muted" style="margin:0 0 8px;">También puedes mandarlo por WhatsApp:</p>
+    <a class="btn small" href="{{ request.query_params.get('wa') }}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+  </div>
   {% endif %}
 
   <div class="card" style="margin-top:16px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h2 style="margin:0;">{{ e.nombre_completo }}</h2>
-      {% if ficha.get('seleccion_aprobado') %}
+      {% if ficha.get('seleccion_rrhh_confirmado') == 'aprobado' %}
       <span class="badge firmado">APROBADO</span>
+      {% elif ficha.get('seleccion_rrhh_confirmado') == 'descartado' %}
+      <span class="badge cancelado">DESCARTADO</span>
       {% endif %}
     </div>
     <table style="margin-top:10px;">
@@ -30,6 +38,33 @@
       <tr><td><strong>Código de Pedido</strong></td><td>{{ ficha.get('codigo_pedido_seleccion', '—') }}</td></tr>
       <tr><td><strong>Correo</strong></td><td>{{ e.email or '—' }}</td></tr>
     </table>
+
+    {% if ficha.get('disc_resultado') %}
+    <div class="section-title" style="margin-top:14px;">Evaluación DISC</div>
+    <div class="kpi-grid">
+      {% for dim, label in disc_dimensiones.items() %}
+      <div class="kpi-card">
+        <div class="kpi-value">{{ ficha.disc_resultado.get(dim, 0) }}%</div>
+        <div class="kpi-label">{{ label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if ficha.get('competencias_entrevista') %}
+    <div class="section-title" style="margin-top:14px;">Entrevista por Competencias</div>
+    <table>
+      <tr><th>Competencia</th><th>Nivel Requerido</th><th>Nivel Observado</th><th>Notas</th></tr>
+      {% for c in ficha.competencias_entrevista %}
+      <tr>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.nivel_requerido }}/4</td>
+        <td>{{ c.nivel_observado }}/4</td>
+        <td class="muted">{{ c.notas or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -44,31 +79,51 @@
           {% endfor %}
         </select>
       </div>
-      <button class="btn small" type="submit">{{ 'Reasignar y reenviar correo' if entrevistador_actual else 'Asignar y enviar correo' }}</button>
+      <button class="btn small" type="submit">{{ 'Reasignar y reenviar aviso' if entrevistador_actual else 'Asignar y enviar aviso' }}</button>
     </form>
 
     {% if entrevistador_actual %}
     <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
-      <p>Entrevistador asignado: <strong>{{ entrevistador_actual.nombre_completo }}</strong></p>
-      {% if wa_link %}
-      <a class="btn small secondary" href="{{ wa_link }}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
-      {% else %}
-      <p class="hint">Este entrevistador no tiene celular registrado en su ficha — no se puede armar el link de WhatsApp.</p>
+      <p style="margin:0 0 10px;">Entrevistador asignado: <strong>{{ entrevistador_actual.nombre_completo }}</strong></p>
+
+      {% set v = ficha.get('segunda_entrevista_veredicto') %}
+      {% if v %}
+      <div class="section-title">Veredicto de la segunda entrevista</div>
+      <p style="margin:6px 0;">
+        <span class="badge {{ 'firmado' if v == 'aprobado' else ('cancelado' if v == 'descartado' else 'pendiente') }}">{{ v|upper }}</span>
+        <span class="muted" style="font-size:12px;">— registrado el {{ ficha.get('segunda_entrevista_veredicto_at', '—') }}</span>
+      </p>
+      {% if ficha.get('segunda_entrevista_comentario') %}
+      <p style="white-space:pre-wrap;">{{ ficha.get('segunda_entrevista_comentario') }}</p>
       {% endif %}
 
-      {% if not ficha.get('seleccion_aprobado') %}
-      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/aprobar" style="display:inline; margin-left:8px;"
-            onsubmit="return confirm('¿Marcar a {{ e.nombre_completo }} como APROBADO? Úsalo cuando el entrevistador te haya confirmado su visto bueno.');">
-        <button class="btn small" type="submit">Marcar APROBADO</button>
+      {% if ficha.get('seleccion_rrhh_confirmado') %}
+      <p class="muted">RR.HH. ya confirmó este veredicto como <strong>{{ ficha.get('seleccion_rrhh_confirmado')|upper }}</strong>.</p>
+      {% elif v == 'aprobado' %}
+      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-aprobado" style="display:inline;"
+            onsubmit="return confirm('¿Confirmar la aprobación de {{ e.nombre_completo }}? Se le enviará el enlace para llenar su ficha de datos.');">
+        <button class="btn small" type="submit">Confirmar aprobación</button>
       </form>
+      {% elif v == 'descartado' %}
+      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-descartado" style="display:inline;"
+            onsubmit="return confirm('¿Confirmar el descarte de {{ e.nombre_completo }}? Se le enviará un correo de agradecimiento.');">
+        <button class="btn small secondary" type="submit">Confirmar descarte</button>
+      </form>
+      {% else %}
+      <p class="muted">En revisión — sin acción por ahora, hasta que RR.HH. defina.</p>
+      {% endif %}
+      {% else %}
+      <p class="muted">Esperando la evaluación de {{ entrevistador_actual.nombre_completo.split(' ')[0] }} — todavía no registró su veredicto en su enlace de segunda entrevista.</p>
       {% endif %}
     </div>
     {% endif %}
   </div>
 
-  {% if ficha.get('seleccion_aprobado') %}
+  {% if ficha.get('seleccion_rrhh_confirmado') == 'aprobado' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green);">
-    <p style="margin:0; color:var(--green);">Aprobado — ya puedes enviarle el contrato desde su ficha de Personal.</p>
+    <p style="margin:0; color:var(--green);">Aprobado.
+      {% if ya_lleno_ficha %}Ya llenó su ficha de datos.{% else %}Todavía no llenó su ficha de datos (se le mandó el enlace).{% endif %}
+    </p>
     <a class="btn small" style="margin-top:10px;" href="/rrhh/personal/{{ e.id }}">Ir a la ficha de {{ e.nombre_completo }}</a>
   </div>
   {% endif %}

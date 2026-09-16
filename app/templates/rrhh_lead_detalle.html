@@ -18,11 +18,17 @@
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">CV analizado correctamente.</p></div>
   {% elif request.query_params.get('cv_error') %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">{{ request.query_params.get('cv_error')|replace('+', ' ') }}</p></div>
+  {% elif request.query_params.get('ok') == 'entrevistador_notificado' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección — se notificó por correo a quien hará la segunda entrevista.</p></div>
+  {% elif request.query_params.get('ok') == 'entrevistador_no_configurado' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Aprobado y enviado a Selección, pero no se pudo enviar el correo a quien hará la segunda entrevista (falta configurar SMTP_* en el servidor, o no tiene correo cargado).</p></div>
+  {% elif request.query_params.get('ok') == 'sin_entrevistador' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección. No se eligió a nadie para la segunda entrevista todavía — puedes asignarla más tarde desde Selección.</p></div>
   {% endif %}
-  {% if request.query_params.get('enlace') %}
+  {% if request.query_params.get('wa') %}
   <div class="card" style="margin-top:16px;">
-    <p class="muted">Enlace de autoservicio para que complete su ficha (por si necesitas compartirlo manualmente):</p>
-    <code>{{ request.url.scheme }}://{{ request.url.netloc }}/f/{{ request.query_params.get('enlace') }}</code>
+    <p class="muted" style="margin:0 0 8px;">También puedes mandarle el mensaje por WhatsApp:</p>
+    <a class="btn small" href="{{ request.query_params.get('wa') }}" target="_blank">Enviar por WhatsApp</a>
   </div>
   {% endif %}
 
@@ -121,7 +127,7 @@
           <td>
             <select name="disc_{{ pid }}">
               <option value="">—</option>
-              {% for n in [1,2,3,4,5] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+              {% for n in [1,2,3,4,5] %}<option value="{{ n }}" {{ 'selected' if disc_respuestas_guardadas.get(pid)|string == n|string else '' }}>{{ n }}</option>{% endfor %}
             </select>
           </td>
         </tr>
@@ -169,11 +175,18 @@
   {% if lead.etapa not in ('oferta', 'contratado', 'descartado') %}
   <div class="card">
     <h2>Resultado del proceso</h2>
-    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/aprobar" style="display:inline;"
-          onsubmit="return confirm('¿Aprobar a {{ lead.nombre_completo }} y enviarlo a Selección? Se creará su legajo y se le mandará el enlace para completarlo.');">
-      <button class="btn small" type="submit">Aprobar y enviar a Selección</button>
+    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/aprobar"
+          onsubmit="return confirm('¿Aprobar a {{ lead.nombre_completo }} y enviarlo a Selección?');">
+      <div class="field" style="max-width:340px;">
+        <label>¿Quién hará la segunda entrevista?</label>
+        <select name="entrevistador_id">
+          <option value="">— Ninguna (asignar después desde Selección) —</option>
+          {% for ent in entrevistadores %}<option value="{{ ent.id }}">{{ ent.nombre_completo }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn small" type="submit" style="margin-top:10px;">Aprobar y enviar a Selección</button>
     </form>
-    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/descartar" style="display:inline; margin-left:8px;"
+    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/descartar" style="display:inline;"
           onsubmit="return confirm('¿Descartar a {{ lead.nombre_completo }}? Se le enviará un correo de agradecimiento.');">
       <button class="btn small secondary" type="submit">Descartar</button>
     </form>
