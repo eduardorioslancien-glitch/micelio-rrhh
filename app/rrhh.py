@@ -2336,11 +2336,16 @@ async def marcar_asistencia_geo(request: Request, db: Session = Depends(get_db),
     db.add(registro)
     db.commit()
 
+    # Bug del 15-16/09: el mensaje de confirmación mostraba la hora tal cual
+    # se guarda (UTC) en vez de la de Lima — se ve bien en la tabla de abajo
+    # (pasa por el filtro |lima) pero este mensaje se arma en el navegador
+    # con lo que devuelve el JSON, así que hay que convertir acá también.
+    ahora_lima = ahora - datetime.timedelta(hours=5)
     return JSONResponse({
         "ok": True,
         "tipo": tipo,
-        "hora": ahora.strftime("%H:%M:%S"),
-        "fecha": ahora.strftime("%d/%m/%Y"),
+        "hora": ahora_lima.strftime("%H:%M:%S"),
+        "fecha": ahora_lima.strftime("%d/%m/%Y"),
         "tiene_consentimiento": tiene_consentimiento,
         "sede": geocerca.nombre if geocerca else None,
         "distancia": round(distancia) if distancia is not None else None,

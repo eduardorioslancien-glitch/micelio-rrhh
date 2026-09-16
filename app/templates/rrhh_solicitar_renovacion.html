@@ -52,10 +52,10 @@
       <tr><th>Fecha</th><th>Nueva fecha de vencimiento</th><th>Estado</th><th>Respondida</th><th></th></tr>
       {% for s in solicitudes %}
       <tr>
-        <td class="muted">{{ s.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td class="muted">{{ (s.created_at|lima).strftime('%d/%m/%Y %H:%M') }}</td>
         <td>{{ s.nueva_fecha_fin_contrato }}</td>
         <td><span class="badge {{ 'firmado' if s.estado == 'aprobado' else ('cancelado' if s.estado == 'rechazado' else 'pendiente') }}">{{ s.estado }}</span></td>
-        <td class="muted">{{ s.respondido_at.strftime('%d/%m/%Y %H:%M') if s.respondido_at else '—' }}</td>
+        <td class="muted">{{ (s.respondido_at|lima).strftime('%d/%m/%Y %H:%M') if s.respondido_at else '—' }}</td>
         <td>
           {% if s.carta_no_renovacion_path %}
           <a class="btn small secondary" href="/rrhh/solicitudes-renovacion/{{ s.id }}/carta">Descargar carta</a>

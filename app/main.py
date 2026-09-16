@@ -88,6 +88,11 @@ app = FastAPI(title="Sistema RR.HH. DIGETEL GROUP")
 app.add_middleware(SessionMiddleware, secret_key=_get_or_create_secret_key())
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+# Filtro |lima (hora de Lima UTC-5 para mostrar, nunca para guardar) — cada
+# instancia de Jinja2Templates tiene su propio Environment, así que hay que
+# registrarlo acá también, no solo en el de rrhh.py (bug del 15-16/09,
+# admin_detalle.html mostraba fechas/horas en UTC).
+templates.env.filters["lima"] = rrhh_module._a_lima
 
 init_db()
 with SessionLocal() as _db:

@@ -19,7 +19,7 @@
       <tr>
         <td>{{ lbl }}</td>
         <td><span class="badge {{ d.status if d else 'pendiente' }}">{{ d.status if d else 'pendiente' }}</span></td>
-        <td>{{ d.signed_at.strftime('%d/%m/%Y %H:%M') if d and d.signed_at else '—' }}</td>
+        <td>{{ (d.signed_at|lima).strftime('%d/%m/%Y %H:%M') if d and d.signed_at else '—' }}</td>
         <td class="muted">{{ d.content_hash[:16] if d and d.content_hash else '—' }}</td>
         <td>{% if d and d.status == 'firmado' %}<a class="btn small" href="/descargas/{{ d.id }}">Descargar PDF</a>{% endif %}</td>
       </tr>
@@ -61,7 +61,7 @@
       <tr>
         <td>{{ attachment_labels.get(a.tipo, a.tipo) }}</td>
         <td>{{ a.filename }}</td>
-        <td>{{ a.uploaded_at.strftime('%d/%m/%Y %H:%M') if a.uploaded_at else '—' }}</td>
+        <td>{{ (a.uploaded_at|lima).strftime('%d/%m/%Y %H:%M') if a.uploaded_at else '—' }}</td>
         <td><a class="btn small secondary" href="/adjuntos/{{ a.id }}">Descargar</a></td>
       </tr>
       {% endfor %}
@@ -142,7 +142,7 @@
       {% for l in logs %}
       <tr>
         <td>{{ l.event }}</td>
-        <td>{{ l.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>{{ (l.created_at|lima).strftime('%d/%m/%Y %H:%M:%S') }}</td>
         <td>{{ l.ip_address or '—' }}</td>
         <td class="muted" style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ l.user_agent or '—' }}</td>
       </tr>

@@ -40,7 +40,7 @@
       <tr><td><strong>Documento</strong></td><td>{{ (lead.documento_tipo + " " + lead.documento_numero) if lead.documento_tipo and lead.documento_numero else "—" }}</td></tr>
       <tr><td><strong>Origen</strong></td><td>{{ lead.origen or "—" }}</td></tr>
       <tr><td><strong>Pedido / Cargo</strong></td><td>{{ lead.pedido.codigo + " — " + lead.pedido.cargo_solicitado if lead.pedido else "—" }}</td></tr>
-      <tr><td><strong>Postuló el</strong></td><td>{{ lead.created_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+      <tr><td><strong>Postuló el</strong></td><td>{{ (lead.created_at|lima).strftime('%d/%m/%Y %H:%M') }}</td></tr>
       {% if lead.cv_path %}
       <tr><td><strong>CV</strong></td><td><a href="/rrhh/reclutamiento/leads/{{ lead.id }}/cv" target="_blank">Descargar CV{{ (" — " + lead.cv_filename) if lead.cv_filename else "" }}</a></td></tr>
       {% endif %}

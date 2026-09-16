@@ -71,7 +71,7 @@
         <td><a href="/rrhh/reclutamiento/leads/{{ l.id }}"><strong>{{ l.nombre_completo }}</strong></a>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
         <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
         <td>{{ l.origen or "—" }}</td>
-        <td>{{ l.created_at.strftime("%d/%m/%Y") }}</td>
+        <td>{{ (l.created_at|lima).strftime("%d/%m/%Y") }}</td>
         <td><span class="badge {{ l.etapa }}">{{ etapa_labels.get(l.etapa, l.etapa) }}</span></td>
         <td><a class="btn small secondary" href="/rrhh/reclutamiento/leads/{{ l.id }}">Ver</a></td>
       </tr>

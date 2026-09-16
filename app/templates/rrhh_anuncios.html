@@ -28,13 +28,13 @@
           {% endif %}
         </td>
         <td class="muted">{{ a.autor or '—' }}</td>
-        <td class="muted">{{ a.created_at.strftime('%d/%m/%Y') }}</td>
+        <td class="muted">{{ (a.created_at|lima).strftime('%d/%m/%Y') }}</td>
         <td>
           <details>
             <summary style="cursor:pointer;">👁 {{ vistas_por_anuncio.get(a.id, [])|length }}</summary>
             <div class="edit-popover" style="max-height:200px; overflow-y:auto;">
               {% for v in vistas_por_anuncio.get(a.id, []) %}
-              <div style="font-size:12px;">{{ v.user.nombre_completo }} <span class="muted">— {{ v.viewed_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
+              <div style="font-size:12px;">{{ v.user.nombre_completo }} <span class="muted">— {{ (v.viewed_at|lima).strftime('%d/%m/%Y %H:%M') }}</span></div>
               {% else %}
               <span class="muted" style="font-size:12px;">Nadie lo ha visto todavía.</span>
               {% endfor %}
@@ -46,7 +46,7 @@
             <summary style="cursor:pointer;">💙 {{ likes_por_anuncio.get(a.id, [])|length }}</summary>
             <div class="edit-popover" style="max-height:200px; overflow-y:auto;">
               {% for l in likes_por_anuncio.get(a.id, []) %}
-              <div style="font-size:12px;">{{ l.user.nombre_completo }} <span class="muted">— {{ l.created_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
+              <div style="font-size:12px;">{{ l.user.nombre_completo }} <span class="muted">— {{ (l.created_at|lima).strftime('%d/%m/%Y %H:%M') }}</span></div>
               {% else %}
               <span class="muted" style="font-size:12px;">Nadie le dio me gusta todavía.</span>
               {% endfor %}

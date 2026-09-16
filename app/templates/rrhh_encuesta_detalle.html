@@ -42,7 +42,7 @@
         <td>{{ r.relacion or "—" }}</td>
         <td class="muted">{{ r.respuestas|join(", ") }}</td>
         <td class="muted">{{ r.comentario or "—" }}</td>
-        <td class="muted">{{ r.created_at.strftime('%d/%m/%Y') if r.created_at else "—" }}</td>
+        <td class="muted">{{ (r.created_at|lima).strftime('%d/%m/%Y') if r.created_at else "—" }}</td>
       </tr>
       {% else %}
       <tr><td colspan="5" class="muted">Todavía no hay respuestas cargadas.</td></tr>

@@ -24,7 +24,7 @@ from .models import (
     ESTADOS_ENCUESTA, RELACIONES_ENCUESTA, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
 from .auth import require_role, require_login, Forbidden
-from .rrhh import _ctx
+from .rrhh import _ctx, _a_lima
 
 
 def require_encuesta_acceso(campana_id: int, request: Request, db: Session = Depends(get_db)) -> User:
@@ -42,6 +42,7 @@ def require_encuesta_acceso(campana_id: int, request: Request, db: Session = Dep
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+templates.env.filters["lima"] = _a_lima
 ANUNCIOS_IMG_DIR = os.path.join(BASE_DIR, "anuncios_imagenes")
 os.makedirs(ANUNCIOS_IMG_DIR, exist_ok=True)
 router = APIRouter()

@@ -90,7 +90,7 @@
     {% if a.imagen_path %}<img class="anuncio-imagen" src="/rrhh/clima/anuncios/{{ a.id }}/imagen" alt="{{ a.titulo }}">{% endif %}
     <h3 style="margin:0 0 4px;">{{ a.titulo }}</h3>
     <p class="muted" style="margin:0 0 8px; font-size:12px;">
-      {{ a.created_at.strftime('%d/%m/%Y') }} ·
+      {{ (a.created_at|lima).strftime('%d/%m/%Y') }} ·
       {% if a.ambito == 'holding' %}Todo el Holding{% elif a.ambito == 'unidad' %}{{ a.unidad_negocio.nombre if a.unidad_negocio else '' }}{% else %}{{ a.empresa.nombre if a.empresa else '' }}{% endif %}
     </p>
     <p class="anuncio-cuerpo" style="white-space:pre-line;">{{ a.cuerpo }}</p>

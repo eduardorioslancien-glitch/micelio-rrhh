@@ -36,9 +36,9 @@
       </form>
     </div>
     {% elif s.estado == 'aprobado' %}
-    <div class="alert-ok" style="text-align:center;">Renovación aprobada el {{ s.respondido_at.strftime('%d/%m/%Y %H:%M') }}. El contrato de {{ e.nombre_completo }} ya quedó actualizado en el sistema. Gracias.</div>
+    <div class="alert-ok" style="text-align:center;">Renovación aprobada el {{ (s.respondido_at|lima).strftime('%d/%m/%Y %H:%M') }}. El contrato de {{ e.nombre_completo }} ya quedó actualizado en el sistema. Gracias.</div>
     {% else %}
-    <div class="alert-error" style="text-align:center;">Quedó registrado que este contrato no se renueva (respondido el {{ s.respondido_at.strftime('%d/%m/%Y %H:%M') }}). Recursos Humanos ya tiene la carta de aviso lista. Gracias.</div>
+    <div class="alert-error" style="text-align:center;">Quedó registrado que este contrato no se renueva (respondido el {{ (s.respondido_at|lima).strftime('%d/%m/%Y %H:%M') }}). Recursos Humanos ya tiene la carta de aviso lista. Gracias.</div>
     {% endif %}
   </div>
 </div>

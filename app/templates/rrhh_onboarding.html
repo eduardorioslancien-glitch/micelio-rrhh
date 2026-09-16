@@ -20,7 +20,7 @@
       <tr>
         <td><strong>{{ r.e.nombre_completo }}</strong></td>
         <td>{{ r.e.empresa_rel.nombre if r.e.empresa_rel else (r.e.empresa or "—") }}</td>
-        <td class="muted">{{ r.e.created_at.strftime('%d/%m/%Y') if r.e.created_at else "—" }}</td>
+        <td class="muted">{{ (r.e.created_at|lima).strftime('%d/%m/%Y') if r.e.created_at else "—" }}</td>
         <td>
           <span class="badge {{ 'firmado' if r.completadas == r.total else ('en_proceso' if r.completadas > 0 else 'pendiente') }}">
             {{ r.completadas }} / {{ r.total }} etapas

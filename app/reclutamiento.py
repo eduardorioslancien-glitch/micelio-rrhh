@@ -23,7 +23,10 @@ from .models import (
     CLASIFICACIONES_LEAD,
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
-from .rrhh import _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead, _pedido_cubre_vacante
+from .rrhh import (
+    _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead,
+    _pedido_cubre_vacante, _a_lima,
+)
 from .cv_analysis import extraer_texto_cv, analizar_cv
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
@@ -33,6 +36,7 @@ CARGOS_REQUIEREN_BASE = ["tecnico", "técnico", "guardian", "guardián", "lider 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+templates.env.filters["lima"] = _a_lima
 router = APIRouter()
 
 ESTADO_LABELS = dict(ESTADOS_PEDIDO)
@@ -468,7 +472,9 @@ async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = 
     entrevista_data["disc"] = disc_resultado
     entrevista_data["conclusion"] = form.get("conclusion") or entrevista_data.get("conclusion")
     entrevista_data["entrevistador"] = user.nombre_completo
-    entrevista_data["fecha"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    # Hora de Lima (UTC-5), no la del servidor (UTC) — mismo bug corregido
+    # en Asistencia / cumpleaños (15-16/09).
+    entrevista_data["fecha"] = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).strftime("%Y-%m-%d %H:%M")
     entrevista_data["historial"] = historial
     lead.entrevista_data = entrevista_data
     if form.get("clasificacion"):

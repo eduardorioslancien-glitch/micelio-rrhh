@@ -250,7 +250,7 @@
           <td>{{ r.fecha_fin_contrato_nueva or '—' }}</td>
           <td class="muted">{{ r.tipo_contrato or '—' }}</td>
           <td class="muted">{{ r.registrado_por or '—' }}</td>
-          <td class="muted">{{ r.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="muted">{{ (r.created_at|lima).strftime('%d/%m/%Y %H:%M') }}</td>
         </tr>
         {% endfor %}
       </table>
@@ -447,7 +447,7 @@
       <tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Registrado por</th></tr>
       {% for b in e.bitacora %}
       <tr>
-        <td class="muted">{{ b.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td class="muted">{{ (b.created_at|lima).strftime('%d/%m/%Y %H:%M') }}</td>
         <td><span class="role-badge">{{ b.tipo }}</span></td>
         <td>{{ b.texto }}</td>
         <td class="muted">{{ b.autor or '—' }}</td>

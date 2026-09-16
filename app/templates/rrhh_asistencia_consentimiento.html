@@ -17,7 +17,7 @@
 
     {% if ya_firmado %}
     <div class="card" style="background:var(--green-bg); border:1px solid var(--green);">
-      <p style="margin:0; color:var(--green);">Ya aceptaste este consentimiento el {{ ya_firmado.aceptado_en.strftime('%d/%m/%Y %H:%M') }}.</p>
+      <p style="margin:0; color:var(--green);">Ya aceptaste este consentimiento el {{ (ya_firmado.aceptado_en|lima).strftime('%d/%m/%Y %H:%M') }}.</p>
     </div>
     <a class="btn small secondary" href="/rrhh/asistencia/consentimiento/pdf" target="_blank" style="margin-top:10px; display:inline-block;">Descargar comprobante firmado (PDF)</a>
     {% else %}
