@@ -7,12 +7,14 @@ services:
       - "8000:8000"
     environment:
       - RRHH_SECRET_KEY=${RRHH_SECRET_KEY}
-      # Opcionales, solo si querés correo automático al completar un legajo:
-      # - SMTP_HOST=smtp.gmail.com
-      # - SMTP_PORT=587
-      # - SMTP_USER=
-      # - SMTP_PASS=
-      # - SMTP_FROM=
+      # Correo saliente (coordinar Meet, descartar, enlace de autoservicio al
+      # aprobar un lead, etc.) — los valores reales van en .env del
+      # servidor, nunca en este archivo:
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
       # Necesaria para que "Trabaja con Nosotros" pueda calificar CVs con IA
       # (el valor real va en .env del servidor, nunca en este archivo):
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
