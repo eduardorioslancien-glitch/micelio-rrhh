@@ -345,10 +345,39 @@ SALUDOS_CUMPLEANOS_RRHH = [
 ]
 
 
+def _nombre_saludo(employee: Employee) -> str:
+    """Punto del pedido (15/09): el saludo de cumpleaños debe usar SIEMPRE
+    Primer Nombre + Apellido Paterno. nombre_completo se guarda como
+    "Apellido Paterno Apellido Materno Nombres..." (ver rrhh_personal_ficha.html
+    / formulario.html, función nombreCompletoActual) — antes acá se tomaba
+    solo la primera palabra de nombre_completo, que en la práctica ES el
+    apellido paterno, no el nombre de pila. Se arma desde los campos
+    separados de la ficha (apellido_paterno/nombres), con un respaldo por
+    si algún registro viejo no los tiene."""
+    f = employee.ficha_data or {}
+    apellido_paterno = (f.get("apellido_paterno") or "").strip()
+    nombres = (f.get("nombres") or "").strip()
+    primer_nombre = nombres.split()[0] if nombres else ""
+    if primer_nombre and apellido_paterno:
+        return f"{primer_nombre} {apellido_paterno}"
+
+    # Respaldo sin los campos separados: nombre_completo trae 2 apellidos
+    # seguidos de 1+ nombres ("Paterno Materno Nombres..."), así que el
+    # apellido paterno es la primera palabra y el primer nombre es la
+    # tercera (si hay al menos 3 palabras); con menos, es lo mejor que se
+    # puede inferir sin datos estructurados.
+    partes = (employee.nombre_completo or "").split()
+    if len(partes) >= 3:
+        return f"{partes[2]} {partes[0]}"
+    if len(partes) >= 1:
+        return partes[0]
+    return employee.nombre_completo or ""
+
+
 def _mensaje_cumple_rrhh(employee: Employee) -> str:
-    primer_nombre = (employee.nombre_completo or "").split()[0] if employee.nombre_completo else ""
+    nombre = _nombre_saludo(employee)
     plantilla = SALUDOS_CUMPLEANOS_RRHH[employee.id % len(SALUDOS_CUMPLEANOS_RRHH)]
-    return plantilla.format(nombre=primer_nombre or employee.nombre_completo)
+    return plantilla.format(nombre=nombre or employee.nombre_completo)
 
 
 def _fecha_nacimiento(employee: Employee):
