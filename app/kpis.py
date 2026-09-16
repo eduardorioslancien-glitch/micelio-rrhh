@@ -15,6 +15,15 @@ from .models import Employee, Empresa, UnidadNegocio, AsistenciaRegistro
 MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
 
+def _hoy_lima() -> datetime.date:
+    """datetime.date.today() usa la hora del SERVIDOR (UTC en producción),
+    no la de Lima (UTC-5) — mismo bug ya corregido en Asistencia y en el
+    saludo de cumpleaños (15-16/09): entre las 19:00 y medianoche hora
+    Lima, el servidor ya está en el día siguiente, corriendo un día hacia
+    adelante estos indicadores (ausentismo, edad promedio, altas por mes)."""
+    return (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
+
+
 def _dia_habil(d: datetime.date) -> bool:
     return d.weekday() < 5  # lunes(0)..viernes(4)
 
@@ -85,7 +94,7 @@ def rotacion_pct(db: Session, dias: int) -> float:
 def ausentismo_pct(db: Session, dias: int):
     """% de días-trabajador hábiles del periodo en que un trabajador activo
     NO marcó su entrada. Devuelve (pct, dias_esperados, dias_sin_marcar)."""
-    hoy = datetime.date.today()
+    hoy = _hoy_lima()
     desde = hoy - datetime.timedelta(days=dias)
     dias_habiles = [desde + datetime.timedelta(days=i) for i in range((hoy - desde).days + 1) if _dia_habil(desde + datetime.timedelta(days=i))]
     if not dias_habiles:
@@ -125,7 +134,7 @@ def planilla_activa_soles(db: Session) -> float:
 def edad_promedio(db: Session):
     """Edad promedio de los trabajadores activos con fecha de nacimiento registrada."""
     activos = db.query(Employee).filter(Employee.estado == "activo").all()
-    hoy = datetime.date.today()
+    hoy = _hoy_lima()
     edades = []
     for e in activos:
         nac = _parse_fecha((e.ficha_data or {}).get("fecha_nacimiento"))
@@ -203,7 +212,7 @@ def incorporaciones_por_mes(db: Session, meses: int = 24):
     """Incorporaciones (altas) por mes calendario, últimos N meses, según
     ficha_data.fecha_ingreso. Devuelve lista de (etiqueta 'ene 2025', cantidad)
     en orden cronológico, incluyendo meses en cero."""
-    hoy = datetime.date.today()
+    hoy = _hoy_lima()
     periodos = []
     y, m = hoy.year, hoy.month
     for _ in range(meses):

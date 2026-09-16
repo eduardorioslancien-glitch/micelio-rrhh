@@ -91,7 +91,9 @@ def build_export(db, employees=None):
     if employees is None:
         employees = db.query(Employee).order_by(Employee.created_at.desc()).all()
     wb = Workbook()
-    today = datetime.date.today().strftime("%d/%m/%Y")
+    # Hora de Lima (UTC-5), no la del servidor (UTC) — mismo bug corregido
+    # en Asistencia / cumpleaños (15-16/09).
+    today = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).strftime("%d/%m/%Y")
 
     # ---- Hoja 1: Datos Generales ----
     ws = wb.active

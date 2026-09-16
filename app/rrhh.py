@@ -392,8 +392,15 @@ def _cumpleanos_de_la_semana(db: Session, empresa_id: int = None):
     """Punto 3 del pedido: cumpleaños de la semana (lunes a domingo actual),
     separando el/los de hoy. Si se pasa empresa_id, se acota a esa empresa
     (para el rol 'usuario', que solo debería ver a sus propios compañeros);
-    sin empresa_id, es para RR.HH./administrador, que ve a todo el personal."""
-    hoy = datetime.date.today()
+    sin empresa_id, es para RR.HH./administrador, que ve a todo el personal.
+
+    Bug del 15-16/09: usaba datetime.date.today(), la hora del SERVIDOR
+    (UTC en producción) en vez de la de Lima (UTC-5) — mismo problema que
+    ya se había corregido en Asistencia. Entre las 19:00 y medianoche hora
+    Lima, el servidor ya está en el día siguiente, así que el saludo de
+    "hoy cumple años" aparecía casi 5 horas antes de tiempo (le pasó a
+    Jaime Acosta, cuyo cumpleaños es el 16/09, mostrado la noche del 15)."""
+    hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
     lunes = hoy - datetime.timedelta(days=hoy.weekday())
     dias_semana = [lunes + datetime.timedelta(days=i) for i in range(7)]
 
@@ -480,8 +487,10 @@ def _contratos_no_indefinidos(db: Session, dias_max: int = None):
     de 'Plazo Indeterminado' y con fecha de vencimiento cargada, ordenados
     del más próximo a vencer al más lejano. Si se pasa dias_max, solo
     devuelve los que vencen dentro de esa cantidad de días (puede incluir
-    los ya vencidos, para que no se pierdan de vista)."""
-    hoy = datetime.date.today()
+    los ya vencidos, para que no se pierdan de vista). Bug del 15-16/09:
+    usaba datetime.date.today() (hora del servidor, UTC) — ver
+    _cumpleanos_de_la_semana para el detalle."""
+    hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
     resultado = []
     for e in db.query(Employee).filter(Employee.estado == "activo").all():
         f = e.ficha_data or {}
@@ -1186,7 +1195,7 @@ def cargo_informe(request: Request, cargo_id: int, db: Session = Depends(get_db)
     ocupantes = [e for e in ocupantes if (e.ficha_data or {}).get("cargo") == cargo.nombre]
     return templates.TemplateResponse(request, "rrhh_cargo_informe.html", _ctx(
         request, user, cargo=cargo, ocupantes=ocupantes,
-        generado_en=datetime.datetime.now(),
+        generado_en=datetime.datetime.utcnow() - datetime.timedelta(hours=5),
     ))
 
 
@@ -1760,7 +1769,7 @@ def renovacion_aprobar(request: Request, token: str, db: Session = Depends(get_d
     ficha = dict(emp.ficha_data or {})
     fin_anterior = ficha.get("fecha_fin_contrato") or ""
     fecha_anterior = ficha.get("fecha_contrato") or ""
-    hoy = datetime.date.today().isoformat()
+    hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date().isoformat()
     db.add(ContratoRenovacion(
         employee_id=emp.id, fecha_contrato_anterior=fecha_anterior or None, fecha_contrato_nueva=hoy,
         fecha_fin_contrato_anterior=fin_anterior or None,
@@ -1795,7 +1804,7 @@ def renovacion_rechazar(request: Request, token: str, db: Session = Depends(get_
         nombre_completo=emp.nombre_completo, tipo_documento=ficha.get("tipo_documento"),
         numero_documento=ficha.get("numero_documento"), cargo=ficha.get("cargo"),
         tipo_contrato=ficha.get("tipo_contrato"), fecha_fin_contrato=ficha.get("fecha_fin_contrato") or "—",
-        fecha_emision=datetime.date.today().strftime("%d/%m/%Y"),
+        fecha_emision=(datetime.datetime.utcnow() - datetime.timedelta(hours=5)).strftime("%d/%m/%Y"),
         empresa_nombre=empresa.nombre if empresa else "",
         representante_legal=empresa.representante_legal if empresa else None,
         firma_empresa_path=empresa.firma_representante_path if empresa else None,

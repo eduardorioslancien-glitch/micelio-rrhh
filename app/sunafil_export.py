@@ -43,7 +43,8 @@ def _cover_page_pdf(emp, incluidos_labels: list[str]) -> str:
         ("Trabajador", emp.nombre_completo or "—"),
         ("Empresa", emp.empresa or "—"),
         ("Correo", emp.email or "—"),
-        ("Generado el", datetime.datetime.now().strftime("%d/%m/%Y %H:%M")),
+        # Hora de Lima (UTC-5), no la del servidor (UTC).
+        ("Generado el", (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).strftime("%d/%m/%Y %H:%M")),
     ]
     for label, val in campos:
         draw.text((80, y), f"{label}:", font=font_h, fill=NAVY)
