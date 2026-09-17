@@ -14,9 +14,25 @@
       "Que toda la información y documentación proporcionada a la Empresa para la elaboración de mi legajo personal (datos personales, académicos, familiares y de derechohabientes) es veraz, completa y se encuentra debidamente sustentada, asumiendo responsabilidad por cualquier inexactitud u omisión en la que pudiera incurrir.",
       "Que me comprometo a comunicar por escrito al área de Recursos Humanos cualquier cambio de domicilio dentro de los cinco (5) días hábiles siguientes de producido dicho cambio, siendo válidas para todo efecto legal las notificaciones cursadas a la última dirección registrada mientras no se comunique la variación.",
       "Que los derechohabientes declarados en mi Ficha de Datos del Personal (cónyuge o conviviente e hijos) son reales y cumplen las condiciones establecidas por EsSalud para su registro, comprometiéndome a informar cualquier variación (nacimiento, fallecimiento, separación, mayoría de edad u otra) dentro de los plazos que establece la normativa vigente.",
-      "Que autorizo a la Empresa a verificar la veracidad de la información declarada a través de los medios que considere pertinentes, y a adoptar las medidas correctivas o disciplinarias que correspondan en caso de comprobarse una declaración falsa."
+      "Que autorizo a la Empresa a verificar la veracidad de la información declarada a través de los medios que considere pertinentes, y a adoptar las medidas correctivas o disciplinarias que correspondan en caso de comprobarse una declaración falsa.",
+      "Que la dirección consignada como mi domicilio en la Ficha de Datos del Personal ({direccion}) es mi domicilio real, actual, efectivo y verdadero, donde tengo vivencia real, física y permanente.",
+      "Que no tengo antecedentes penales, ni antecedentes o sanciones por faltas administrativas disciplinarias, ni procesos de determinación de responsabilidades, ni mantengo procesos judiciales con el Estado, encontrándome en consecuencia en capacidad de celebrar contratos."
     ],
     "cierre": "Al firmar electrónicamente este documento, suscribo la presente declaración jurada en señal de conformidad con lo antes expuesto."
+  },
+  "confidencialidad": {
+    "titulo": "Acuerdo de Confidencialidad",
+    "subtitulo": "DIGETEL GROUP · Secreto de las Telecomunicaciones y Datos Personales",
+    "intro": "Por medio del presente documento, {nombre_completo}, identificado(a) con documento N.° {num_doc}, con domicilio en {direccion} (en adelante, EL TRABAJADOR), se compromete a no divulgar, a partir de la fecha de firma del presente acuerdo, cualquier tipo de información de forma escrita o verbal con un tercero ajeno a la organización, que se considere sensible y de carácter confidencial a la que pudiera acceder por encargo de la empresa {empresa} (en adelante, DIGETEL), de acuerdo con los términos y condiciones siguientes:",
+    "items": [
+      "EL TRABAJADOR reconoce y entiende que el secreto de las telecomunicaciones es el derecho fundamental de toda persona a que sus comunicaciones no sean vulneradas, lo que genera la obligación de adoptar las medidas y procedimientos razonables para garantizar la inviolabilidad de las comunicaciones que se cursen a través de sus redes. Asimismo, conoce que se encuentra obligado(a) a proteger los datos personales de los abonados, clientes y usuarios de DIGETEL, a fin de que dicha información no sea obtenida por terceros, salvo las excepciones previstas en las normas legales vigentes.",
+      "EL TRABAJADOR deberá mantener, guardar en estricta reserva y absoluta confidencialidad cualquier documento o información vinculada al secreto de las telecomunicaciones y la protección de los datos personales de los abonados y usuarios a la que pudiera acceder en ejecución de sus labores. En consecuencia, no podrá divulgar tales documentos e informaciones, sea en forma directa o indirecta.",
+      "EL TRABAJADOR se obliga a cumplir en todo momento la legislación vigente sobre la materia, específicamente la Resolución Ministerial N.° 111-2009-MTC/03 y sus modificatorias, la Ley de Protección de Datos N.° 29733 y su Reglamento aprobado por Decreto Supremo N.° 003-2013-JUS, así como sus modificatorias y ampliatorias.",
+      "El incumplimiento de cualquiera de las obligaciones a cargo de EL TRABAJADOR asumidas en el presente acuerdo dará lugar a la aplicación de las sanciones civiles y penales correspondientes.",
+      "EL TRABAJADOR asume el presente compromiso de manera permanente, inclusive luego de haber concluido la relación laboral o contractual que lo vincula con DIGETEL.",
+      "Se considera de naturaleza sensible, entre otra, la siguiente información: bases de datos para hacer contactos con los prospectos de cualquier campaña; información relacionada con los estados financieros de la empresa o de alguno de los clientes atendidos; datos proporcionados por los clientes para fines de validación de los procesos que requiera la empresa; información acerca de los procesos internos para el contacto con los prospectos que llaman a la empresa; y cualquier otra información no prevista en el presente documento que sea considerada de carácter oficial por parte de la empresa."
+    ],
+    "cierre": "Al firmar electrónicamente este documento, EL TRABAJADOR y DIGETEL suscriben el presente Acuerdo de Confidencialidad en señal de conformidad."
   },
   "autorizacion_datos": {
     "titulo": "Autorización para el Tratamiento de Datos Personales",
@@ -45,6 +61,27 @@
     "items": [],
     "nota_legal": "De acuerdo con la Ley de Compensación por Tiempo de Servicios (Texto Único Ordenado aprobado por Decreto Supremo N.° 001-97-TR), el/la trabajador(a) podrá comunicar por escrito a la Empresa el cambio de entidad depositaria de su CTS, con una anticipación no menor de ocho (8) días hábiles a la fecha en que corresponda efectuar el depósito semestral.",
     "cierre": "Al firmar electrónicamente este documento, autorizo el depósito de mis haberes y CTS en las cuentas declaradas."
+  },
+  "declaracion_salud": {
+    "titulo": "Declaración Jurada de Salud",
+    "subtitulo": "DIGETEL GROUP · Legajo de Personal",
+    "intro": "Yo, {nombre_completo}, identificado(a) con documento N.° {num_doc}, en pleno goce de mis derechos constitucionales y de mis facultades mentales, declaro bajo juramento que la información de salud consignada a continuación es veraz y completa.",
+    "items": [],
+    "cierre": "Al firmar electrónicamente este documento, declaro bajo juramento la veracidad de la información de salud consignada, para los fines legales correspondientes."
+  },
+  "sistema_pensionario": {
+    "titulo": "Sistema Pensionario — Boletín, Elección y Constancia",
+    "subtitulo": "DIGETEL GROUP · Sistema Privado (SPP) y Sistema Nacional (SNP) de Pensiones",
+    "intro": "El presente documento deja constancia de la entrega, a {nombre_completo} (documento N.° {num_doc}), del Boletín Informativo acerca de las características del Sistema Privado de Pensiones (SPP) y del Sistema Nacional de Pensiones (SNP), así como de su elección del sistema pensionario al cual se afilia.",
+    "items": [],
+    "cierre": "Al firmar electrónicamente este documento, declaro haber recibido y leído el Boletín Informativo, y confirmo la elección del sistema pensionario consignada líneas arriba, dentro del plazo de diez (10) días calendario desde la entrega de este boletín."
+  },
+  "contrato": {
+    "titulo": "Contrato de Trabajo",
+    "subtitulo": "DIGETEL GROUP",
+    "intro": "",
+    "items": [],
+    "cierre": "Como muestra de conformidad con todas las cláusulas del presente contrato, EL EMPLEADOR y EL TRABAJADOR lo suscriben en señal de conformidad, quedando el trabajador con una copia firmada digitalmente."
   },
   "consentimiento_geolocalizacion": {
     "titulo": "Consentimiento para el Tratamiento de Datos de Geolocalización y Marcación de Asistencia",

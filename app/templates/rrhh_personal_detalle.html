@@ -96,7 +96,15 @@
       <tr><th>Documento</th><th>Estado</th><th></th>{% if can_edit %}<th></th>{% endif %}</tr>
       {% for d in e.documents %}
       <tr>
-        <td>{{ doc_type_labels.get(d.doc_type, d.doc_type) }}</td>
+        <td>{{ doc_type_labels.get(d.doc_type, d.doc_type) }}
+          {% if d.doc_type == 'sistema_pensionario' and plazo_pensionario_dias is not none %}
+          {% if plazo_pensionario_dias > 10 %}
+          <br><span class="badge cancelado" style="font-size:11px;">VENCIDO — {{ plazo_pensionario_dias }} días sin elección (Ley: 10 días)</span>
+          {% else %}
+          <br><span class="muted" style="font-size:11px;">{{ 10 - plazo_pensionario_dias }} día(s) restantes para elegir Sistema Pensionario</span>
+          {% endif %}
+          {% endif %}
+        </td>
         <td><span class="badge {{ d.status }}">{{ d.status }}</span></td>
         <td>{% if d.status == 'firmado' %}<a class="btn small" href="/descargas/{{ d.id }}">Descargar PDF</a>{% endif %}</td>
         {% if can_edit %}

@@ -70,6 +70,12 @@ _MIGRACIONES_COLUMNAS = [
     ("asistencia_registros", "fuera_de_zona", "BOOLEAN"),
     ("asistencia_registros", "hash_registro", "VARCHAR(64)"),
     ("catalogos", "cuenta_contable", "VARCHAR(50)"),
+    ("empresas", "domicilio_fiscal", "VARCHAR(300)"),
+    ("empresas", "partida_registral", "VARCHAR(60)"),
+    ("empresas", "objeto_social", "TEXT"),
+    ("empresas", "representante_tipo_documento", "VARCHAR(30)"),
+    ("empresas", "representante_numero_documento", "VARCHAR(30)"),
+    ("empresas", "representante_nacionalidad", "VARCHAR(60)"),
 ]
 
 

@@ -28,14 +28,14 @@ Control de accesos (User.rol):
   - usuario: acceso solo a su propia información (autoservicio), vía
     User.employee_id.
 
-NOTA SOBRE EL CONTRATO (ver README, sección "Firma de Contrato"):
-El legajo está pensado para TERMINAR con la firma del contrato de trabajo,
-pero el formato/plantilla del contrato todavía no fue entregado por RR.HH.
-Por eso dejamos previstas aquí las columnas `contrato_tipo`, `contrato_pdf_path`
-y `contrato_signed_at` en Employee (hoy sin usar). Cuando se entregue el
-formato, el contrato se agrega como una entrada más de DOC_TYPES (la última,
-después de "autorizacion_deposito") y el flujo de firma existente lo soporta
-sin cambios estructurales adicionales.
+NOTA SOBRE EL CONTRATO (2026-09-16, RR.HH. entregó los formatos):
+El contrato de trabajo es un DOC_TYPE más ("contrato"), igual que la Ficha o
+las Declaraciones Juradas — usa el mismo Document/Signature/PDF firmado que
+el resto del legajo, sin columnas propias en Employee. La única diferencia
+es que su contenido (cláusulas) se arma en Python (`pdf_signed._doc_contrato`)
+en vez de leerse de legal_texts.json, porque cambia según el Régimen Laboral
+de la persona (General/MYPE) y si es Personal de Confianza — ver
+`pdf_signed.CONTRATOS_VARIANTES`.
 """
 import datetime
 import uuid
@@ -50,13 +50,14 @@ Base = declarative_base()
 DOC_TYPES = [
     ("ficha", "Ficha de Datos del Personal"),
     ("declaracion_jurada", "Declaración Jurada"),
+    ("confidencialidad", "Acuerdo de Confidencialidad"),
     ("autorizacion_datos", "Autorización de Tratamiento de Datos Personales"),
+    ("declaracion_salud", "Declaración Jurada de Salud"),
     ("derechohabientes", "Formato de Derechohabientes EsSalud"),
     ("autorizacion_deposito", "Autorización de Depósito de Haberes y CTS"),
-    # <-- Cuando RR.HH. entregue el formato del contrato, agregar aquí:
-    #     ("contrato", "Contrato de Trabajo"),
-    # y su texto correspondiente en legal_texts.json. El resto del flujo
-    # (firma, PDF, auditoría, email) ya está preparado para soportarlo.
+    ("sistema_pensionario", "Sistema Pensionario — Boletín, Elección y Constancia"),
+    # Va al final a propósito: el legajo TERMINA con la firma del contrato.
+    ("contrato", "Contrato de Trabajo"),
 ]
 DOC_TYPE_KEYS = [d[0] for d in DOC_TYPES]
 
@@ -236,6 +237,15 @@ class Empresa(Base):
     representante_legal = Column(String(200), nullable=True)
     firma_representante_path = Column(String(500), nullable=True)  # PNG de la firma, sin fondo
     logo_path = Column(String(500), nullable=True)  # PNG del logo de la empresa
+    # Datos legales para armar el encabezado del Contrato de Trabajo
+    # (pdf_signed._doc_contrato) — sin estos, esa empresa no puede generar
+    # contratos todavía (queda un aviso en Parametrización > Empresas).
+    domicilio_fiscal = Column(String(300), nullable=True)
+    partida_registral = Column(String(60), nullable=True)
+    objeto_social = Column(Text, nullable=True)
+    representante_tipo_documento = Column(String(30), nullable=True)  # DNI / C.E. / Pasaporte
+    representante_numero_documento = Column(String(30), nullable=True)
+    representante_nacionalidad = Column(String(60), nullable=True)
     # Punto 14 del pedido (todavía sin flujo de correo armado): datos de
     # contacto para pedir la aprobación de una renovación de contrato.
     gerente_nombre = Column(String(200), nullable=True)
@@ -454,11 +464,6 @@ class Employee(Base):
     estado = Column(String(20), default="activo")  # activo/cesado
     fecha_baja = Column(DateTime, nullable=True)
     motivo_baja = Column(String(300), nullable=True)
-
-    # Previsto para cuando se agregue el contrato (ver nota arriba). Sin usar todavía.
-    contrato_tipo = Column(String(60), nullable=True)
-    contrato_pdf_path = Column(String(500), nullable=True)
-    contrato_signed_at = Column(DateTime, nullable=True)
 
     status = Column(String(20), default=STATUS_PENDIENTE)  # pendiente/en_proceso/completo (legajo de selección)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

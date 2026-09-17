@@ -467,7 +467,7 @@ async def firmar_documento(token: str, doc_type: str, request: Request, db: Sess
     ua = request.headers.get("user-agent", "")
 
     # --- Construir el payload de datos que va impreso en el documento firmado ---
-    doc_fields = build_doc_fields(emp, doc_type)
+    doc_fields = build_doc_fields(emp, doc_type, db)
     consent_text = LEGAL_TEXTS[doc_type]["cierre"]
 
     hash_source = json.dumps({"doc_type": doc_type, "fields": doc_fields, "consent": consent_text},
@@ -524,7 +524,7 @@ async def firmar_documento(token: str, doc_type: str, request: Request, db: Sess
     return {"ok": True, "status": doc.status, "hash": content_hash[:16]}
 
 
-def build_doc_fields(emp: Employee, doc_type: str) -> dict:
+def build_doc_fields(emp: Employee, doc_type: str, db: Session = None) -> dict:
     """Arma el diccionario de campos que se imprime en cada documento.
 
     Para la ficha se pasa el diccionario COMPLETO que llenó el trabajador
@@ -557,10 +557,30 @@ def build_doc_fields(emp: Employee, doc_type: str) -> dict:
         base["dni_titular"] = ficha.get("numero_documento", "")
     if doc_type == "autorizacion_deposito":
         base["banco"] = ficha.get("banco_haberes", "")
+        base["tipo_cuenta"] = ficha.get("tipo_cuenta_haberes", "")
         base["num_cuenta"] = ficha.get("cuenta_haberes", "")
         base["cci"] = ficha.get("cci_haberes", "")
         base["banco_cts"] = ficha.get("banco_cts", "")
         base["cuenta_cts"] = ficha.get("cuenta_cts", "")
+    if doc_type in ("contrato", "confidencialidad", "sistema_pensionario"):
+        base = {**dict(ficha), **base}
+        empresa_obj = emp.empresa_rel
+        if empresa_obj:
+            base["empresa_razon_social"] = empresa_obj.razon_social or empresa_obj.nombre
+            base["empresa_ruc"] = empresa_obj.ruc or ""
+            base["empresa_domicilio_fiscal"] = empresa_obj.domicilio_fiscal or ""
+            base["empresa_partida_registral"] = empresa_obj.partida_registral or ""
+            base["empresa_objeto_social"] = empresa_obj.objeto_social or ""
+            base["representante_legal"] = empresa_obj.representante_legal or ""
+            base["representante_tipo_documento"] = empresa_obj.representante_tipo_documento or ""
+            base["representante_numero_documento"] = empresa_obj.representante_numero_documento or ""
+            base["representante_nacionalidad"] = empresa_obj.representante_nacionalidad or ""
+        if doc_type == "contrato" and db is not None and ficha.get("cargo"):
+            cargo_obj = db.query(Cargo).filter(Cargo.nombre == ficha["cargo"]).first()
+            if cargo_obj:
+                base["cargo_descripcion"] = cargo_obj.descripcion or ""
+                base["cargo_funciones"] = cargo_obj.funciones or []
+                base["cargo_responsabilidades"] = cargo_obj.responsabilidades or []
     return base
 
 

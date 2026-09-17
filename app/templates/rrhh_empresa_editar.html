@@ -43,6 +43,25 @@
         <div class="field"><label>Representante Legal</label><input type="text" name="representante_legal" value="{{ e.representante_legal or '' }}"></div>
       </div>
 
+      <div class="section-title">Datos legales para el Contrato de Trabajo</div>
+      <p class="hint" style="margin-top:-8px;">Sin estos datos, esta empresa no puede generar contratos firmables — se imprimen en el encabezado del contrato (cláusula de comparecencia y "ANTECEDENTES").</p>
+      <div class="grid3">
+        <div class="field" style="grid-column:span 3;"><label>Domicilio Fiscal</label><input type="text" name="domicilio_fiscal" value="{{ e.domicilio_fiscal or '' }}" placeholder="Jirón, número, urbanización, distrito, provincia, departamento"></div>
+        <div class="field"><label>N.° de Partida Registral</label><input type="text" name="partida_registral" value="{{ e.partida_registral or '' }}"></div>
+        <div class="field">
+          <label>Tipo de Documento del Representante</label>
+          <select name="representante_tipo_documento">
+            <option value="">Seleccionar…</option>
+            <option {{ 'selected' if e.representante_tipo_documento == 'DNI' else '' }}>DNI</option>
+            <option {{ 'selected' if e.representante_tipo_documento == 'C.E.' else '' }}>C.E.</option>
+            <option {{ 'selected' if e.representante_tipo_documento == 'Pasaporte' else '' }}>Pasaporte</option>
+          </select>
+        </div>
+        <div class="field"><label>N.° de Documento del Representante</label><input type="text" name="representante_numero_documento" value="{{ e.representante_numero_documento or '' }}"></div>
+        <div class="field"><label>Nacionalidad del Representante</label><input type="text" name="representante_nacionalidad" value="{{ e.representante_nacionalidad or '' }}"></div>
+        <div class="field" style="grid-column:span 3;"><label>Objeto Social</label><input type="text" name="objeto_social" value="{{ e.objeto_social or '' }}" placeholder="Prestar servicios de ventas presenciales, call centers, ..."></div>
+      </div>
+
       <div class="section-title">Contacto para renovaciones de contrato</div>
       <div class="grid2">
         <div class="field"><label>Gerente de la empresa</label><input type="text" name="gerente_nombre" value="{{ e.gerente_nombre or '' }}"></div>

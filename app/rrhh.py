@@ -26,7 +26,7 @@ from .models import (
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
-    STATUS_PENDIENTE, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
+    STATUS_PENDIENTE, STATUS_FIRMADO, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
 from .auth import (
     get_current_user, require_login, require_role, hash_password, verify_password,
@@ -727,6 +727,9 @@ def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: st
                    representante_legal: str = Form(""),
                    gerente_nombre: str = Form(""), gerente_email: str = Form(""),
                    jefe_rrhh_nombre: str = Form(""), jefe_rrhh_email: str = Form(""),
+                   domicilio_fiscal: str = Form(""), partida_registral: str = Form(""),
+                   objeto_social: str = Form(""), representante_tipo_documento: str = Form(""),
+                   representante_numero_documento: str = Form(""), representante_nacionalidad: str = Form(""),
                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     db.add(Empresa(
         nombre=nombre.strip(), razon_social=razon_social.strip() or None, ruc=ruc.strip() or None,
@@ -734,6 +737,11 @@ def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: st
         representante_legal=representante_legal.strip() or None,
         gerente_nombre=gerente_nombre.strip() or None, gerente_email=gerente_email.strip() or None,
         jefe_rrhh_nombre=jefe_rrhh_nombre.strip() or None, jefe_rrhh_email=jefe_rrhh_email.strip() or None,
+        domicilio_fiscal=domicilio_fiscal.strip() or None, partida_registral=partida_registral.strip() or None,
+        objeto_social=objeto_social.strip() or None,
+        representante_tipo_documento=representante_tipo_documento or None,
+        representante_numero_documento=representante_numero_documento.strip() or None,
+        representante_nacionalidad=representante_nacionalidad.strip() or None,
     ))
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
@@ -759,6 +767,9 @@ def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str =
                     representante_legal: str = Form(""),
                     gerente_nombre: str = Form(""), gerente_email: str = Form(""),
                     jefe_rrhh_nombre: str = Form(""), jefe_rrhh_email: str = Form(""),
+                    domicilio_fiscal: str = Form(""), partida_registral: str = Form(""),
+                    objeto_social: str = Form(""), representante_tipo_documento: str = Form(""),
+                    representante_numero_documento: str = Form(""), representante_nacionalidad: str = Form(""),
                     db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     e = db.query(Empresa).get(empresa_id)
     if e:
@@ -772,6 +783,12 @@ def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str =
         e.gerente_email = gerente_email.strip() or None
         e.jefe_rrhh_nombre = jefe_rrhh_nombre.strip() or None
         e.jefe_rrhh_email = jefe_rrhh_email.strip() or None
+        e.domicilio_fiscal = domicilio_fiscal.strip() or None
+        e.partida_registral = partida_registral.strip() or None
+        e.objeto_social = objeto_social.strip() or None
+        e.representante_tipo_documento = representante_tipo_documento or None
+        e.representante_numero_documento = representante_numero_documento.strip() or None
+        e.representante_nacionalidad = representante_nacionalidad.strip() or None
         db.commit()
     return RedirectResponse(f"/rrhh/parametrizacion/empresa/{empresa_id}/editar?ok=1", status_code=303)
 
@@ -1602,6 +1619,14 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         db.query(ManAcademyAcceso).filter(ManAcademyAcceso.employee_id == employee_id).all()
     }
 
+    # Plazo legal de 10 días calendario para elegir Sistema Pensionario (ONP/
+    # AFP) desde que se entrega el boletín — se cuenta desde que se creó ese
+    # Document (mismo momento en que arranca todo el legajo, ensure_documents).
+    plazo_pensionario_dias = None
+    doc_pensionario = next((d for d in emp.documents if d.doc_type == "sistema_pensionario"), None)
+    if doc_pensionario and doc_pensionario.status != STATUS_FIRMADO:
+        plazo_pensionario_dias = (datetime.datetime.utcnow() - doc_pensionario.created_at).days
+
     return templates.TemplateResponse(request, "rrhh_personal_detalle.html", _ctx(
         request, user, e=emp, empresas=empresas, attachment_types=ATTACHMENT_TYPES,
         attachment_labels=ATTACHMENT_LABELS, tipos_bitacora=TIPOS_BITACORA,
@@ -1615,6 +1640,7 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         faltan_datos=faltan_datos, renovaciones=emp.renovaciones_contrato,
         organigrama=_organigrama_de(db, emp), doc_type_labels=dict(DOC_TYPES),
         man_academy_catalogo=man_academy_catalogo, man_academy_otorgados=man_academy_otorgados,
+        plazo_pensionario_dias=plazo_pensionario_dias,
         solicitudes_vacaciones=db.query(SolicitudVacaciones).filter(
             SolicitudVacaciones.employee_id == employee_id).order_by(SolicitudVacaciones.created_at.desc()).all(),
         estados_vacaciones=dict(ESTADOS_SOLICITUD_VACACIONES),

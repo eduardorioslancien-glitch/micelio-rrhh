@@ -158,6 +158,9 @@
         <div class="field"><label>Banco (Haberes)</label>
           <select id="banco_haberes"><option value="">Seleccionar…</option>{% for n in catalogos.banco %}<option>{{ n }}</option>{% endfor %}</select>
         </div>
+        <div class="field"><label>Tipo de Cuenta (Haberes)</label>
+          <select id="tipo_cuenta_haberes"><option value="">Seleccionar…</option><option>Ahorros</option><option>Corriente</option></select>
+        </div>
         <div class="field"><label>Cuenta (Haberes)</label><input type="text" id="cuenta_haberes"></div>
         <div class="field"><label>CCI (Haberes)</label><input type="text" id="cci_haberes"></div>
       </div>
@@ -245,6 +248,7 @@
         <div class="field"><label>Examen Médico — Vencimiento</label><input type="date" id="examen_medico_vencimiento"></div>
         <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" value="NINGUNA" placeholder="COVID-19 completo, Tétanos 2024…"></div>
       </div>
+      {% include "_seccion_salud_ampliada.html" %}
       <div class="footer-nav">
         <button class="btn secondary" onclick="goStep('1f')">Atrás</button>
         <button class="btn" onclick="goStep('1h')">Continuar</button>
@@ -303,6 +307,8 @@
         {% endif %}
         {% if key == 'derechohabientes' %}<div id="resumen_derechohabientes"></div>{% endif %}
         {% if key == 'autorizacion_deposito' %}<div id="resumen_bancario"></div>{% endif %}
+        {% if key == 'contrato' %}<div id="resumen_contrato"></div>{% endif %}
+        {% if key == 'sistema_pensionario' %}<div id="resumen_pensionario"></div>{% endif %}
         {% if legal[key].nota_legal %}<p><em>{{ legal[key].nota_legal }}</em></p>{% endif %}
         <p><em>{{ legal[key].cierre }}</em></p>
       </div>
@@ -343,6 +349,11 @@ const DOC_KEYS = {{ doc_types|map(attribute=0)|list|tojson }};
 const LEGAL = {{ legal|tojson }};
 const NIVELES_EDUCATIVOS = {{ niveles_educativos|tojson }};
 const EMPRESA_ACTUAL = {{ (e.empresa or "")|tojson }};
+// Datos que ya existen en el legajo (p.ej. régimen/cargo/remuneración que
+// RR.HH. completa después de la primera visita) — este formulario NO los
+// edita, pero los necesita para mostrar el resumen del Contrato antes de
+// firmarlo, la segunda vez que el trabajador vuelve a este mismo enlace.
+const FICHA_ACTUAL = {{ (e.ficha_data or {})|tojson }};
 const FICHA_STEPS = ["1a", "1b", "1c", "1e", "1f", "1g", "1h"];
 const STEP_ORDER = ["0", ...FICHA_STEPS, ...DOC_KEYS.map(k => "doc-" + k), "final"];
 
@@ -396,6 +407,8 @@ function goStep(name) {
   if (name.startsWith("doc-")) initSigPad(name.replace("doc-", ""));
   if (name.startsWith("doc-derechohabientes")) fillDerechohabientesSummary();
   if (name.startsWith("doc-autorizacion_deposito")) fillBankSummary();
+  if (name.startsWith("doc-contrato")) fillContratoSummary();
+  if (name.startsWith("doc-sistema_pensionario")) fillPensionarioSummary();
   fillIntros();
   window.scrollTo(0, 0);
 }
@@ -646,7 +659,7 @@ function collectFicha() {
     "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_celular_codigo","emerg1_direccion",
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_celular_codigo","emerg2_direccion",
     // V. Bancaria (los datos de Sección IV y la cuenta CTS los completa RR.HH.)
-    "banco_haberes","cuenta_haberes","cci_haberes",
+    "banco_haberes","tipo_cuenta_haberes","cuenta_haberes","cci_haberes",
     // VI. Previsional (fecha de afiliación y seguro los completa RR.HH.)
     "sistema_pension","afp","cuspp","comision",
     // X. Tallas
@@ -654,6 +667,19 @@ function collectFicha() {
     // XI. Salud
     "grupo_sanguineo","eps","essalud","alergias","restricciones","medicamentos",
     "examen_medico_fecha","examen_medico_vencimiento","vacunas",
+    // XI. Salud — Declaración Jurada de Salud (cuestionario ampliado, ver _seccion_salud_ampliada.html)
+    "antecedente_fam_cancer","antecedente_fam_diabetes","antecedente_fam_cardiaco","antecedente_fam_hipertension","antecedente_fam_otras",
+    "antecedente_personal_sarampion","antecedente_personal_paperas","antecedente_personal_rubeola","antecedente_personal_neumonia",
+    "antecedente_personal_epilepsia","antecedente_personal_tuberculosis","antecedente_personal_perdida_memoria","antecedente_personal_tos_cronica",
+    "antecedente_personal_cefaleas","antecedente_personal_hemorragias","antecedente_personal_hepatitis","antecedente_personal_gastritis",
+    "antecedente_personal_asma","antecedente_personal_ulceras",
+    "salud_fuma","salud_bebe_alcohol","salud_alcohol_cantidad",
+    "salud_sistema_nervioso","salud_sistema_nervioso_detalle","salud_sistema_respiratorio","salud_sistema_respiratorio_detalle",
+    "salud_sistema_circulatorio","salud_sistema_circulatorio_detalle","salud_sistema_digestivo","salud_sistema_digestivo_detalle",
+    "salud_sistema_endocrino","salud_sistema_endocrino_detalle","salud_sistema_oseo_muscular","salud_sistema_oseo_muscular_detalle",
+    "salud_sistema_piel","salud_sistema_piel_detalle",
+    "salud_bajo_tratamiento","salud_bajo_tratamiento_detalle","salud_cambio_peso",
+    "salud_cirugia","salud_cirugia_detalle","salud_otra_enfermedad","salud_otra_enfermedad_detalle",
   ];
   ficha = {};
   simpleIds.forEach(id => { ficha[id] = val(id); });
@@ -744,6 +770,45 @@ function fillBankSummary() {
     <p><strong>Depósito de haberes:</strong> ${ficha.banco_haberes || "—"} · Cuenta ${ficha.cuenta_haberes || "—"} · CCI ${ficha.cci_haberes || "—"}</p>
     <p><strong>Depósito de CTS:</strong> ${ficha.banco_cts || "—"} · Cuenta ${ficha.cuenta_cts || "—"} · CCI ${ficha.cci_cts || "—"}</p>
   `;
+}
+
+function fillContratoSummary() {
+  const el = document.getElementById("resumen_contrato");
+  if (!el) return;
+  const f = FICHA_ACTUAL || {};
+  if (!f.cargo || !f.regimen_laboral_persona) {
+    el.innerHTML = "<p><em>Recursos Humanos todavía no ha completado tus datos laborales (cargo, régimen, " +
+      "remuneración). El contrato con el detalle completo de tus condiciones se genera recién cuando estén " +
+      "completos — puedes firmar los demás documentos y volver a este enlace más adelante para firmar el " +
+      "contrato.</em></p>";
+    document.getElementById("btn-firmar-contrato").disabled = !f.cargo;
+    return;
+  }
+  document.getElementById("btn-firmar-contrato").disabled = false;
+  const variante = f.personal_confianza ? "Personal de Confianza" :
+    (String(f.regimen_laboral_persona).toUpperCase() === "MYPE" ? "Régimen MYPE — Plazo Fijo" : "Régimen General — Plazo Fijo");
+  el.innerHTML = `
+    <p><strong>Modalidad:</strong> ${variante}</p>
+    <table>
+      <tr><td>Cargo</td><td>${f.cargo || "—"}</td></tr>
+      <tr><td>Régimen Laboral</td><td>${f.regimen_laboral_persona || "—"}</td></tr>
+      <tr><td>Vigencia</td><td>${f.fecha_contrato || "—"} a ${f.fecha_fin_contrato || "—"}</td></tr>
+      <tr><td>Periodo de Prueba</td><td>${f.periodo_prueba_dias || "30"} días</td></tr>
+      <tr><td>Horario</td><td>${f.horario || "—"}</td></tr>
+      <tr><td>Remuneración</td><td>S/ ${f.remuneracion || "—"}</td></tr>
+    </table>
+    <p class="hint">El contrato completo, con todas las cláusulas legales, se genera en PDF con estos datos al firmar — podrás descargarlo desde este mismo enlace.</p>
+  `;
+}
+
+function fillPensionarioSummary() {
+  const el = document.getElementById("resumen_pensionario");
+  if (!el) return;
+  const f = FICHA_ACTUAL || {};
+  const sistema = ficha.sistema_pension || f.sistema_pension || "";
+  el.innerHTML = sistema
+    ? `<p><strong>Sistema elegido:</strong> ${sistema}${sistema === "AFP" ? " — " + (ficha.afp || f.afp || "—") : ""}</p>`
+    : "<p><em>Todavía no elegiste tu sistema pensionario en la Sección VI (Información Previsional) — vuelve al paso anterior y complétalo antes de firmar.</em></p>";
 }
 
 function initSigPad(key) {

@@ -1,0 +1,86 @@
+{# Cuestionario médico de la Declaración Jurada de Salud (documento entregado
+   por RR.HH. el 16/09) — antecedentes familiares/personales, hábitos y
+   condiciones actuales por sistema. Se incluye igual en formulario.html
+   (autoservicio) y rrhh_personal_ficha.html (edición por RR.HH.), así que
+   cualquier campo que se agregue acá queda disponible en los dos a la vez.
+   Los booleanos usan un <select> Sí/No (no checkbox) para que se recojan
+   solos junto con el resto de la ficha, sin lógica aparte en el JS. #}
+<div class="section-title" style="margin-top:18px;">Declaración Jurada de Salud — Antecedentes Familiares</div>
+<div class="grid4">
+  <div class="field"><label>Cáncer</label>
+    <select id="antecedente_fam_cancer"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
+  </div>
+  <div class="field"><label>Diabetes</label>
+    <select id="antecedente_fam_diabetes"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
+  </div>
+  <div class="field"><label>Problemas Cardiacos</label>
+    <select id="antecedente_fam_cardiaco"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
+  </div>
+  <div class="field"><label>Hipertensión</label>
+    <select id="antecedente_fam_hipertension"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select>
+  </div>
+  <div class="field" style="grid-column:span 4;"><label>Otras (mencionar)</label><input type="text" id="antecedente_fam_otras"></div>
+</div>
+
+<div class="section-title" style="margin-top:14px;">Antecedentes Personales — ¿Padeció durante la infancia alguna de las siguientes afecciones?</div>
+<div class="grid4">
+  <div class="field"><label>Sarampión</label><select id="antecedente_personal_sarampion"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Paperas</label><select id="antecedente_personal_paperas"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Rubéola</label><select id="antecedente_personal_rubeola"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Neumonía</label><select id="antecedente_personal_neumonia"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Epilepsia</label><select id="antecedente_personal_epilepsia"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Tuberculosis</label><select id="antecedente_personal_tuberculosis"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Pérdida de Memoria</label><select id="antecedente_personal_perdida_memoria"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Tos Crónica</label><select id="antecedente_personal_tos_cronica"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Cefaleas Prolongadas</label><select id="antecedente_personal_cefaleas"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Hemorragias</label><select id="antecedente_personal_hemorragias"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Hepatitis</label><select id="antecedente_personal_hepatitis"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Gastritis</label><select id="antecedente_personal_gastritis"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Asma</label><select id="antecedente_personal_asma"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Úlceras</label><select id="antecedente_personal_ulceras"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+</div>
+
+<div class="section-title" style="margin-top:14px;">Hábitos</div>
+<div class="grid3">
+  <div class="field"><label>Fuma</label><select id="salud_fuma"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>Bebe Alcohol</label><select id="salud_bebe_alcohol"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select></div>
+  <div class="field"><label>¿En qué cantidad?</label><input type="text" id="salud_alcohol_cantidad"></div>
+</div>
+
+<div class="section-title" style="margin-top:14px;">¿Padece actualmente o ha sido tratado en los últimos años por…?</div>
+<div class="grid3">
+  <div class="field"><label>Enfermedades del sistema nervioso</label><select id="salud_sistema_nervioso"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar (mareos, desmayos, convulsiones, dolores de cabeza…)</label><input type="text" id="salud_sistema_nervioso_detalle"></div>
+
+  <div class="field"><label>Enfermedades del sistema respiratorio</label><select id="salud_sistema_respiratorio"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar (asma, bronquitis, tuberculosis…)</label><input type="text" id="salud_sistema_respiratorio_detalle"></div>
+
+  <div class="field"><label>Corazón, sangre o sistema circulatorio</label><select id="salud_sistema_circulatorio"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar (hiper/hipotensión, ataques cardiacos, anemia, diabetes…)</label><input type="text" id="salud_sistema_circulatorio_detalle"></div>
+
+  <div class="field"><label>Sistema digestivo</label><select id="salud_sistema_digestivo"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar (gastritis, úlceras, hígado, vesícula…)</label><input type="text" id="salud_sistema_digestivo_detalle"></div>
+
+  <div class="field"><label>Enfermedades endocrinas</label><select id="salud_sistema_endocrino"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar</label><input type="text" id="salud_sistema_endocrino_detalle"></div>
+
+  <div class="field"><label>Óseas o musculares</label><select id="salud_sistema_oseo_muscular"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar (columna, articulaciones, amputaciones…)</label><input type="text" id="salud_sistema_oseo_muscular_detalle"></div>
+
+  <div class="field"><label>Enfermedades de la piel</label><select id="salud_sistema_piel"><option value="">—</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar</label><input type="text" id="salud_sistema_piel_detalle"></div>
+</div>
+
+<div class="section-title" style="margin-top:14px;">Otros antecedentes</div>
+<div class="grid3">
+  <div class="field"><label>¿Bajo observación o tratamiento actualmente?</label><select id="salud_bajo_tratamiento"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar</label><input type="text" id="salud_bajo_tratamiento_detalle"></div>
+
+  <div class="field"><label>¿Cambio significativo de peso en el último año?</label><select id="salud_cambio_peso"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select></div>
+
+  <div class="field"><label>¿Intervención quirúrgica?</label><select id="salud_cirugia"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Diagnóstico y fecha</label><input type="text" id="salud_cirugia_detalle"></div>
+
+  <div class="field"><label>¿Otra enfermedad no mencionada?</label><select id="salud_otra_enfermedad"><option value="">Seleccionar…</option><option>Sí</option><option>No</option></select></div>
+  <div class="field" style="grid-column:span 2;"><label>Especificar</label><input type="text" id="salud_otra_enfermedad_detalle"></div>
+</div>

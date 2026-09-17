@@ -275,7 +275,7 @@ def _legal_body(doc_type, fields):
     spec = LEGAL_TEXTS[doc_type]
     story = [_body_text(_fill(spec["intro"], fields))]
     for i, item in enumerate(spec.get("items") or [], start=1):
-        story.append(_numbered_item(i, item))
+        story.append(_numbered_item(i, _fill(item, fields)))
     if spec.get("nota_legal"):
         story.append(_body_text(spec["nota_legal"], italic=True))
     return story, spec.get("cierre"), spec["titulo"], spec["subtitulo"]
@@ -340,7 +340,8 @@ def _doc_ficha(fields):
         ["Base", g("sede"), "Centro de Costos", g("centro_costos")],
         ["Jefe Inmediato", g("jefe_inmediato"), "Fecha de Ingreso", g("fecha_ingreso")],
         ["Fecha de Contrato", g("fecha_contrato"), "Fecha de Vencimiento", g("fecha_fin_contrato")],
-        ["Tipo de Contrato", g("tipo_contrato"), "Régimen Laboral", g("regimen_laboral_persona")],
+        ["Periodo de Prueba (días)", g("periodo_prueba_dias"), "Tipo de Contrato", g("tipo_contrato")],
+        ["Régimen Laboral", g("regimen_laboral_persona"), "Personal de Confianza", "Sí" if g("personal_confianza") else "No"],
         ["Modalidad", g("modalidad"), "", ""],
         ["Horario", g("horario"), "Jornada", g("jornada")],
         ["Turno", g("turno"), "Grupo Ocupacional", g("grupo_ocupacional")],
@@ -350,9 +351,10 @@ def _doc_ficha(fields):
 
     story += _section_caption("V. Información Bancaria")
     story.append(_field_table([
-        ["Banco (Haberes)", g("banco_haberes"), "Cuenta (Haberes)", g("cuenta_haberes")],
-        ["CCI (Haberes)", g("cci_haberes"), "Banco CTS", g("banco_cts")],
-        ["Cuenta CTS", g("cuenta_cts"), "CCI CTS", g("cci_cts")],
+        ["Banco (Haberes)", g("banco_haberes"), "Tipo de Cuenta (Haberes)", g("tipo_cuenta_haberes")],
+        ["Cuenta (Haberes)", g("cuenta_haberes"), "CCI (Haberes)", g("cci_haberes")],
+        ["Banco CTS", g("banco_cts"), "Cuenta CTS", g("cuenta_cts")],
+        ["CCI CTS", g("cci_cts"), "", ""],
     ]))
 
     story += _section_caption("VI. Información Previsional")
@@ -448,13 +450,501 @@ def _doc_autorizacion_deposito(fields):
     story, cierre, titulo, subtitulo = _legal_body("autorizacion_deposito", fields)
     story += _section_caption("I. Depósito de Haberes (Remuneración Mensual)")
     story.append(_field_table([
-        ["Banco", fields.get("banco"), "N.° de Cuenta", fields.get("num_cuenta")],
-        ["CCI", fields.get("cci"), "", ""],
+        ["Banco", fields.get("banco"), "Tipo de Cuenta", fields.get("tipo_cuenta")],
+        ["N.° de Cuenta", fields.get("num_cuenta"), "CCI", fields.get("cci")],
     ]))
     story += _section_caption("II. Depósito de CTS")
     story.append(_field_table([
         ["Entidad Depositaria (Banco)", fields.get("banco_cts"), "N.° de Cuenta CTS", fields.get("cuenta_cts")],
     ]))
+    return story, cierre, titulo, subtitulo
+
+
+MESES_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+            "agosto", "setiembre", "octubre", "noviembre", "diciembre"]
+
+
+def _fecha_larga(iso: str) -> str:
+    """'2026-10-01' -> '01 de octubre de 2026'. Si no es una fecha ISO válida
+    (campo vacío, o texto libre ya escrito por RR.HH.), se devuelve tal cual."""
+    if not iso:
+        return ""
+    try:
+        import datetime as _dt
+        d = _dt.datetime.strptime(iso[:10], "%Y-%m-%d")
+        return f"{d.day:02d} de {MESES_ES[d.month - 1]} de {d.year}"
+    except (ValueError, IndexError):
+        return iso
+
+
+def _fecha_mas_dias(iso: str, dias) -> str:
+    """Suma `dias` a una fecha ISO ('2026-10-01') y devuelve la fecha larga
+    resultante. Se usa para calcular el fin del periodo de prueba a partir de
+    su inicio. Devuelve "" si no hay fecha de inicio o `dias` no es un número."""
+    if not iso:
+        return ""
+    try:
+        import datetime as _dt
+        d = _dt.datetime.strptime(iso[:10], "%Y-%m-%d") + _dt.timedelta(days=int(dias))
+        return f"{d.day:02d} de {MESES_ES[d.month - 1]} de {d.year}"
+    except (ValueError, IndexError, TypeError):
+        return ""
+
+
+_UNIDADES = ["", "UNO", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"]
+_ESPECIALES = {10: "DIEZ", 11: "ONCE", 12: "DOCE", 13: "TRECE", 14: "CATORCE", 15: "QUINCE",
+               16: "DIECISÉIS", 17: "DIECISIETE", 18: "DIECIOCHO", 19: "DIECINUEVE",
+               20: "VEINTE", 21: "VEINTIUNO", 22: "VEINTIDÓS", 23: "VEINTITRÉS",
+               24: "VEINTICUATRO", 25: "VEINTICINCO", 26: "VEINTISÉIS", 27: "VEINTISIETE",
+               28: "VEINTIOCHO", 29: "VEINTINUEVE"}
+_DECENAS = {3: "TREINTA", 4: "CUARENTA", 5: "CINCUENTA", 6: "SESENTA", 7: "SETENTA",
+            8: "OCHENTA", 9: "NOVENTA"}
+_CENTENAS = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS",
+             "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"]
+
+
+def _num_a_letras_hasta_999(n: int) -> str:
+    if n == 0:
+        return ""
+    if n == 100:
+        return "CIEN"
+    if n < 10:
+        return _UNIDADES[n]
+    if n < 30:
+        return _ESPECIALES[n]
+    if n < 100:
+        d, u = divmod(n, 10)
+        return _DECENAS[d] + (f" Y {_UNIDADES[u]}" if u else "")
+    c, resto = divmod(n, 100)
+    return _CENTENAS[c] + (f" {_num_a_letras_hasta_999(resto)}" if resto else "")
+
+
+def _num_a_letras(n: int) -> str:
+    """Entero no negativo -> letras en español, hasta 999 999 999 (de sobra
+    para un sueldo). Sin librerías externas."""
+    if n == 0:
+        return "CERO"
+    millones, resto = divmod(n, 1_000_000)
+    miles, cientos = divmod(resto, 1000)
+    partes = []
+    if millones:
+        partes.append("UN MILLÓN" if millones == 1 else f"{_num_a_letras_hasta_999(millones)} MILLONES")
+    if miles:
+        partes.append("MIL" if miles == 1 else f"{_num_a_letras_hasta_999(miles)} MIL")
+    if cientos:
+        partes.append(_num_a_letras_hasta_999(cientos))
+    return " ".join(partes)
+
+
+def _monto_en_letras(monto) -> str:
+    """1130.5 -> 'MIL CIENTO TREINTA CON 50/100 SOLES'. Devuelve "" si `monto`
+    no es un número válido (RR.HH. no lo llenó todavía)."""
+    try:
+        valor = float(monto)
+    except (TypeError, ValueError):
+        return ""
+    entero = int(valor)
+    centavos = round((valor - entero) * 100)
+    return f"{_num_a_letras(entero)} CON {centavos:02d}/100 SOLES"
+
+
+def _clause(nombre, texto, fields):
+    filled = _fill(texto, fields)
+    return Paragraph(f'<b><font color="{NAVY_DARK_HEX}">{_esc(nombre)}.- </font></b>{_esc(filled)}',
+                      _style_numbered)
+
+
+# Cláusulas comunes a los 2 contratos de planilla a plazo fijo (Régimen
+# General / MYPE) — son idénticas salvo 3 frases marcadas con {mype_*}, que
+# quedan vacías si la persona no está en régimen MYPE. Transcritas de los
+# formatos que RR.HH. entregó el 16/09.
+_CLAUSULAS_PLAZO_FIJO = [
+    ("PRIMERA: ANTECEDENTES", "EL EMPLEADOR es una persona jurídica de derecho privado que recientemente "
+     "emprende sus actividades en el mercado, constituida en el 2023, bajo el régimen de la Microempresa, "
+     "cuyo objeto social es {empresa_objeto_social}, entre otras previstas en el estatuto de su creación, "
+     "según consta en la Partida Registral N.° {empresa_partida_registral} del Registro."),
+    ("SEGUNDA: SUSTENTO", "Actualmente existe en el sector de las telecomunicaciones una coyuntura de mercado, "
+     "que sumada a la inestabilidad política y social ha producido desequilibrio y oscilaciones económicas en "
+     "el negocio, lo cual genera una incertidumbre en la continuidad del negocio; por lo que, a efecto de "
+     "verificar la respuesta del mercado a los servicios que ofrece {empresa_razon_social}, ésta requiere "
+     "cubrir una serie de puestos de trabajo que le permitan determinar la viabilidad de sus actividades, así "
+     "como su permanencia en el mercado; bajo esas circunstancias, se encontraría sustentada la temporalidad "
+     "del presente contrato modal por inicio de actividad."),
+    ("TERCERA: CARGO", "Por el presente documento EL EMPLEADOR contrata a plazo fijo bajo {mype_regimen_texto} y "
+     "la modalidad ya indicada, los servicios de EL TRABAJADOR quien desempeñará el cargo de {cargo}, en "
+     "relación con las causas objetivas señaladas en la cláusula anterior."),
+    ("CUARTA: FUNCIONES", "En atención al cargo que desempeñará EL TRABAJADOR para EL EMPLEADOR, éste tendrá el "
+     "deber de cumplir, entre otras, con las actividades indicadas en la Descripción del Cargo anexa al "
+     "presente contrato marcada con la letra \"A\", de modo tal que pueda cumplir a cabalidad con las "
+     "actividades que le sean encomendadas. Asimismo, EL TRABAJADOR deberá cumplir con las normas propias del "
+     "Centro de Trabajo y las demás normas laborales, y las que se impartan por necesidades del servicio en "
+     "ejercicio de las facultades de administración de la empresa, de conformidad con el Art. 9.° de la Ley de "
+     "Productividad y Competitividad Laboral aprobado por D.S. N.° 003-97-TR. EL EMPLEADOR se encuentra "
+     "facultado a efectuar modificaciones razonables en función de la capacidad y actitud de EL TRABAJADOR y a "
+     "las necesidades y requerimientos de la misma, sin que dichas variaciones signifiquen menoscabo de "
+     "categoría y/o remuneración."),
+    ("QUINTA: PLAZO", "El plazo de duración del presente contrato rige desde el {fecha_contrato_larga} hasta el "
+     "{fecha_fin_contrato_larga}, fecha en que debe empezar y terminar sus labores EL TRABAJADOR, "
+     "respectivamente."),
+    ("SEXTA: PERIODO DE PRUEBA", "EL TRABAJADOR estará sujeto a un período de prueba de {periodo_prueba_dias} "
+     "días, el mismo que inicia el {fecha_contrato_larga} y concluye el {periodo_prueba_fin_larga}, debiendo "
+     "señalar en este extremo que las partes acuerdan libremente este plazo de período de prueba debido a la "
+     "adaptación que, en el tiempo, deberá acceder EL TRABAJADOR en su nuevo puesto de trabajo."),
+    ("SÉPTIMA: JORNADA", "EL TRABAJADOR cumplirá el siguiente horario de trabajo: {horario}, con un tiempo de "
+     "refrigerio de sesenta (60) minutos."),
+    ("OCTAVA: REMUNERACIÓN", "EL EMPLEADOR abonará a EL TRABAJADOR la cantidad de S/ {remuneracion} "
+     "({remuneracion_letras}) como remuneración mensual, de la cual se deducirán las aportaciones y "
+     "descuentos por tributos establecidos en la ley que le resulten de aplicación."),
+    ("NOVENA: TERMINACIÓN", "Queda entendido que EL EMPLEADOR no está obligado a dar aviso alguno adicional "
+     "referente al término del presente contrato, operando su extinción en la fecha de su vencimiento conforme "
+     "la cláusula QUINTA, oportunidad en la cual se abonará a EL TRABAJADOR los beneficios sociales que le "
+     "pudieran corresponder de acuerdo a ley."),
+    ("DÉCIMA: CONFIDENCIALIDAD", "EL TRABAJADOR acuerda mantener la debida confidencialidad sobre la "
+     "información que reciba de EL EMPLEADOR con motivo del presente Contrato. Será considerada como "
+     "información confidencial aquella que haya sido plasmada en cualquier medio y que por cualquier "
+     "mecanismo, sea suministrada por EL EMPLEADOR a EL TRABAJADOR, directamente o a través de dependientes, "
+     "subcontratistas, asesores o auxiliares, aunque tal información no haya sido calificada como "
+     "confidencial. La confidencialidad no se extiende a la información que, desde antes de su entrega por "
+     "una parte a la otra, sea del dominio público. EL EMPLEADOR podrá solicitar a EL TRABAJADOR que le "
+     "devuelva la información confidencial que le concierne y que la destruya o la borre de sus archivos. En "
+     "caso de que cualquier autoridad, de índole administrativo o judicial, solicite que EL TRABAJADOR le "
+     "suministre información confidencial perteneciente a EL EMPLEADOR, EL TRABAJADOR deberá notificarlo de "
+     "inmediato a EL EMPLEADOR."),
+    ("DÉCIMA PRIMERA: SECRETO DE LAS TELECOMUNICACIONES", "EL TRABAJADOR declara conocer que en ejecución de "
+     "los servicios materia del presente Contrato tendrá acceso a determinada información que se encuentra "
+     "protegida, entre otros, por el artículo 2.° numeral 10) de la Constitución Política del Perú; los "
+     "artículos 161.° y siguientes del Código Penal; los artículos 4.°, 87.° inciso 5) y 90.° del Texto Único "
+     "Ordenado de la Ley de Telecomunicaciones; los artículos 10.° y 15.° del Reglamento de la Ley de "
+     "Telecomunicaciones y la Ley N.° 29733 - Ley de Protección de Datos Personales, al calificar la misma "
+     "como \"secreto de las telecomunicaciones\" y/o \"datos personales\", respectivamente. En consecuencia, "
+     "EL TRABAJADOR se obliga a no sustraer, interceptar, interferir, alterar, desviar, acceder, utilizar, "
+     "publicar o facilitar tanto el contenido de cualquier comunicación como la información personal de los "
+     "usuarios de alguno de los servicios prestados por EL EMPLEADOR."),
+    ("DÉCIMA SEGUNDA: PROTECCIÓN DE DATOS PERSONALES", "A efectos de lo establecido en la Ley N.° 29733, Ley de "
+     "Protección de Datos Personales, y en virtud del acceso que EL TRABAJADOR tiene a los datos personales "
+     "contenidos en bancos de datos de titularidad de EL EMPLEADOR y el cliente, EL TRABAJADOR deberá utilizar "
+     "dicha información exclusivamente para los fines del presente contrato, no comunicarla ni transferirla a "
+     "terceros sin autorización expresa y por escrito de EL EMPLEADOR, y una vez finalizado el contrato, "
+     "deberá destruirla, eliminarla o devolverla a EL EMPLEADOR. El incumplimiento de esta cláusula será "
+     "causal de resolución del presente Contrato."),
+    ("DÉCIMA TERCERA: ANTICORRUPCIÓN", "LAS PARTES declaran y se obligan a que ellas y todas las personas "
+     "empleadas o que actúan a su nombre se abstendrán de dar, ofrecer, aceptar o recibir, directa o "
+     "indirectamente, dinero o cualquier otra cosa de valor con la finalidad de obtener o retener una ventaja "
+     "comercial indebida, incluyendo pagos a funcionarios públicos o privados. La Parte afectada podrá dar por "
+     "terminado este contrato inmediatamente, sin responsabilidad alguna, si concluye que la otra ha "
+     "incumplido esta cláusula."),
+    ("DÉCIMA CUARTA: NORMATIVA", "Este contrato queda sujeto a las disposiciones que contiene el TUO del D. "
+     "Leg. N.° 728 aprobado por D.S. N.° 003-97-TR, Ley de Productividad y Competitividad Laboral{mype_normativa_texto}, "
+     "y demás normas legales que lo regulen o que sean dictadas durante la vigencia del contrato."),
+]
+
+# Cláusulas del Contrato por Servicio Específico para Personal de Confianza
+# (Art. 43° LPCL). {mype_*} funcionan igual que en el set anterior — quedan
+# vacíos para la variante en Régimen General (redactada por analogía, ya que
+# RR.HH. solo entregó la versión MYPE — debe revisarla el asesor legal antes
+# de usarla con alguien en Régimen General).
+_CLAUSULAS_CONFIANZA = [
+    ("PRIMERA: ANTECEDENTES", "EL EMPLEADOR es una persona jurídica de derecho privado que recientemente "
+     "emprende sus actividades en el mercado, constituida en el 2023, bajo el régimen de la Microempresa, "
+     "cuyo objeto social es {empresa_objeto_social}, entre otras previstas en el estatuto de su creación, "
+     "según consta en la Partida Registral N.° {empresa_partida_registral} del Registro."),
+    ("SEGUNDA: SUSTENTO", "Este contrato por servicio específico tiene por objeto la prestación de servicios "
+     "sustentada en la confianza, dado que EL TRABAJADOR (i) estará en constante contacto personal y directo "
+     "con el empleador y el personal de dirección, (ii) tendrá acceso a secretos industriales, comerciales o "
+     "profesionales y a información de carácter reservado, y (iii) sus opiniones o informes serán presentados "
+     "directamente al personal de dirección, impactando en las decisiones empresariales; bajo esas "
+     "circunstancias, se encontraría sustentado el presente contrato modal de prestación de servicios basado "
+     "en la confianza."),
+    ("TERCERA: CARGO", "Por el presente documento EL EMPLEADOR contrata a plazo fijo bajo {mype_regimen_texto} y "
+     "la modalidad ya indicada, los servicios de EL TRABAJADOR quien desempeñará el cargo de {cargo}, en "
+     "relación con las causas objetivas señaladas en la cláusula anterior."),
+    ("CUARTA: FUNCIONES", "En atención al cargo que desempeñará EL TRABAJADOR para EL EMPLEADOR, a través de "
+     "una relación laboral de exclusiva confianza, éste tendrá el deber de: prestar servicios en contacto "
+     "personal y directo con EL EMPLEADOR y/o personal de dirección; guardar reserva de los secretos "
+     "industriales, comerciales o profesionales de los que tome conocimiento; emitir las opiniones o informes "
+     "que le solicite EL EMPLEADOR; y desempeñar las actividades de confianza indicadas en la Descripción del "
+     "Cargo anexa al presente contrato marcada con la letra \"A\". EL EMPLEADOR se encuentra facultado a "
+     "efectuar modificaciones razonables en función de la capacidad y actitud de EL TRABAJADOR y a las "
+     "necesidades y requerimientos de la misma, sin que dichas variaciones signifiquen menoscabo de categoría "
+     "y/o remuneración."),
+    ("QUINTA: PLAZO", "La duración del presente contrato rige desde el {fecha_contrato_larga} hasta el "
+     "{fecha_fin_contrato_larga}, fecha en que termina el contrato, salvo que EL EMPLEADOR retire la "
+     "confianza antes del plazo indicado. EL TRABAJADOR indica tener pleno conocimiento del término de su "
+     "relación contractual por cumplimiento del plazo indicado o el retiro de confianza, manifestando su "
+     "consentimiento libre y voluntario en ambas formas de terminación de la relación laboral."),
+    ("SEXTA: PERIODO DE PRUEBA", "EL TRABAJADOR estará sujeto a un período de prueba de {periodo_prueba_dias} "
+     "días, el mismo que inicia el {fecha_contrato_larga} y concluye el {periodo_prueba_fin_larga}, debiendo "
+     "señalar en este extremo que las partes acuerdan libremente este plazo de período de prueba debido a la "
+     "adaptación que, en el tiempo, deberá acceder EL TRABAJADOR en su nuevo puesto de trabajo."),
+    ("SÉPTIMA: JORNADA", "EL TRABAJADOR, como trabajador de confianza, no se encuentra sujeto a la jornada "
+     "máxima de trabajo de ocho (8) horas diarias o cuarenta y ocho (48) horas semanales conforme al TUO de la "
+     "Ley de Jornada de Trabajo, Horario y Trabajo en Sobretiempo — D.S. N.° 007-2002-TR. En este sentido, EL "
+     "TRABAJADOR se encuentra eximido de la obligación de llevar un registro de control de asistencia, sin "
+     "perjuicio de lo cual deberá encontrarse en el lugar habitual de trabajo en los días laborales ({horario}). "
+     "Asimismo, se deja establecido que EL TRABAJADOR no tiene derecho a exigir ni el descanso sustitutorio ni "
+     "el pago del descanso semanal obligatorio, por cuanto no se encuentra sujeto a control efectivo del "
+     "tiempo de trabajo."),
+    ("OCTAVA: REMUNERACIÓN", "EL EMPLEADOR pagará a EL TRABAJADOR la cantidad de S/ {remuneracion} "
+     "({remuneracion_letras}) como remuneración mensual, del cual se deducirán las aportaciones y descuentos "
+     "por tributos establecidos en la ley que le resulten de aplicación. La remuneración no implicará el pago "
+     "de horas extras o sobretiempo al no estar sujeto el trabajador a jornada de trabajo y registro de "
+     "asistencia."),
+    ("NOVENA: TERMINACIÓN", "Queda entendido que EL EMPLEADOR no está obligado a dar aviso alguno adicional "
+     "referente al término del presente contrato, operando su extinción en la fecha de su vencimiento "
+     "conforme la cláusula QUINTA, oportunidad en la cual se abonará a EL TRABAJADOR los beneficios sociales "
+     "que le pudieran corresponder de acuerdo a ley, salvo la indemnización por despido arbitrario, que no le "
+     "corresponderá al TRABAJADOR por haber ingresado directamente al cargo de confianza. En el caso del "
+     "retiro de confianza, la sola comunicación escrita al trabajador da por terminado el contrato."),
+    ("DÉCIMA: CONFIDENCIALIDAD", "Las partes acuerdan incorporar al presente una cláusula de confidencialidad "
+     "y reserva que deberá observar EL TRABAJADOR respecto de la información de carácter reservada de "
+     "propiedad de EL EMPLEADOR (planes, proyectos, software, estrategias comerciales, financieras, de "
+     "clientes, proveedores y demás), guardando total reserva y absoluta confidencialidad frente a terceros. "
+     "El plazo de esta reserva se encontrará vigente durante la vigencia del vínculo laboral e incluso "
+     "abarcará dos (2) años luego de culminada la relación contractual. EL TRABAJADOR será responsable en "
+     "forma directa de cualquier daño o perjuicio que se origine por el incumplimiento de esta cláusula, sin "
+     "perjuicio de las acciones penales que correspondan conforme al artículo 165.° del Código Penal."),
+    ("DÉCIMA PRIMERA: SECRETO DE LAS TELECOMUNICACIONES", "EL TRABAJADOR declara conocer que en ejecución de "
+     "los servicios materia del presente Contrato tendrá acceso a determinada información protegida por el "
+     "artículo 2.° numeral 10) de la Constitución Política del Perú, los artículos 161.° y siguientes del "
+     "Código Penal, y la Ley N.° 29733 - Ley de Protección de Datos Personales, al calificar la misma como "
+     "\"secreto de las telecomunicaciones\" y/o \"datos personales\". EL TRABAJADOR se obliga a no sustraer, "
+     "interceptar, interferir, alterar, desviar, acceder, utilizar, publicar o facilitar dicha información."),
+    ("DÉCIMA SEGUNDA: PROTECCIÓN DE DATOS PERSONALES", "EL TRABAJADOR deberá utilizar la información personal "
+     "proporcionada por EL EMPLEADOR exclusivamente para los fines del presente contrato, no comunicarla a "
+     "terceros sin autorización expresa y por escrito de EL EMPLEADOR, y destruirla, eliminarla o devolverla "
+     "una vez finalizado el contrato. El incumplimiento será causal de resolución del presente Contrato."),
+    ("DÉCIMA TERCERA: DERECHO DE AUTOR", "La titularidad y propiedad de los derechos sobre creaciones "
+     "intelectuales que se generen con ocasión de la ejecución del presente contrato serán de EL EMPLEADOR, "
+     "quien podrá registrarlas, reproducirlas, transformarlas, difundirlas y explotarlas por cualquier medio, "
+     "sin que EL TRABAJADOR pueda comercializarlas en ningún momento ni reclamar contraprestación adicional "
+     "por mejoras que EL EMPLEADOR obtenga en bienes o procedimientos."),
+    ("DÉCIMA CUARTA: ANTICORRUPCIÓN", "EL TRABAJADOR se compromete a no participar en actos de corrupción o "
+     "soborno que puedan involucrar a EL EMPLEADOR, a no influir en decisiones de funcionarios públicos o "
+     "privados mediante beneficios personales en nombre de EL EMPLEADOR, y a informar cualquier conducta "
+     "desleal de la que tenga conocimiento."),
+    ("DÉCIMA QUINTA: EXCLUSIVIDAD", "EL TRABAJADOR se compromete a desarrollar su tarea de manera profesional "
+     "y exclusiva para EL EMPLEADOR, quedando expresamente prohibido mantener relación laboral o por cuenta "
+     "ajena con terceros que puedan ser competencia, directa o indirecta, de la actividad de EL EMPLEADOR. Su "
+     "incumplimiento faculta a EL EMPLEADOR a proceder al despido de EL TRABAJADOR por incumplimiento grave de "
+     "sus obligaciones contractuales."),
+    ("DÉCIMA SEXTA: INDEMNIDAD", "EL TRABAJADOR cumplirá fielmente y con la diligencia de un buen padre de "
+     "familia las obligaciones asumidas en el presente Contrato, e indemnizará a EL EMPLEADOR por cualesquiera "
+     "daños causados en razón de su incumplimiento. Las acciones contrarias a lo estipulado en este documento "
+     "serán causal de terminación del vínculo laboral por pérdida de la confianza."),
+    ("DÉCIMA SÉPTIMA: NORMATIVA APLICABLE", "Este contrato queda sujeto a las disposiciones que contiene el "
+     "TUO del D. Leg. N.° 728 aprobado por D.S. N.° 003-97-TR, Ley de Productividad y Competitividad "
+     "Laboral{mype_normativa_texto}, y demás normas legales que lo regulen o que sean dictadas durante la "
+     "vigencia del contrato."),
+]
+
+
+def _doc_contrato(fields):
+    """Arma el contrato de trabajo correcto según el Régimen Laboral de la
+    persona y si es Personal de Confianza — ver CONTRATOS_VARIANTES. El
+    contenido de las cláusulas se arma en Python (no en legal_texts.json)
+    porque cambia según esas dos variables y necesita fechas/montos
+    calculados, algo que el motor genérico de {placeholders} no resuelve."""
+    g = fields.get
+    es_confianza = bool(g("personal_confianza"))
+    es_mype = (g("regimen_laboral_persona") or "").strip().upper() == "MYPE"
+
+    tipo_doc = g("tipo_documento") or "DNI"
+    numero_doc = g("numero_documento") or ""
+    direccion = ", ".join(x for x in [g("direccion"), g("distrito"), g("provincia"), g("departamento")] if x)
+    correo = g("correo_corporativo") or g("correo_personal") or ""
+    periodo_prueba_dias = g("periodo_prueba_dias") or "30"
+
+    computed = {
+        "num_doc": f"{tipo_doc} N.° {numero_doc}" if numero_doc else "________",
+        "direccion": direccion or "________",
+        "correo": correo or "________",
+        "fecha_contrato_larga": _fecha_larga(g("fecha_contrato")) or "________",
+        "fecha_fin_contrato_larga": _fecha_larga(g("fecha_fin_contrato")) or "________",
+        "periodo_prueba_dias": str(periodo_prueba_dias),
+        "periodo_prueba_fin_larga": _fecha_mas_dias(g("fecha_contrato"), periodo_prueba_dias) or "________",
+        "remuneracion": g("remuneracion") or "________",
+        "remuneracion_letras": _monto_en_letras(g("remuneracion")) or "monto a completar por RR.HH.",
+        "horario": g("horario") or "________",
+        "cargo": g("cargo") or "________",
+        "empresa_razon_social": g("empresa_razon_social") or "________",
+        "empresa_ruc": g("empresa_ruc") or "________",
+        "empresa_domicilio_fiscal": g("empresa_domicilio_fiscal") or "________",
+        "empresa_partida_registral": g("empresa_partida_registral") or "________",
+        "empresa_objeto_social": g("empresa_objeto_social") or (
+            "prestar servicios de ventas presenciales, call centers, capacitación de ventas, representación de "
+            "marcas, ventas receptivas en tiendas, distribución e instalación de bienes de todo tipo, asesoría "
+            "comercial y asesoría en desarrollo de fuerza de ventas"),
+        "representante_legal": g("representante_legal") or "________",
+        "representante_tipo_documento": g("representante_tipo_documento") or "DNI",
+        "representante_numero_documento": g("representante_numero_documento") or "________",
+        "representante_nacionalidad": g("representante_nacionalidad") or "________",
+        "mype_regimen_texto": ("el Régimen Laboral aplicable a la Micro y Pequeña Empresa" if es_mype
+                                else "el Régimen General"),
+        "mype_normativa_texto": (", así como la Ley y Reglamento de la Micro y Pequeña Empresa" if es_mype else ""),
+    }
+    merged = {**fields, **computed}
+
+    clausulas = _CLAUSULAS_CONFIANZA if es_confianza else _CLAUSULAS_PLAZO_FIJO
+    variante_nombre = (
+        ("Personal de Confianza — " + ("MYPE" if es_mype else "Régimen General"))
+        if es_confianza else
+        ("Régimen MYPE — Plazo Fijo" if es_mype else "Régimen General — Plazo Fijo")
+    )
+
+    intro = _fill(
+        "Conste por el presente documento el Contrato de Trabajo que celebran, de una parte, "
+        "{empresa_razon_social} {empresa_ruc}, domiciliada en {empresa_domicilio_fiscal}, representada por su "
+        "representante legal {representante_legal}, {representante_nacionalidad}, mayor de edad e "
+        "identificado(a) con {representante_tipo_documento} N.° {representante_numero_documento}, a quien en "
+        "adelante se le denominará EL EMPLEADOR; y de la otra parte {nombre_completo}, identificado(a) con "
+        "{num_doc}, domiciliado(a) en {direccion}, correo electrónico {correo}, a quien en adelante se le "
+        "denominará EL TRABAJADOR; en los términos y condiciones siguientes:",
+        merged,
+    )
+    story = [_body_text(intro), Spacer(1, 2 * mm)]
+    for nombre, texto in clausulas:
+        story.append(_clause(nombre, texto, merged))
+
+    # Anexo A — Descripción del Cargo (si el Cargo tiene MOF cargado).
+    if fields.get("cargo_descripcion") or fields.get("cargo_funciones") or fields.get("cargo_responsabilidades"):
+        story.append(Spacer(1, 4 * mm))
+        story += _section_caption(f'ANEXO "A" — DESCRIPCIÓN DEL CARGO: {merged["cargo"]}'.upper())
+        if fields.get("cargo_descripcion"):
+            story.append(_body_text(fields["cargo_descripcion"]))
+        if fields.get("cargo_funciones"):
+            story.append(_body_text("Funciones:"))
+            for f in fields["cargo_funciones"]:
+                story.append(_numbered_item(fields["cargo_funciones"].index(f) + 1, f))
+        if fields.get("cargo_responsabilidades"):
+            story.append(_body_text("Responsabilidades:"))
+            for i, r in enumerate(fields["cargo_responsabilidades"], start=1):
+                story.append(_numbered_item(i, r))
+
+    spec = LEGAL_TEXTS["contrato"]
+    subtitulo = f"{spec['subtitulo']} · {variante_nombre}"
+    return story, spec["cierre"], spec["titulo"], subtitulo
+
+
+_SALUD_ANTECEDENTES_FAMILIARES = [
+    ("antecedente_fam_cancer", "Cáncer"), ("antecedente_fam_diabetes", "Diabetes"),
+    ("antecedente_fam_cardiaco", "Problemas Cardiacos"), ("antecedente_fam_hipertension", "Hipertensión"),
+]
+_SALUD_ANTECEDENTES_PERSONALES = [
+    ("antecedente_personal_sarampion", "Sarampión"), ("antecedente_personal_paperas", "Paperas"),
+    ("antecedente_personal_rubeola", "Rubéola"), ("antecedente_personal_neumonia", "Neumonía"),
+    ("antecedente_personal_epilepsia", "Epilepsia"), ("antecedente_personal_tuberculosis", "Tuberculosis"),
+    ("antecedente_personal_perdida_memoria", "Pérdida de Memoria"), ("antecedente_personal_tos_cronica", "Tos Crónica"),
+    ("antecedente_personal_cefaleas", "Cefaleas Prolongadas"), ("antecedente_personal_hemorragias", "Hemorragias"),
+    ("antecedente_personal_hepatitis", "Hepatitis"), ("antecedente_personal_gastritis", "Gastritis"),
+    ("antecedente_personal_asma", "Asma"), ("antecedente_personal_ulceras", "Úlceras"),
+]
+_SALUD_SISTEMAS = [
+    ("salud_sistema_nervioso", "Sistema Nervioso"), ("salud_sistema_respiratorio", "Sistema Respiratorio"),
+    ("salud_sistema_circulatorio", "Corazón / Sangre / Sist. Circulatorio"), ("salud_sistema_digestivo", "Sistema Digestivo"),
+    ("salud_sistema_endocrino", "Enfermedades Endocrinas"), ("salud_sistema_oseo_muscular", "Óseas o Musculares"),
+    ("salud_sistema_piel", "Enfermedades de la Piel"),
+]
+
+
+def _doc_declaracion_salud(fields):
+    story, cierre, titulo, subtitulo = _legal_body("declaracion_salud", fields)
+    g = fields.get
+
+    story += _section_caption("Antecedentes Familiares")
+    story.append(_grid_table(
+        ["Enfermedad", "¿Sí/No?"], [4, 1],
+        [[label, g(campo) or "—"] for campo, label in _SALUD_ANTECEDENTES_FAMILIARES],
+    ))
+    if g("antecedente_fam_otras"):
+        story.append(_body_text(f"Otras: {g('antecedente_fam_otras')}"))
+
+    story += _section_caption("Antecedentes Personales (infancia)")
+    story.append(_grid_table(
+        ["Afección", "¿Sí/No?"], [4, 1],
+        [[label, g(campo) or "—"] for campo, label in _SALUD_ANTECEDENTES_PERSONALES],
+    ))
+
+    story += _section_caption("Hábitos")
+    story.append(_field_table([
+        ["Fuma", g("salud_fuma"), "Bebe Alcohol", g("salud_bebe_alcohol")],
+        ["Cantidad (si bebe)", g("salud_alcohol_cantidad"), "", ""],
+    ]))
+
+    story += _section_caption("¿Padece actualmente o ha sido tratado por…?")
+    story.append(_grid_table(
+        ["Sistema", "¿Sí/No?", "Especificar"], [2.2, 0.8, 3],
+        [[label, g(campo) or "—", g(f"{campo}_detalle") or "—"] for campo, label in _SALUD_SISTEMAS],
+    ))
+
+    story += _section_caption("Otros antecedentes")
+    story.append(_field_table([
+        ["¿Bajo tratamiento actualmente?", g("salud_bajo_tratamiento"), "Especificar", g("salud_bajo_tratamiento_detalle")],
+        ["¿Cambio significativo de peso?", g("salud_cambio_peso"), "", ""],
+        ["¿Intervención quirúrgica?", g("salud_cirugia"), "Diagnóstico y fecha", g("salud_cirugia_detalle")],
+        ["¿Otra enfermedad no mencionada?", g("salud_otra_enfermedad"), "Especificar", g("salud_otra_enfermedad_detalle")],
+    ]))
+    return story, cierre, titulo, subtitulo
+
+
+# Boletín Informativo SPP/SNP — contenido sustantivo (Ley 29903 y normas
+# conexas) condensado del boletín oficial de 8 páginas que RR.HH. entregó el
+# 16/09, para que el documento firmado quede en un tamaño manejable sin
+# perder ninguno de los puntos legalmente relevantes para la decisión del
+# trabajador.
+_BOLETIN_PENSIONARIO = [
+    ("¿Entre qué sistemas debe elegir?", "El Sistema Privado de Pensiones (SPP), a cargo de una AFP, funciona "
+     "con una Cuenta Individual de Capitalización (CIC): la pensión depende de los aportes y la rentabilidad "
+     "acumulada. El Sistema Nacional de Pensiones (SNP), administrado por la ONP, funciona con un fondo común: "
+     "la pensión depende de los años de aportación y del promedio de las remuneraciones de los últimos meses."),
+    ("Plazo para decidir", "El trabajador tiene diez (10) días calendario desde la entrega del boletín "
+     "informativo para elegir SPP o SNP, con diez (10) días adicionales para cambiar de decisión. Vencido el "
+     "plazo sin elección, el empleador debe afiliarlo de oficio a la AFP que cobre la menor comisión."),
+    ("Reversibilidad", "Si se afilia al SPP, ya no podrá regresar al SNP — es una decisión irreversible. Si se "
+     "afilia al SNP, puede eventualmente migrar al SPP más adelante."),
+    ("Aportes mensuales", "En el SPP, el trabajador aporta 10% de su remuneración asegurable a su cuenta "
+     "individual, más un porcentaje para el seguro de invalidez/sobrevivencia/sepelio, más la comisión de la "
+     "AFP. En el SNP, el trabajador aporta 13% de su remuneración mensual, monto que ya incluye los gastos "
+     "administrativos del sistema."),
+    ("Beneficios", "Ambos sistemas cubren pensión de jubilación, invalidez y sobrevivencia (viudez, orfandad y, "
+     "en algunos casos, ascendientes), además de gastos de sepelio (SPP) o capital de defunción (SNP)."),
+    ("Tope de pensión", "En el SPP no existe un tope — la pensión depende de lo acumulado en la cuenta "
+     "individual. En el SNP, la pensión máxima está fijada por el Estado (S/. 857.36 a la fecha del boletín)."),
+    ("Edad de jubilación", "En ambos sistemas la jubilación se alcanza normalmente a los 65 años, aunque "
+     "existen regímenes de jubilación adelantada o anticipada bajo ciertas condiciones de años de aporte."),
+    ("Pensión mínima", "El Estado garantiza una pensión mínima en ambos sistemas para quien cumpla los "
+     "requisitos de cada uno (65 años de edad y, en el SNP, 20 años de aportación)."),
+]
+
+
+def _doc_sistema_pensionario(fields):
+    story, cierre, titulo, subtitulo = _legal_body("sistema_pensionario", fields)
+    g = fields.get
+
+    story += _section_caption("Boletín Informativo — Sistema Privado (SPP) vs. Sistema Nacional (SNP) de Pensiones")
+    for pregunta, respuesta in _BOLETIN_PENSIONARIO:
+        story.append(_body_text(f"{pregunta} {respuesta}"))
+
+    story += _section_caption("Formato de Elección del Sistema Pensionario")
+    story.append(_field_table([
+        ["Trabajador", g("nombre_completo"), "Documento", g("num_doc") or g("numero_documento")],
+        ["Sexo", g("sexo"), "Fecha de Nacimiento", g("fecha_nacimiento")],
+        ["Domicilio", g("direccion"), "Distrito / Provincia / Departamento",
+         ", ".join(x for x in [g("distrito"), g("provincia"), g("departamento")] if x)],
+        ["Empleador", g("empresa_razon_social") or g("empresa"), "RUC", g("empresa_ruc")],
+        ["Fecha de Inicio del Vínculo Laboral", g("fecha_ingreso") or g("fecha_contrato"), "Remuneración (S/)", g("remuneracion")],
+    ]))
+    sistema = g("sistema_pension") or ""
+    detalle_sistema = f"{sistema} — {g('afp')}" if sistema == "AFP" and g("afp") else sistema
+    story.append(_body_text(f"Sistema elegido: {detalle_sistema or '(pendiente de elección)'}"))
+
+    story += _section_caption("Constancia de Entrega del Boletín Informativo")
+    story.append(_body_text(
+        "El trabajador deja constancia de haber recibido de su empleador el Boletín Informativo acerca de las "
+        "características del SPP y del SNP, así como el Formato de Elección del Sistema Pensionario, y de "
+        "conocer que, de no manifestar su decisión dentro del plazo de diez (10) días calendario contados "
+        "desde la entrega de este documento, será afiliado de oficio al Sistema Privado de Pensiones bajo las "
+        "condiciones indicadas en el boletín."
+    ))
     return story, cierre, titulo, subtitulo
 
 
@@ -465,6 +955,12 @@ def _build_doc(doc_type, fields):
         return _doc_derechohabientes(fields)
     if doc_type == "autorizacion_deposito":
         return _doc_autorizacion_deposito(fields)
+    if doc_type == "declaracion_salud":
+        return _doc_declaracion_salud(fields)
+    if doc_type == "sistema_pensionario":
+        return _doc_sistema_pensionario(fields)
+    if doc_type == "contrato":
+        return _doc_contrato(fields)
     return _legal_body(doc_type, fields)  # declaracion_jurada, autorizacion_datos
 
 

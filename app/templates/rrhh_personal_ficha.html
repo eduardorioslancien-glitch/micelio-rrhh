@@ -148,6 +148,7 @@
       <div class="field"><label>Fecha de Ingreso</label><input type="date" id="fecha_ingreso"></div>
       <div class="field"><label>Fecha de Contrato</label><input type="date" id="fecha_contrato"></div>
       <div class="field"><label>Fecha de Vencimiento de Contrato</label><input type="date" id="fecha_fin_contrato"></div>
+      <div class="field"><label>Periodo de Prueba (días)</label><input type="number" id="periodo_prueba_dias" value="30" min="0" title="30 días por defecto (Art. 10 LPCL); puede ampliarse hasta 6 meses en personal calificado o 1 año en cargos de confianza/dirección"></div>
       <div class="field"><label>Tipo de Contrato</label>
         <select id="tipo_contrato"><option value="">Seleccionar…</option><option>Plazo Indeterminado</option><option>Plazo Fijo</option><option>Por Obra o Servicio</option><option>Part Time</option><option>Locación de Servicios</option><option>Practicante</option></select>
       </div>
@@ -190,6 +191,9 @@
     <div class="grid3">
       <div class="field"><label>Banco (Haberes)</label>
         <select id="banco_haberes"><option value="">Seleccionar…</option>{% for n in catalogos.banco %}<option>{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Tipo de Cuenta (Haberes)</label>
+        <select id="tipo_cuenta_haberes"><option value="">Seleccionar…</option><option>Ahorros</option><option>Corriente</option></select>
       </div>
       <div class="field"><label>Cuenta (Haberes)</label><input type="text" id="cuenta_haberes"></div>
       <div class="field"><label>CCI (Haberes)</label><input type="text" id="cci_haberes"></div>
@@ -272,6 +276,7 @@
       <div class="field"><label>Examen Médico — Vencimiento</label><input type="date" id="examen_medico_vencimiento"></div>
       <div class="field" style="grid-column:span 3;"><label>Vacunas</label><input type="text" id="vacunas" value="NINGUNA" placeholder="COVID-19 completo, Tétanos 2024…"></div>
     </div>
+    {% include "_seccion_salud_ampliada.html" %}
   </div>
 
   <div class="card" style="text-align:right;">
@@ -575,13 +580,25 @@ function collectFicha() {
     "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_celular_codigo","emerg1_direccion",
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_celular_codigo","emerg2_direccion",
     "lab_codigo","area","gerencia","cargo","sede","centro_costos","jefe_inmediato",
-    "fecha_ingreso","fecha_contrato","fecha_fin_contrato","tipo_contrato","regimen_laboral_persona","modalidad","horario","jornada","turno",
+    "fecha_ingreso","fecha_contrato","fecha_fin_contrato","periodo_prueba_dias","tipo_contrato","regimen_laboral_persona","modalidad","horario","jornada","turno",
     "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar","movilidad",
-    "banco_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
+    "banco_haberes","tipo_cuenta_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
     "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",
     "talla_camisa","talla_polo","talla_pantalon","talla_zapato","talla_chaleco","talla_casco","talla_guantes",
     "grupo_sanguineo","eps","essalud","alergias","restricciones","medicamentos",
     "examen_medico_fecha","examen_medico_vencimiento","vacunas",
+    "antecedente_fam_cancer","antecedente_fam_diabetes","antecedente_fam_cardiaco","antecedente_fam_hipertension","antecedente_fam_otras",
+    "antecedente_personal_sarampion","antecedente_personal_paperas","antecedente_personal_rubeola","antecedente_personal_neumonia",
+    "antecedente_personal_epilepsia","antecedente_personal_tuberculosis","antecedente_personal_perdida_memoria","antecedente_personal_tos_cronica",
+    "antecedente_personal_cefaleas","antecedente_personal_hemorragias","antecedente_personal_hepatitis","antecedente_personal_gastritis",
+    "antecedente_personal_asma","antecedente_personal_ulceras",
+    "salud_fuma","salud_bebe_alcohol","salud_alcohol_cantidad",
+    "salud_sistema_nervioso","salud_sistema_nervioso_detalle","salud_sistema_respiratorio","salud_sistema_respiratorio_detalle",
+    "salud_sistema_circulatorio","salud_sistema_circulatorio_detalle","salud_sistema_digestivo","salud_sistema_digestivo_detalle",
+    "salud_sistema_endocrino","salud_sistema_endocrino_detalle","salud_sistema_oseo_muscular","salud_sistema_oseo_muscular_detalle",
+    "salud_sistema_piel","salud_sistema_piel_detalle",
+    "salud_bajo_tratamiento","salud_bajo_tratamiento_detalle","salud_cambio_peso",
+    "salud_cirugia","salud_cirugia_detalle","salud_otra_enfermedad","salud_otra_enfermedad_detalle",
   ];
   const ficha = {};
   simpleIds.forEach(id => { ficha[id] = val(id); });
