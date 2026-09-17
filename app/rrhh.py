@@ -1383,6 +1383,7 @@ def usuarios_list(request: Request, error: str = "", db: Session = Depends(get_d
 @router.post("/rrhh/usuarios/nuevo")
 def crear_usuario(username: str = Form(...), password: str = Form(...), nombre_completo: str = Form(...),
                    rol: str = Form(...), empresa_id: str = Form(""), employee_id: str = Form(""),
+                   man_academy_admin: str = Form(""),
                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     if db.query(User).filter(User.username == username.strip()).first():
         raise HTTPException(400, "Ese nombre de usuario ya existe.")
@@ -1390,6 +1391,7 @@ def crear_usuario(username: str = Form(...), password: str = Form(...), nombre_c
         username=username.strip(), password_hash=hash_password(password), nombre_completo=nombre_completo.strip(),
         rol=rol, empresa_id=int(empresa_id) if empresa_id else None,
         employee_id=int(employee_id) if employee_id else None, activo=True,
+        man_academy_admin=bool(man_academy_admin),
     ))
     db.commit()
     return RedirectResponse("/rrhh/usuarios", status_code=303)
@@ -1418,10 +1420,15 @@ def reset_password(user_id: int, nueva_password: str = Form(...), db: Session = 
 
 @router.post("/rrhh/usuarios/{user_id}/editar")
 def editar_usuario(user_id: int, rol: str = Form(...), empresa_id: str = Form(""), employee_id: str = Form(""),
+                    man_academy_admin: str = Form(""),
                     db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
     """Punto 1 de Parámetros (pedido 15/09): poder modificar el nivel de
     acceso de un usuario y a qué persona de Personal está vinculado, sin
-    tener que borrarlo y volver a crearlo."""
+    tener que borrarlo y volver a crearlo.
+
+    man_academy_admin (pedido 2026-09-17): nivel de acceso aparte, para poder
+    hacer a alguien administrador de Man Academy aunque en MICELIO tenga solo
+    acceso básico — ver app/man_academy.py."""
     u = db.query(User).get(user_id)
     if not u:
         return RedirectResponse("/rrhh/usuarios", status_code=303)
@@ -1434,6 +1441,7 @@ def editar_usuario(user_id: int, rol: str = Form(...), empresa_id: str = Form(""
     u.rol = rol
     u.empresa_id = int(empresa_id) if empresa_id else None
     u.employee_id = nuevo_employee_id
+    u.man_academy_admin = bool(man_academy_admin)
     db.commit()
     return RedirectResponse("/rrhh/usuarios", status_code=303)
 

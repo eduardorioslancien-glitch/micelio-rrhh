@@ -92,13 +92,18 @@ def man_academy_entrar(request: Request, db: Session = Depends(get_db), user=Dep
         "email": _employee_email(emp, user.username),
         "name": (emp.nombre_completo if emp else user.nombre_completo),
         "external_id": f"MICELIO-{emp.id}" if emp else f"MICELIO-user-{user.id}",
-        "role": "admin" if user.rol == "administrador" else "employee",
+        # Administrador de Man Academy es un nivel de acceso independiente del
+        # rol en MICELIO (pedido 2026-09-17): un "administrador" de MICELIO
+        # siempre es admin allá, pero también puede serlo alguien con acceso
+        # básico en MICELIO si tiene marcado man_academy_admin en su usuario
+        # (ver app/models.py User.man_academy_admin, editable en /rrhh/usuarios).
+        "role": "admin" if (user.rol == "administrador" or user.man_academy_admin) else "employee",
         "exp": int(time.time()) + SSO_TOKEN_TTL_SECONDS,
     }
     if emp:
         payload["contrata"] = emp.empresa or None
 
-    if user.rol != "administrador":
+    if user.rol != "administrador" and not user.man_academy_admin:
         accesos = db.query(ManAcademyAcceso).filter(ManAcademyAcceso.employee_id == (emp.id if emp else -1)).all()
         payload["course_ids"] = [a.man_id for a in accesos if a.tipo == "curso"]
         payload["path_ids"] = [a.man_id for a in accesos if a.tipo == "ruta"]

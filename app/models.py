@@ -429,6 +429,12 @@ class User(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True, unique=True)  # para rol "usuario"
     activo = Column(Boolean, default=True)
     must_change_password = Column(Boolean, default=True)  # obliga a cambiar la clave en el primer ingreso
+    # Administrador de Man Academy independiente del rol en MICELIO (pedido
+    # 2026-09-17): un usuario con rol "usuario"/"conta"/"opeoka" en MICELIO
+    # puede igual ser admin allá — son dos niveles de acceso separados. Ver
+    # app/man_academy.py: el token SSO manda role=admin si esto es True,
+    # aunque `rol` acá sea básico.
+    man_academy_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
 
