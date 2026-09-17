@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Landing pública "Trabaja con Nosotros" (punto 6.1-6.3 del pedido de
 Reclutamiento y Selección): lista las vacantes abiertas (Pedidos de Personal
-+ datos del Cargo), permite postular subiendo un CV, y ese CV se analiza
-automáticamente (app/cv_analysis.py) contra los requisitos del cargo.
++ datos del Cargo) y permite postular subiendo un CV. Punto del pedido
+(16/09): la evaluación inicial del CV la hace personal de RR.HH. mirándolo,
+no una calificación automática por IA — ese análisis se quitó por completo.
 
 Sin autenticación — mismo criterio que las rutas públicas /f/{token} de
 main.py, pero acá no hace falta token porque no hay datos sensibles del
@@ -17,7 +18,6 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import PedidoPersonal, LeadCandidato, Cargo, TIPOS_DOCUMENTO_POSTULANTE
-from .cv_analysis import extraer_texto_cv, analizar_cv
 from .rrhh import _pedido_recibio_lead
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -109,14 +109,6 @@ async def landing_postular(request: Request, pedido_id: int, nombre_completo: st
 
     _pedido_recibio_lead(pedido)
     db.commit()
-
-    cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first()
-    if cargo:
-        texto_cv = extraer_texto_cv(ruta, cv.content_type)
-        estrellas, analisis = analizar_cv(texto_cv, cargo)
-        lead.estrellas = estrellas
-        lead.analisis_ia = analisis
-        db.commit()
 
     return RedirectResponse(f"/trabaja-con-nosotros/{pedido_id}/gracias", status_code=303)
 

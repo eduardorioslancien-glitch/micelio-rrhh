@@ -14,10 +14,6 @@
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado correctamente.</p></div>
   {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor).</p></div>
-  {% elif request.query_params.get('ok') == 'cv_analizado' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">CV analizado correctamente.</p></div>
-  {% elif request.query_params.get('cv_error') %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">{{ request.query_params.get('cv_error')|replace('+', ' ') }}</p></div>
   {% elif request.query_params.get('ok') == 'entrevistador_notificado' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección — se notificó por correo a quien hará la segunda entrevista.</p></div>
   {% elif request.query_params.get('ok') == 'entrevistador_no_configurado' %}
@@ -56,25 +52,6 @@
     </table>
   </div>
 
-  <div class="card">
-    <h2>Calificación preliminar (IA)</h2>
-    {% if lead.estrellas %}
-    <p style="font-size:22px; margin:4px 0;">{{ "★" * lead.estrellas }}{{ "☆" * (5 - lead.estrellas) }} <span class="muted" style="font-size:13px;">({{ lead.estrellas }}/5 compatibilidad con el cargo)</span></p>
-    {% else %}
-    <p class="muted">Sin calificación de IA disponible (o el análisis automático no se pudo ejecutar para este postulante).</p>
-    {% endif %}
-    {% if lead.analisis_ia %}
-    <p style="white-space:pre-wrap;">{{ lead.analisis_ia }}</p>
-    {% endif %}
-    {% if lead.cv_path %}
-    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/analizar-cv" style="margin-top:10px;">
-      <button class="btn small secondary" type="submit">{{ "Volver a analizar con IA" if lead.estrellas else "Analizar CV con IA" }}</button>
-    </form>
-    {% else %}
-    <p class="hint" style="margin-top:10px;">Este candidato no tiene CV adjunto, no se puede calificar.</p>
-    {% endif %}
-  </div>
-
   {% if lead.etapa not in ('oferta', 'contratado', 'descartado') %}
   <div class="card">
     <h2>Acciones</h2>
@@ -82,7 +59,7 @@
       <button class="btn small" type="submit" {{ 'disabled' if not lead.email else '' }}>Coordinar Meet (enviar correo)</button>
     </form>
     <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/descartar" style="display:inline; margin-left:8px;"
-          onsubmit="return confirm('¿Descartar a {{ lead.nombre_completo }}? Se le enviará un correo de agradecimiento.');">
+          onsubmit="return confirm('¿Descartar a {{ lead.nombre_completo }}? Se le enviará un correo/WhatsApp de aviso y quedará archivado en el Historial de Descartados (ya no aparecerá en Gestión de Leads).');">
       <button class="btn small secondary" type="submit">Descartar</button>
     </form>
     {% if not lead.email %}<p class="hint">Este candidato no tiene correo registrado — no se pueden enviar correos automáticos.</p>{% endif %}
@@ -187,7 +164,7 @@
       <button class="btn small" type="submit" style="margin-top:10px;">Aprobar y enviar a Selección</button>
     </form>
     <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/descartar" style="display:inline;"
-          onsubmit="return confirm('¿Descartar a {{ lead.nombre_completo }}? Se le enviará un correo de agradecimiento.');">
+          onsubmit="return confirm('¿Descartar a {{ lead.nombre_completo }}? Se le enviará un correo/WhatsApp de aviso y quedará archivado en el Historial de Descartados (ya no aparecerá en Gestión de Leads).');">
       <button class="btn small secondary" type="submit">Descartar</button>
     </form>
   </div>

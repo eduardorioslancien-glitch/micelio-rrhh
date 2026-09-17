@@ -8,6 +8,18 @@
 <body>
 {% include "_rrhh_topbar.html" %}
 
+  {% if request.query_params.get('ok') == 'correo_enviado' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green);"><p style="margin:0; color:var(--green);">Correo enviado correctamente.</p></div>
+  {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow);"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor, o falta un correo cargado).</p></div>
+  {% endif %}
+  {% if request.query_params.get('wa') %}
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px;">También puedes mandarlo por WhatsApp:</p>
+    <a class="btn small" href="{{ request.query_params.get('wa') }}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+  </div>
+  {% endif %}
+
   {% if not f_pedido %}
   <!-- Vista principal: Pedidos abiertos/en proceso, con su cargo y cantidad.
        Se entra a uno para ver/registrar sus postulantes. -->
@@ -62,12 +74,11 @@
         </div>
       </form>
     </div>
-    <p class="muted">Ordenados por calificación de compatibilidad (IA) y, entre iguales, por antigüedad de postulación.</p>
+    <p class="muted">Ordenados por antigüedad de postulación — el más antiguo primero.</p>
     <table>
-      <tr><th>★</th><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th><th></th></tr>
+      <tr><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th><th></th></tr>
       {% for l in leads %}
       <tr>
-        <td class="muted" style="white-space:nowrap;">{{ "★" * l.estrellas if l.estrellas else "—" }}</td>
         <td><a href="/rrhh/reclutamiento/leads/{{ l.id }}"><strong>{{ l.nombre_completo }}</strong></a>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
         <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
         <td>{{ l.origen or "—" }}</td>
@@ -76,7 +87,7 @@
         <td><a class="btn small secondary" href="/rrhh/reclutamiento/leads/{{ l.id }}">Ver</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="muted">Todavía no hay candidatos para este pedido.</td></tr>
+      <tr><td colspan="6" class="muted">Todavía no hay candidatos para este pedido.</td></tr>
       {% endfor %}
     </table>
 

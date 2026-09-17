@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ pedido.codigo or "Pedido" }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=15">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/reclutamiento/pedidos">&larr; Volver a Registro de Pedidos</a>
+
+  <div class="card" style="margin-top:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">{{ pedido.cargo_solicitado }}</h2>
+      <span class="badge {{ pedido.estado }}">{{ pedido.estado }}</span>
+    </div>
+    <table style="margin-top:10px;">
+      <tr><td style="width:220px;"><strong>Código</strong></td><td>{{ pedido.codigo or "—" }}</td></tr>
+      <tr><td><strong>Empresa</strong></td><td>{{ pedido.empresa.nombre if pedido.empresa else "—" }}</td></tr>
+      <tr><td><strong>Área</strong></td><td>{{ pedido.area or "—" }}</td></tr>
+      <tr><td><strong>Base</strong></td><td>{{ pedido.base.nombre if pedido.base else "—" }}</td></tr>
+      <tr><td><strong>Cantidad solicitada</strong></td><td>{{ pedido.cantidad }}</td></tr>
+      <tr><td><strong>Solicitante</strong></td><td>{{ pedido.solicitante or "—" }}</td></tr>
+      <tr><td><strong>Motivo</strong></td><td>{{ pedido.motivo or "—" }}</td></tr>
+      <tr><td><strong>Urgencia</strong></td><td>{{ pedido.urgencia or "—" }}</td></tr>
+      <tr><td><strong>Fecha tope</strong></td><td>{{ pedido.fecha_requerida.strftime("%d/%m/%Y") if pedido.fecha_requerida else "—" }}</td></tr>
+      <tr><td><strong>Observaciones</strong></td><td>{{ pedido.observaciones or "—" }}</td></tr>
+      <tr><td><strong>Registrado por</strong></td><td>{{ pedido.registrado_por or "—" }} — {{ (pedido.created_at|lima).strftime("%d/%m/%Y") if pedido.created_at else "—" }}</td></tr>
+      {% if pedido.cerrado_at %}
+      <tr><td><strong>Cerrado</strong></td><td>{{ (pedido.cerrado_at|lima).strftime("%d/%m/%Y") }}</td></tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Postulantes (Gestión de Leads)</h2>
+    <p class="muted">Todos los candidatos que llegaron a este pedido, en cualquier etapa.</p>
+    <table>
+      <tr><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th></tr>
+      {% for l in leads %}
+      <tr>
+        <td><strong>{{ l.nombre_completo }}</strong>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
+        <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
+        <td>{{ l.origen or "—" }}</td>
+        <td>{{ (l.created_at|lima).strftime("%d/%m/%Y") }}</td>
+        <td><span class="badge {{ l.etapa }}">{{ etapa_labels.get(l.etapa, l.etapa) }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Ningún candidato registrado todavía en Gestión de Leads para este pedido.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Llegaron a Selección / Personal</h2>
+    <p class="muted">Candidatos aprobados que generaron un legajo (Selección o ya en Personal) para este pedido.</p>
+    <table>
+      <tr><th>Nombre</th><th>Correo</th><th>Estado en Selección</th><th></th></tr>
+      {% for e in empleados %}
+      {% set f = e.ficha_data or {} %}
+      <tr>
+        <td><strong>{{ e.nombre_completo }}</strong></td>
+        <td>{{ e.email or "—" }}</td>
+        <td>
+          {% if f.get('seleccion_rrhh_confirmado') == 'aprobado' %}<span class="badge firmado">APROBADO</span>
+          {% elif f.get('segunda_entrevista_veredicto') %}<span class="badge pendiente">{{ f.get('segunda_entrevista_veredicto')|upper }} (pendiente de confirmar)</span>
+          {% else %}<span class="badge pendiente">En proceso</span>{% endif %}
+        </td>
+        <td><a class="btn small" href="/rrhh/reclutamiento/seleccion/{{ e.id }}">Ver en Selección</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Todavía nadie llegó a Selección/Personal por este pedido.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Descartados de este pedido</h2>
+    <table>
+      <tr><th>Nombre</th><th>Etapa de descarte</th><th>Motivo</th><th>Fecha</th><th>Descartado por</th></tr>
+      {% for d in descartados %}
+      <tr>
+        <td><strong>{{ d.nombre_completo }}</strong></td>
+        <td>{{ 'Gestión de Leads' if d.etapa_descarte == 'leads' else 'Selección — 2.ª entrevista' }}</td>
+        <td class="muted">{{ d.motivo or "—" }}</td>
+        <td>{{ (d.descartado_at|lima).strftime("%d/%m/%Y") }}</td>
+        <td>{{ d.descartado_por or "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Nadie ha sido descartado de este pedido.</td></tr>
+      {% endfor %}
+    </table>
+    {% if descartados %}<p class="muted" style="margin-top:8px;">Ver el detalle completo de cada uno en <a href="/rrhh/reclutamiento/descartados">Historial de Descartados</a>.</p>{% endif %}
+  </div>
+
+</div>
+</body>
+</html>

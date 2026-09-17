@@ -801,13 +801,15 @@ class LeadCandidato(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-    # Postulación vía "Trabaja con Nosotros" (landing pública) — CV y
-    # calificación preliminar de compatibilidad hecha por IA (Claude) contra
-    # los requisitos del cargo del pedido asociado.
+    # Postulación vía "Trabaja con Nosotros" (landing pública) — CV adjunto.
     cv_path = Column(String(500), nullable=True)
     cv_filename = Column(String(300), nullable=True)
-    estrellas = Column(Integer, nullable=True)  # 1-5, calificación de compatibilidad de la IA
-    analisis_ia = Column(Text, nullable=True)  # explicación de la calificación
+    # Quedan sin usar desde el 16/09: la evaluación inicial del CV la hace
+    # RR.HH. mirándolo, se quitó por completo la calificación por IA. No se
+    # borran las columnas (evita una migración de esquema en SQLite) pero
+    # ningún código las llena ni las lee.
+    estrellas = Column(Integer, nullable=True)
+    analisis_ia = Column(Text, nullable=True)
 
     # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
     # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.
@@ -912,6 +914,36 @@ class AnuncioLike(Base):
 
     anuncio = relationship("Anuncio")
     user = relationship("User")
+
+
+ETAPAS_DESCARTE = [
+    ("leads", "Gestión de Leads"),
+    ("seleccion", "Selección — segunda entrevista"),
+]
+
+
+class HistorialDescarte(Base):
+    """Punto 1 del pedido (16/09): a quien se descarta (en cualquier etapa)
+    NO le queda un registro en Personal — pero tampoco se pierde su
+    historial. Acá queda un snapshot de todo lo que se sabía de esa
+    persona al momento de descartarla: de dónde vino, a qué pedido
+    postuló, resultado de la Entrevista 1 (DISC, competencias,
+    clasificación) y de la segunda entrevista si llegó a esa etapa
+    (entrevistador, veredicto, fecha/hora propuesta, comentario)."""
+    __tablename__ = "historial_descartes"
+
+    id = Column(Integer, primary_key=True)
+    nombre_completo = Column(String(200), nullable=False)
+    email = Column(String(200), nullable=True)
+    celular = Column(String(50), nullable=True)
+    empresa = Column(String(200), nullable=True)
+    etapa_descarte = Column(String(30), nullable=False)  # uno de ETAPAS_DESCARTE
+    codigo_pedido = Column(String(30), nullable=True)
+    vacante_cargo = Column(String(200), nullable=True)
+    motivo = Column(Text, nullable=True)  # comentario del entrevistador o de quien descarta
+    datos_proceso = Column(JSON, nullable=True)  # snapshot: disc, competencias, cv, veredicto, etc.
+    descartado_por = Column(String(200), nullable=True)
+    descartado_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class SaludoCumpleanos(Base):

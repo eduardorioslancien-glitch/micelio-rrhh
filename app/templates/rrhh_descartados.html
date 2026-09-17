@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Historial de Descartados — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=15">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">Historial de Descartados</h2>
+      <form method="get" action="/rrhh/reclutamiento/descartados" class="inline-form">
+        <div class="field">
+          <label>Etapa</label>
+          <select name="etapa" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for key, label in etapas %}
+            <option value="{{ key }}" {{ 'selected' if f_etapa == key else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+    </div>
+    <p class="muted">
+      Punto 1 del pedido (16/09): quien se descarta (en Gestión de Leads o en Selección) ya no queda
+      en Personal ni en los Leads activos — este es el registro histórico de qué pasó con cada uno.
+    </p>
+
+    <table>
+      <tr><th>Candidato</th><th>Contacto</th><th>Pedido</th><th>Etapa de descarte</th><th>Fecha</th><th>Descartado por</th><th></th></tr>
+      {% for d in descartados %}
+      <tr>
+        <td><strong>{{ d.nombre_completo }}</strong></td>
+        <td>{{ d.email or "—" }}{% if d.celular %}<br>{{ d.celular }}{% endif %}</td>
+        <td class="muted">{{ d.codigo_pedido or "—" }}{% if d.vacante_cargo %}<br>{{ d.vacante_cargo }}{% endif %}</td>
+        <td><span class="badge {{ d.etapa_descarte }}">{{ 'Gestión de Leads' if d.etapa_descarte == 'leads' else 'Selección — 2.ª entrevista' }}</span></td>
+        <td>{{ (d.descartado_at|lima).strftime("%d/%m/%Y %H:%M") }}</td>
+        <td>{{ d.descartado_por or "—" }}</td>
+        <td>
+          <details>
+            <summary class="btn small secondary" style="display:inline-block; cursor:pointer;">Ver detalle</summary>
+            <div style="margin-top:8px; max-width:480px;">
+              {% if d.motivo %}<p><strong>Motivo/comentario:</strong> {{ d.motivo }}</p>{% endif %}
+              {% if d.empresa %}<p><strong>Empresa:</strong> {{ d.empresa }}</p>{% endif %}
+              {% if d.datos_proceso %}
+              <table>
+                {% for k, v in d.datos_proceso.items() %}
+                {% if v %}
+                <tr><td class="muted" style="width:200px;">{{ k }}</td><td>{{ v }}</td></tr>
+                {% endif %}
+                {% endfor %}
+              </table>
+              {% endif %}
+            </div>
+          </details>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="muted">Todavía no hay descartes registrados.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

@@ -20,14 +20,13 @@ from .models import (
     PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
-    CLASIFICACIONES_LEAD,
+    CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE,
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import (
     _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead,
-    _pedido_cubre_vacante, _a_lima,
+    _pedido_cubre_vacante, _a_lima, _eliminar_employee_completo,
 )
-from .cv_analysis import extraer_texto_cv, analizar_cv
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
 # Cargos de mayor rotación que necesitan referencia obligatoria a una Base
@@ -189,6 +188,35 @@ def pedidos_crear(cargo_solicitado: str = Form(...), cantidad: int = Form(1),
     return RedirectResponse("/rrhh/reclutamiento/pedidos", status_code=303)
 
 
+@router.get("/rrhh/reclutamiento/pedidos/{pedido_id}", response_class=HTMLResponse)
+def pedido_detalle(request: Request, pedido_id: int, db: Session = Depends(get_db),
+                    user: User = Depends(require_role("administrador", "opeoka"))):
+    """Punto 2 del pedido (16/09): aunque un pedido ya se haya cerrado (por
+    cubierto o cancelado), tiene que poder revisarse quiénes postularon y
+    todo lo que pasó — Leads activos, personal que llegó a Selección/
+    Personal por este pedido, y el historial de quienes se descartaron en
+    el camino."""
+    pedido = db.query(PedidoPersonal).get(pedido_id)
+    if not pedido:
+        raise HTTPException(404)
+    leads = (
+        db.query(LeadCandidato).filter(LeadCandidato.pedido_id == pedido_id)
+        .order_by(LeadCandidato.created_at).all()
+    )
+    empleados = [
+        e for e in db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
+        if (e.ficha_data or {}).get("codigo_pedido_seleccion") == pedido.codigo
+    ] if pedido.codigo else []
+    descartados = (
+        db.query(HistorialDescarte).filter(HistorialDescarte.codigo_pedido == pedido.codigo)
+        .order_by(HistorialDescarte.descartado_at).all()
+    ) if pedido.codigo else []
+    return templates.TemplateResponse(request, "rrhh_pedido_detalle.html", _ctx(
+        request, user, pedido=pedido, leads=leads, empleados=empleados, descartados=descartados,
+        etapa_labels=ETAPA_LABELS, active="pedidos",
+    ))
+
+
 @router.post("/rrhh/reclutamiento/pedidos/{pedido_id}/estado")
 def pedidos_cambiar_estado(pedido_id: int, estado: str = Form(...), db: Session = Depends(get_db),
                             user: User = Depends(require_role("administrador"))):
@@ -207,9 +235,10 @@ def pedidos_cambiar_estado(pedido_id: int, estado: str = Form(...), db: Session 
 # Control de Leads (candidatos)
 # ---------------------------------------------------------------------------
 def _orden_leads(lead: LeadCandidato):
-    """Mayor calificación primero; entre iguales, el más antiguo primero
-    (para que RR.HH. no deje esperando a quien postuló hace más tiempo)."""
-    return (-(lead.estrellas or 0), lead.created_at)
+    """El más antiguo primero, para que RR.HH. no deje esperando a quien
+    postuló hace más tiempo. Punto del pedido (16/09): se quitó la
+    calificación por IA, que ordenaba esto antes."""
+    return lead.created_at
 
 
 @router.get("/rrhh/reclutamiento/leads", response_class=HTMLResponse)
@@ -270,7 +299,7 @@ async def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), c
 
     # CV opcional al registrar manualmente (candidatos que llegan por correo,
     # WhatsApp, etc.) — mismo criterio de validación que "Trabaja con
-    # Nosotros" para que después se pueda calificar con IA igual que ahí.
+    # Nosotros" (tipo y tamaño de archivo).
     nombre_archivo = (cv.filename or "") if cv else ""
     if nombre_archivo:
         if nombre_archivo.lower().endswith(EXTENSIONES_CV_VALIDAS):
@@ -291,15 +320,6 @@ async def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), c
     if pedido:
         _pedido_recibio_lead(pedido)
         db.commit()
-
-    if lead.cv_path and pedido:
-        cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first()
-        if cargo:
-            texto_cv = extraer_texto_cv(lead.cv_path, cv.content_type if cv else None)
-            estrellas, analisis = analizar_cv(texto_cv, cargo)
-            lead.estrellas = estrellas
-            lead.analisis_ia = analisis
-            db.commit()
 
     destino = f"/rrhh/reclutamiento/leads?pedido_id={pedido_id}" if pedido_id else "/rrhh/reclutamiento/leads?pedido_id=none"
     return RedirectResponse(destino, status_code=303)
@@ -326,39 +346,6 @@ def lead_cv(lead_id: int, db: Session = Depends(get_db),
     if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
         raise HTTPException(404)
     return FileResponse(lead.cv_path, filename=lead.cv_filename or "cv.pdf")
-
-
-@router.post("/rrhh/reclutamiento/leads/{lead_id}/analizar-cv")
-def lead_analizar_cv(lead_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
-    """Corre (o vuelve a correr) la calificación de IA sobre el CV de un
-    candidato — a pedido, no solo automático al postular, para poder
-    calificar leads registrados manualmente o volver a intentar después de
-    configurar ANTHROPIC_API_KEY o de actualizar el MOF del cargo."""
-    lead = db.query(LeadCandidato).get(lead_id)
-    if not lead:
-        raise HTTPException(404)
-    destino = f"/rrhh/reclutamiento/leads/{lead_id}"
-    if not lead.cv_path or not os.path.exists(lead.cv_path):
-        return RedirectResponse(f"{destino}?cv_error=Este+candidato+no+tiene+un+CV+adjunto+valido.", status_code=303)
-
-    cargo = None
-    if lead.pedido and lead.pedido.cargo_solicitado:
-        cargo = db.query(Cargo).filter(Cargo.nombre == lead.pedido.cargo_solicitado).first()
-    if not cargo:
-        return RedirectResponse(
-            f"{destino}?cv_error=No+se+encontro+el+Cargo+del+pedido+asignado+(o+el+lead+no+tiene+pedido)+para+comparar+el+CV.",
-            status_code=303,
-        )
-
-    texto_cv = extraer_texto_cv(lead.cv_path, None)
-    estrellas, analisis = analizar_cv(texto_cv, cargo)
-    lead.estrellas = estrellas
-    lead.analisis_ia = analisis
-    db.commit()
-    if estrellas is None:
-        return RedirectResponse(f"{destino}?cv_error={quote(analisis)}", status_code=303)
-    return RedirectResponse(f"{destino}?ok=cv_analizado", status_code=303)
 
 
 @router.get("/rrhh/reclutamiento/leads/{lead_id}", response_class=HTMLResponse)
@@ -451,17 +438,79 @@ def lead_coordinar_meet(lead_id: int, db: Session = Depends(get_db),
     return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok={mensaje}", status_code=303)
 
 
+def _celular_lead_completo(lead: LeadCandidato) -> str:
+    """Igual criterio que _celular_completo pero para LeadCandidato, que
+    guarda el celular como un solo texto libre (sin código de país aparte)
+    — asume Perú (+51) si no parece traer ya un código."""
+    numero = "".join(ch for ch in (lead.celular or "") if ch.isdigit())
+    if not numero:
+        return ""
+    if not numero.startswith("51") or len(numero) <= 9:
+        numero = "51" + numero
+    return numero
+
+
+def _archivar_descarte(db: Session, *, nombre_completo: str, email: str, celular: str, empresa: str,
+                        etapa_descarte: str, codigo_pedido: str, vacante_cargo: str, motivo: str,
+                        datos_proceso: dict, descartado_por: str) -> None:
+    """Punto 1 del pedido (16/09): a quien se descarta no le queda un
+    registro en Personal (ni, para los de Gestión de Leads, en la lista de
+    Leads activos) — pero sí un historial de qué pasó. No hace commit,
+    quien llama decide cuándo."""
+    db.add(HistorialDescarte(
+        nombre_completo=nombre_completo, email=email or None, celular=celular or None, empresa=empresa or None,
+        etapa_descarte=etapa_descarte, codigo_pedido=codigo_pedido or None, vacante_cargo=vacante_cargo or None,
+        motivo=motivo or None, datos_proceso=datos_proceso or None, descartado_por=descartado_por,
+    ))
+
+
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/descartar")
 def lead_descartar(lead_id: int, db: Session = Depends(get_db),
                     user: User = Depends(require_role("administrador"))):
+    """Descartar desde Gestión de Leads (el CV no calza, o no se aprobó en
+    la Entrevista 1) — punto 1 del pedido (16/09): se archiva su historial
+    completo y se borra de la lista de Leads activos, en vez de quedar ahí
+    para siempre con etapa "descartado"."""
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
+
     enviado = _correo_descarte(lead) if lead.email else False
-    lead.etapa = "descartado"
+    wa_link = None
+    wa_numero = _celular_lead_completo(lead)
+    if wa_numero:
+        # Punto 2 del pedido (16/09): WhatsApp es solo un aviso rápido de
+        # que se mandó un correo — nunca repite el contenido completo.
+        texto_wa = (
+            f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''}, te escribimos de "
+            "Recursos Humanos de DIGETEL GROUP. Te acabamos de enviar un correo sobre tu postulación — "
+            "por favor revísalo. ¡Gracias por tu interés!"
+        )
+        wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
+
+    _archivar_descarte(
+        db, nombre_completo=lead.nombre_completo, email=lead.email, celular=lead.celular,
+        empresa=lead.pedido.empresa.nombre if lead.pedido and lead.pedido.empresa else None,
+        etapa_descarte="leads", codigo_pedido=lead.pedido.codigo if lead.pedido else None,
+        vacante_cargo=lead.pedido.cargo_solicitado if lead.pedido else None,
+        motivo=(lead.entrevista_data or {}).get("conclusion") if lead.entrevista_data else None,
+        datos_proceso={
+            "origen": lead.origen, "documento_tipo": lead.documento_tipo, "documento_numero": lead.documento_numero,
+            "clasificacion": lead.clasificacion, "cv_filename": lead.cv_filename,
+            "entrevista": lead.entrevista_data,
+        },
+        descartado_por=user.nombre_completo,
+    )
+    pedido_id = lead.pedido_id
+    db.delete(lead)
     db.commit()
+
+    destino = f"/rrhh/reclutamiento/leads?pedido_id={pedido_id}" if pedido_id else "/rrhh/reclutamiento/leads?pedido_id=none"
     mensaje = "correo_enviado" if enviado else "correo_no_configurado"
-    return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok={mensaje}", status_code=303)
+    destino += f"&ok={mensaje}"
+    if wa_link:
+        destino += f"&wa={quote(wa_link)}"
+    return RedirectResponse(destino, status_code=303)
 
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/entrevista")
@@ -596,16 +645,16 @@ def _notificar_entrevistador(emp: Employee, entrevistador: Employee):
         )
         enviado = _enviar_correo([correo], f"Segunda entrevista — {emp.nombre_completo}", cuerpo)
 
+    # Punto 2 del pedido (16/09): WhatsApp es solo un aviso rápido de que se
+    # mandó un correo — nunca repite el contenido completo (candidato, DISC,
+    # competencias, enlace).
     wa_link = None
     wa_numero = _celular_completo(ef)
     if wa_numero:
         texto_wa = (
             f"Hola {entrevistador.nombre_completo.split()[0]}, le escribimos de Recursos Humanos de "
-            f"DIGETEL GROUP. {emp.nombre_completo} ha sido seleccionado/a para el puesto de "
-            f"{f.get('vacante_cargo') or 'la vacante'} y usted llevará a cabo la segunda entrevista. "
-            f"Le compartimos su correo: {emp.email or 'sin correo'}. Revise su correo institucional "
-            "para ver el detalle completo (DISC y competencias) y el enlace para registrar su "
-            f"evaluación: {enlace}"
+            "DIGETEL GROUP. Le acabamos de enviar un correo sobre una segunda entrevista a su cargo "
+            "— por favor revíselo. ¡Gracias!"
         )
         wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
 
@@ -818,8 +867,8 @@ def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db)
     if wa_numero:
         texto_wa = (
             f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''}, te escribimos de "
-            "Recursos Humanos de DIGETEL GROUP. ¡Felicitaciones! Has sido seleccionado/a para continuar "
-            f"el proceso. El siguiente paso es completar tu ficha de datos aquí: {enlace}"
+            "Recursos Humanos de DIGETEL GROUP. ¡Felicitaciones! Te acabamos de enviar un correo con el "
+            "siguiente paso de tu proceso — por favor revísalo."
         )
         wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
 
@@ -833,17 +882,16 @@ def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db)
 @router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-descartado")
 def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_db),
                                     user: User = Depends(require_role("administrador"))):
-    """RR.HH. confirma el veredicto DESCARTADO del entrevistador — punto 2
-    del pedido (16/09): se le manda al candidato un correo/WhatsApp de
-    agradecimiento. No se toca Employee.estado (sigue "activo" en la BD de
-    Personal) — es una decisión aparte, de alcance de Selección solamente."""
+    """RR.HH. confirma el veredicto DESCARTADO del entrevistador (o descarta
+    directamente un REVISAR) — punto 1 del pedido (16/09): a quien se
+    descarta NO le queda un registro en Personal, pero sí un historial
+    completo de su proceso en HistorialDescarte. Se le manda antes el
+    correo/WhatsApp de agradecimiento (con los datos que todavía tiene),
+    y recién después se archiva y se borra el legajo."""
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
     f = dict(emp.ficha_data or {})
-    f["seleccion_rrhh_confirmado"] = "descartado"
-    emp.ficha_data = f
-    db.commit()
 
     enviado = False
     if emp.email:
@@ -864,16 +912,51 @@ def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_d
     wa_link = None
     wa_numero = _celular_completo(f)
     if wa_numero:
+        # Punto 2 del pedido (16/09): aviso corto, el correo lleva el detalle.
         texto_wa = (
             f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''}, te escribimos de "
-            "Recursos Humanos de DIGETEL GROUP. Gracias por tu tiempo y por la entrevista — en esta "
-            "oportunidad decidimos continuar con otro candidato. Te deseamos mucho éxito en tu "
-            "búsqueda y quedas en nuestra base para futuras vacantes. ¡Gracias!"
+            "Recursos Humanos de DIGETEL GROUP. Te acabamos de enviar un correo sobre tu proceso de "
+            "selección — por favor revísalo. ¡Gracias por tu tiempo!"
         )
         wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
 
+    # El Lead que originó este legajo (si se puede ubicar por el código de
+    # pedido + nombre) también se archiva y se borra — ya no debe quedar
+    # colgado en Gestión de Leads con la etapa "oferta".
+    lead = None
+    if f.get("codigo_pedido_seleccion"):
+        lead = (
+            db.query(LeadCandidato).join(PedidoPersonal)
+            .filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"],
+                    LeadCandidato.nombre_completo == emp.nombre_completo)
+            .first()
+        )
+
+    _archivar_descarte(
+        db, nombre_completo=emp.nombre_completo, email=emp.email, celular=_celular_completo(f),
+        empresa=emp.empresa, etapa_descarte="seleccion", codigo_pedido=f.get("codigo_pedido_seleccion"),
+        vacante_cargo=f.get("vacante_cargo"),
+        motivo=f.get("segunda_entrevista_comentario"),
+        datos_proceso={
+            "clasificacion_entrevista": f.get("clasificacion_entrevista"),
+            "disc_resultado": f.get("disc_resultado"),
+            "competencias_entrevista": f.get("competencias_entrevista"),
+            "segunda_entrevista_entrevistador_nombre": f.get("segunda_entrevista_entrevistador_nombre"),
+            "segunda_entrevista_fecha_hora": f.get("segunda_entrevista_fecha_hora"),
+            "segunda_entrevista_veredicto": f.get("segunda_entrevista_veredicto"),
+            "segunda_entrevista_comentario": f.get("segunda_entrevista_comentario"),
+            "segunda_entrevista_veredicto_at": f.get("segunda_entrevista_veredicto_at"),
+            "lead_origen": lead.entrevista_data if lead else None,
+        },
+        descartado_por=user.nombre_completo,
+    )
+    if lead:
+        db.delete(lead)
+    _eliminar_employee_completo(db, emp)
+    db.commit()
+
     mensaje = "correo_enviado" if enviado else "correo_no_configurado"
-    destino = f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}"
+    destino = f"/rrhh/reclutamiento/seleccion?ok={mensaje}"
     if wa_link:
         destino += f"&wa={quote(wa_link)}"
     return RedirectResponse(destino, status_code=303)
@@ -891,10 +974,32 @@ def entrevista2_form(request: Request, token: str, db: Session = Depends(get_db)
     if not emp:
         raise HTTPException(404)
     f = emp.ficha_data or {}
+    # Punto 4 del pedido (16/09): una vez que el entrevistador envía su
+    # veredicto, el enlace se deshabilita para él — queda solo en modo
+    # lectura, todo pasa a potestad de RR.HH.
+    bloqueado = bool(f.get("segunda_entrevista_veredicto"))
     return templates.TemplateResponse(request, "entrevista2_publico.html", {
         "request": request, "e": emp, "ficha": f, "token": token, "disc_dimensiones": DISC_DIMENSIONES,
-        "ok": request.query_params.get("ok"),
+        "bloqueado": bloqueado, "ok": request.query_params.get("ok"),
     })
+
+
+@router.post("/entrevista2/{token}/fecha")
+def entrevista2_guardar_fecha(token: str, fecha_hora: str = Form(""), db: Session = Depends(get_db)):
+    """Punto 4 del pedido (16/09): el entrevistador coloca (y puede
+    modificar) la fecha/hora de la entrevista mientras el enlace siga
+    abierto — para que RR.HH. tenga conocimiento de cuándo se coordinó."""
+    emp = _employee_por_segunda_entrevista_token(db, token)
+    if not emp:
+        raise HTTPException(404)
+    f = dict(emp.ficha_data or {})
+    if f.get("segunda_entrevista_veredicto"):
+        # Ya se bloqueó el enlace — no se puede seguir editando.
+        return RedirectResponse(f"/entrevista2/{token}", status_code=303)
+    f["segunda_entrevista_fecha_hora"] = fecha_hora.strip() or None
+    emp.ficha_data = f
+    db.commit()
+    return RedirectResponse(f"/entrevista2/{token}?ok=fecha_guardada", status_code=303)
 
 
 @router.post("/entrevista2/{token}")
@@ -906,6 +1011,10 @@ def entrevista2_guardar(token: str, veredicto: str = Form(...), comentario: str 
     if not emp:
         raise HTTPException(404)
     f = dict(emp.ficha_data or {})
+    if f.get("segunda_entrevista_veredicto"):
+        # Defensa en profundidad — el enlace ya está bloqueado, la plantilla
+        # ya no debería mostrar el formulario, pero por si acaso.
+        return RedirectResponse(f"/entrevista2/{token}", status_code=303)
     f["segunda_entrevista_veredicto"] = veredicto
     f["segunda_entrevista_comentario"] = comentario.strip() or None
     # Hora de Lima (UTC-5), no la del servidor (UTC).
@@ -935,4 +1044,21 @@ def onboarding_overview(request: Request, db: Session = Depends(get_db),
         resumen.append({"e": e, "completadas": len(completadas), "total": total_etapas})
     return templates.TemplateResponse(request, "rrhh_onboarding.html", _ctx(
         request, user, resumen=resumen, active="onboarding",
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Historial de Descartados — punto 1 del pedido (16/09): quienes se
+# descartan (en Gestión de Leads o en Selección) no quedan en Personal ni
+# en los Leads activos, pero sí queda acá un registro histórico completo.
+# ---------------------------------------------------------------------------
+@router.get("/rrhh/reclutamiento/descartados", response_class=HTMLResponse)
+def descartados_list(request: Request, etapa: str = "", db: Session = Depends(get_db),
+                      user: User = Depends(require_role("administrador"))):
+    query = db.query(HistorialDescarte)
+    if etapa:
+        query = query.filter(HistorialDescarte.etapa_descarte == etapa)
+    descartados = query.order_by(HistorialDescarte.descartado_at.desc()).all()
+    return templates.TemplateResponse(request, "rrhh_descartados.html", _ctx(
+        request, user, descartados=descartados, etapas=ETAPAS_DESCARTE, f_etapa=etapa, active="descartados",
     ))

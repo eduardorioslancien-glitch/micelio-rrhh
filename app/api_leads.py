@@ -17,8 +17,7 @@ from fastapi import APIRouter, Depends, Form, File, Header, HTTPException, Uploa
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import Cargo, LeadCandidato, PedidoPersonal
-from .cv_analysis import analizar_cv, extraer_texto_cv
+from .models import LeadCandidato, PedidoPersonal
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 from .rrhh import _pedido_recibio_lead
 
@@ -72,9 +71,7 @@ async def api_crear_lead(
 ):
     """Crea un Lead en Gestión de Leads desde una automatización externa
     (n8n leyendo el correo de trabajaconnosotros@digetelperu.com, y a
-    futuro un webhook de WhatsApp). Si viene con CV y se pudo asociar a un
-    pedido con Cargo definido, corre la calificación de IA de una vez —
-    igual que una postulación por Trabaja con Nosotros."""
+    futuro un webhook de WhatsApp)."""
     pedido = None
     if codigo_pedido.strip():
         pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == codigo_pedido.strip()).first()
@@ -110,20 +107,7 @@ async def api_crear_lead(
     _pedido_recibio_lead(pedido)
     db.commit()
 
-    resultado = {
+    return {
         "id": lead.id, "nombre_completo": lead.nombre_completo,
         "pedido_id": lead.pedido_id, "cv_adjunto": bool(lead.cv_path),
-        "estrellas": None,
     }
-
-    if lead.cv_path and pedido:
-        cargo = db.query(Cargo).filter(Cargo.nombre == pedido.cargo_solicitado).first()
-        if cargo:
-            texto_cv = extraer_texto_cv(lead.cv_path, cv.content_type if cv else None)
-            estrellas, analisis = analizar_cv(texto_cv, cargo)
-            lead.estrellas = estrellas
-            lead.analisis_ia = analisis
-            db.commit()
-            resultado["estrellas"] = estrellas
-
-    return resultado

@@ -86,7 +86,7 @@
     </div>
   </details>
 
-  <details class="nav-group" {{ 'open' if active in ('seleccion', 'pedidos', 'leads') else '' }}>
+  <details class="nav-group" {{ 'open' if active in ('seleccion', 'pedidos', 'leads', 'descartados') else '' }}>
     <summary>Reclutamiento y Selección</summary>
     <div class="nav-children">
       <a href="/trabaja-con-nosotros" target="_blank">Trabaja con Nosotros ↗</a>
@@ -97,6 +97,7 @@
          El legajo de documentos firmados de cada trabajador sigue viviendo
          dentro de Personal (rrhh_personal_detalle.html), sin cambios. #}
       <a href="/rrhh/reclutamiento/seleccion" class="{{ 'active' if active == 'seleccion' else '' }}">Selección</a>
+      <a href="/rrhh/reclutamiento/descartados" class="{{ 'active' if active == 'descartados' else '' }}">Historial de Descartados</a>
       <details class="nav-group nested" {{ 'open' if active == 'onboarding' else '' }}>
         <summary>Onboarding</summary>
         <div class="nav-children">

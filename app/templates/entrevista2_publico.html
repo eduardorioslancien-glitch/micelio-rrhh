@@ -48,13 +48,31 @@
     {% endif %}
 
     {% set v = ficha.get('segunda_entrevista_veredicto') %}
-    {% if ok or v %}
+    {% if ok == 'fecha_guardada' %}
+    <div class="alert-ok" style="text-align:center; margin-top:18px;">Fecha y hora de entrevista guardadas.</div>
+    {% endif %}
+
+    {% if bloqueado %}
     <div class="alert-ok" style="text-align:center; margin-top:18px;">
       Gracias — tu veredicto (<strong>{{ v|upper }}</strong>) quedó registrado el {{ ficha.get('segunda_entrevista_veredicto_at', '') }}.
       {% if ficha.get('segunda_entrevista_comentario') %}<br><span class="muted">"{{ ficha.get('segunda_entrevista_comentario') }}"</span>{% endif %}
     </div>
-    <p class="muted" style="text-align:center; margin-top:10px;">Si necesitas corregirlo, vuelve a llenar el formulario de abajo — se reemplaza el anterior.</p>
+    <p class="muted" style="text-align:center; margin-top:10px;">
+      Este enlace ya no admite cambios — el proceso quedó a cargo de Recursos Humanos. ¡Gracias por tu evaluación!
+    </p>
+    {% if ficha.get('segunda_entrevista_fecha_hora') %}
+    <p class="muted" style="text-align:center;">Entrevista coordinada para: {{ ficha.get('segunda_entrevista_fecha_hora') }}</p>
     {% endif %}
+    {% else %}
+
+    <div class="section-title" style="margin-top:16px;">Fecha y hora de la entrevista</div>
+    <form method="post" action="/entrevista2/{{ token }}/fecha">
+      <div class="field">
+        <label>Cuándo se realizará (o se realizó) la entrevista — puedes modificarla mientras no envíes tu evaluación</label>
+        <input type="datetime-local" name="fecha_hora" value="{{ ficha.get('segunda_entrevista_fecha_hora', '') }}">
+      </div>
+      <button class="btn" type="submit" style="width:100%; margin-top:10px;">Guardar fecha y hora</button>
+    </form>
 
     <div class="section-title" style="margin-top:16px;">Tu evaluación</div>
     <form method="post" action="/entrevista2/{{ token }}">
@@ -71,8 +89,10 @@
         <label>Comentario — cuéntanos por qué</label>
         <textarea name="comentario" rows="4">{{ ficha.get('segunda_entrevista_comentario', '') }}</textarea>
       </div>
-      <button class="btn" type="submit" style="width:100%; margin-top:14px;">Registrar evaluación</button>
+      <p class="muted" style="margin-top:6px;">Ojo: una vez que envíes tu evaluación, este enlace se bloqueará y ya no podrás modificarla.</p>
+      <button class="btn" type="submit" style="width:100%; margin-top:8px;">Registrar evaluación</button>
     </form>
+    {% endif %}
   </div>
 </div>
 </body>

@@ -136,6 +136,41 @@ def _pedido_cubre_vacante(pedido) -> None:
         pedido.cerrado_at = datetime.datetime.utcnow()
 
 
+def _eliminar_employee_completo(db: Session, emp: Employee) -> None:
+    """Borra un Employee y todo lo que depende de él — mismo criterio que se
+    usó a mano varias veces para limpiar Personal de producción, ahora como
+    función reutilizable (Selección la usa al confirmar un descarte: la
+    persona NO debe quedar en Personal, ver HistorialDescarte). documents/
+    attachments/bitacora/asistencia/onboarding/renovaciones/man_academy/
+    audit_logs se borran solos vía cascade="all, delete-orphan" del modelo;
+    lo que no tiene esa cascada se borra a mano acá. No hace commit —
+    quien llama decide cuándo."""
+    from .models import ConsentimientoAsistencia, SolicitudRenovacion, EncuestaRespuesta
+
+    for a in emp.attachments:
+        if a.file_path and os.path.exists(a.file_path):
+            try:
+                os.remove(a.file_path)
+            except OSError:
+                pass
+    for d in emp.documents:
+        if d.pdf_path and os.path.exists(d.pdf_path):
+            try:
+                os.remove(d.pdf_path)
+            except OSError:
+                pass
+
+    u = db.query(User).filter(User.employee_id == emp.id).first()
+    if u:
+        u.employee_id = None
+
+    db.query(ConsentimientoAsistencia).filter(ConsentimientoAsistencia.employee_id == emp.id).delete()
+    db.query(SolicitudRenovacion).filter(SolicitudRenovacion.employee_id == emp.id).delete()
+    db.query(EncuestaRespuesta).filter(EncuestaRespuesta.evaluado_id == emp.id).delete()
+    db.query(SaludoCumpleanos).filter(SaludoCumpleanos.employee_id == emp.id).delete()
+    db.delete(emp)
+
+
 def _documento_duplicado(db: Session, tipo_documento: str, numero_documento: str, excluir_employee_id: int = None) -> bool:
     """Punto 2 del pedido: no puede haber dos trabajadores con el mismo tipo
     y número de documento de identidad. Compara contra todos los demás
