@@ -79,7 +79,11 @@
       <tr><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th><th></th></tr>
       {% for l in leads %}
       <tr>
-        <td><a href="/rrhh/reclutamiento/leads/{{ l.id }}"><strong>{{ l.nombre_completo }}</strong></a>{% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}</td>
+        <td>
+          <a href="/rrhh/reclutamiento/leads/{{ l.id }}"><strong>{{ l.nombre_completo if not l.nombre_completo.startswith('(Nombre pendiente') else '(nombre pendiente)' }}</strong></a>
+          {% if lead_incompleto(l) %}<br><span class="badge pendiente" style="font-size:11px;">Incompleto — en conversación por WhatsApp</span>{% endif %}
+          {% if l.notas %}<br><span class="muted">{{ l.notas }}</span>{% endif %}
+        </td>
         <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
         <td>{{ l.origen or "—" }}</td>
         <td>{{ (l.created_at|lima).strftime("%d/%m/%Y") }}</td>

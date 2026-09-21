@@ -20,6 +20,8 @@
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Aprobado y enviado a Selección, pero no se pudo enviar el correo a quien hará la segunda entrevista (falta configurar SMTP_* en el servidor, o no tiene correo cargado).</p></div>
   {% elif request.query_params.get('ok') == 'sin_entrevistador' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección. No se eligió a nadie para la segunda entrevista todavía — puedes asignarla más tarde desde Selección.</p></div>
+  {% elif request.query_params.get('ok') == 'entrevista_agendada' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Entrevista agendada — se creó el evento en Google Calendar (trabajaconnosotros@digetelgroup.com) y el candidato quedó como invitado.</p></div>
   {% endif %}
   {% if request.query_params.get('wa') %}
   <div class="card" style="margin-top:16px;">
@@ -52,17 +54,74 @@
     </table>
   </div>
 
+  {% if lead_incompleto %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;">
+    <p style="margin:0; color:var(--yellow);">
+      <strong>Lead incompleto</strong> — todavía falta
+      {%- set faltan = [] %}
+      {%- if not lead.nombre_completo or lead.nombre_completo.startswith('(Nombre pendiente') %}{% set _ = faltan.append('nombre') %}{% endif %}
+      {%- if not lead.email %}{% set _ = faltan.append('correo') %}{% endif %}
+      {%- if not lead.celular %}{% set _ = faltan.append('celular') %}{% endif %}
+      {%- if not lead.cv_path %}{% set _ = faltan.append('CV') %}{% endif %}
+      {{ faltan|join(', ') }}. La conversación de WhatsApp (automatización n8n) está tratando de completarlo — revisa la sección "Conversación de WhatsApp" más abajo.
+    </p>
+  </div>
+  {% endif %}
+
+  {% if lead.estrellas or lead.analisis_ia %}
+  <div class="card" style="margin-top:16px;">
+    <h2>Análisis de CV (IA)</h2>
+    <p style="font-size:20px; margin:4px 0;">
+      {% for i in range(1,6) %}{{ '★' if lead.estrellas and i <= lead.estrellas else '☆' }}{% endfor %}
+      <span class="muted" style="font-size:13px;">({{ lead.estrellas or '—' }}/5, contra los requisitos de {{ cargo.nombre if cargo else 'este cargo' }})</span>
+    </p>
+    {% if lead.analisis_ia %}<p style="white-space:pre-wrap;">{{ lead.analisis_ia }}</p>{% endif %}
+  </div>
+  {% elif not lead_incompleto %}
+  <div class="card" style="margin-top:16px;">
+    <h2>Análisis de CV (IA)</h2>
+    <p class="muted">Todavía no hay calificación de IA para este candidato — la genera la automatización de n8n (POST /api/leads/{{ lead.id }}/analisis-ia).</p>
+  </div>
+  {% endif %}
+
+  {% set coordinacion = (lead.entrevista_data or {}).get('coordinacion') %}
+  {% if coordinacion %}
+  <div class="card" style="margin-top:16px;">
+    <h2>Entrevista agendada</h2>
+    <table>
+      <tr><td style="width:220px;"><strong>Fecha y hora</strong></td><td>{{ coordinacion.fecha_hora or '—' }}</td></tr>
+      <tr><td><strong>Google Meet</strong></td><td>{% if coordinacion.meet_link %}<a href="{{ coordinacion.meet_link }}" target="_blank">{{ coordinacion.meet_link }}</a>{% else %}—{% endif %}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
   {% if lead.etapa not in ('oferta', 'contratado', 'descartado') %}
   <div class="card">
     <h2>Acciones</h2>
-    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/coordinar-meet" style="display:inline;">
-      <button class="btn small" type="submit" {{ 'disabled' if not lead.email else '' }}>Coordinar Meet (enviar correo)</button>
+    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/coordinar-meet" style="display:inline;"
+          onsubmit="return confirm('¿Entrevistar a {{ lead.nombre_completo }}? Se agendará una entrevista de 25 min en Calendar (o se enviará el link de Meet por correo, si la automatización de n8n todavía no está configurada).');">
+      <button class="btn small" type="submit" {{ 'disabled' if not lead.email else '' }}>Entrevistar</button>
     </form>
     <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/descartar" style="display:inline; margin-left:8px;"
           onsubmit="return confirm('¿Descartar a {{ lead.nombre_completo }}? Se le enviará un correo/WhatsApp de aviso y quedará archivado en el Historial de Descartados (ya no aparecerá en Gestión de Leads).');">
       <button class="btn small secondary" type="submit">Descartar</button>
     </form>
     {% if not lead.email %}<p class="hint">Este candidato no tiene correo registrado — no se pueden enviar correos automáticos.</p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if lead.conversacion_whatsapp %}
+  <div class="card">
+    <h2>Conversación de WhatsApp</h2>
+    <p class="muted">Sustento del proceso — registrado por la automatización de n8n.</p>
+    <div style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+      {% for m in lead.conversacion_whatsapp %}
+      <div style="align-self:{{ 'flex-end' if m.rol == 'sistema' else 'flex-start' }}; max-width:75%; padding:8px 12px; border-radius:10px; background:{{ 'var(--green-bg)' if m.rol == 'sistema' else '#f0f0f0' }};">
+        <div style="font-size:11px; opacity:.7;">{{ 'DIGETEL GROUP' if m.rol == 'sistema' else lead.nombre_completo }} — {{ m.ts }}</div>
+        <div>{{ m.texto }}</div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
   {% endif %}
 

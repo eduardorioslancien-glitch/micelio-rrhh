@@ -20,7 +20,7 @@ from .models import (
     PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
-    CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE,
+    CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE, LEAD_NOMBRE_PENDIENTE, lead_incompleto,
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import (
@@ -121,12 +121,15 @@ def _generar_codigo_pedido(db: Session) -> str:
 @router.get("/rrhh/reclutamiento/pedidos", response_class=HTMLResponse)
 def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_db),
                   user: User = Depends(require_role("administrador", "opeoka"))):
-    # Punto 2 del pedido (15/09): al entrar sin filtro elegido, se ven solo
-    # los pedidos ABIERTOS (lo que RR.HH. necesita mirar primero). "Todos"
-    # es una opción explícita del selector, no el estado por defecto.
-    f_estado = estado if estado else "abierto"
+    # Punto 2 del pedido de automatización RyS (21/09): al entrar sin filtro
+    # elegido, se ven los pedidos ABIERTO y EN_PROCESO juntos (lo que RR.HH.
+    # necesita mirar primero). "Todos" y cada estado puntual son opciones
+    # explícitas del selector, no el default.
+    f_estado = estado if estado else "abierto_en_proceso"
     query = db.query(PedidoPersonal)
-    if f_estado != "todos":
+    if f_estado == "abierto_en_proceso":
+        query = query.filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
+    elif f_estado != "todos":
         query = query.filter(PedidoPersonal.estado == f_estado)
     pedidos = query.order_by(PedidoPersonal.created_at.desc()).all()
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
@@ -280,7 +283,7 @@ def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Sessi
     return templates.TemplateResponse(request, "rrhh_leads.html", _ctx(
         request, user, leads=leads, pedidos_abiertos=pedidos_abiertos, etapas=ETAPAS_LEAD,
         etapa_labels=ETAPA_LABELS, estado_labels=ESTADO_LABELS, origenes=ORIGENES_LEAD,
-        f_etapa=etapa, f_pedido=pedido_id,
+        f_etapa=etapa, f_pedido=pedido_id, lead_incompleto=lead_incompleto,
         pedido_actual=pedido_actual, leads_por_pedido=leads_por_pedido, active="leads",
     ))
 
@@ -366,46 +369,49 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
         request, user, lead=lead, cargo=cargo, disc_preguntas=DISC_PREGUNTAS,
         disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado,
         disc_respuestas_guardadas=disc_respuestas_guardadas, entrevistadores=entrevistadores,
-        clasificaciones=CLASIFICACIONES_LEAD, active="leads",
+        clasificaciones=CLASIFICACIONES_LEAD, lead_incompleto=lead_incompleto(lead), active="leads",
     ))
 
 
-def _correo_coordinar_meet(lead: LeadCandidato) -> bool:
-    # Punto del pedido (16/09): si Google Calendar está configurado (ver
-    # app/google_calendar.py), agenda de verdad en un horario libre del
-    # calendario de la persona configurada en GOOGLE_CALENDAR_IMPERSONATE y
-    # usa el link de Meet real de esa reunión. Si no está configurado (o
-    # algo falla), cae de vuelta al link genérico de antes — nunca bloquea
-    # el envío del correo.
-    from . import google_calendar
-    reunion = google_calendar.agendar_reunion(
-        titulo=f"Entrevista — {lead.nombre_completo}",
-        descripcion=f"Entrevista de selección con {lead.nombre_completo} ({lead.email or 'sin correo'}).",
-        invitado_email=lead.email,
+def _agendar_entrevista_n8n(lead: LeadCandidato) -> dict | None:
+    """Punto 3.3 del pedido de automatización RyS (21/09): dispara el
+    webhook de n8n que agenda una entrevista de 25 minutos en el Google
+    Calendar de trabajaconnosotros@digetelgroup.com (n8n tiene esa
+    credencial, MICELIO no) y devuelve el link de Meet real. Como el
+    candidato queda como invitado del evento, Calendar ya le manda la
+    invitación — n8n no necesita mandar un correo aparte para esto.
+    Devuelve None si el webhook no está configurado o falla, para que la
+    llamada haga el fallback de siempre (link genérico + correo manual)."""
+    from . import n8n
+    resultado = n8n.llamar_webhook("N8N_WEBHOOK_ENTREVISTAR_URL", {
+        "lead_id": lead.id,
+        "nombre_completo": lead.nombre_completo,
+        "email": lead.email,
+        "celular": _celular_lead_completo(lead),
+        "cargo": lead.pedido.cargo_solicitado if lead.pedido else None,
+        "area": lead.pedido.area if lead.pedido else None,
+        "empresa": lead.pedido.empresa.nombre if lead.pedido and lead.pedido.empresa else None,
+        "pedido_codigo": lead.pedido.codigo if lead.pedido else None,
+    })
+    if resultado and resultado.get("ok") and resultado.get("meet_link"):
+        return resultado
+    return None
+
+
+def _correo_coordinar_meet_generico(lead: LeadCandidato) -> bool:
+    """Respaldo de siempre cuando el webhook de n8n (N8N_WEBHOOK_ENTREVISTAR_URL)
+    todavía no está configurado o falló: un link genérico de Meet y RR.HH.
+    coordina el horario a mano por correo."""
+    meet_link = "https://meet.google.com/new"
+    cuerpo = (
+        f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
+        "Gracias por tu interés en postular a DIGETEL GROUP. Nos gustaría coordinar una "
+        "breve entrevista por videollamada.\n\n"
+        f"Aquí tienes un enlace de Google Meet para la reunión: {meet_link}\n\n"
+        "Por favor respóndenos a este correo proponiendo 2-3 horarios en los que puedas "
+        "conectarte en los próximos días y te confirmamos el que mejor calce.\n\n"
+        "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
     )
-    if reunion:
-        cuerpo = (
-            f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
-            "Gracias por tu interés en postular a DIGETEL GROUP. Te hemos agendado una breve "
-            "entrevista por videollamada:\n\n"
-            f"Fecha: {reunion['fecha_texto']}\n"
-            f"Hora: {reunion['hora_texto']}\n"
-            f"Enlace de Google Meet: {reunion['meet_link']}\n\n"
-            "Si ese horario no te funciona, respóndenos a este correo proponiendo 2-3 horarios "
-            "alternativos y te confirmamos el que mejor calce.\n\n"
-            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
-        )
-    else:
-        meet_link = "https://meet.google.com/new"
-        cuerpo = (
-            f"Hola {lead.nombre_completo.split()[0] if lead.nombre_completo else ''},\n\n"
-            "Gracias por tu interés en postular a DIGETEL GROUP. Nos gustaría coordinar una "
-            "breve entrevista por videollamada.\n\n"
-            f"Aquí tienes un enlace de Google Meet para la reunión: {meet_link}\n\n"
-            "Por favor respóndenos a este correo proponiendo 2-3 horarios en los que puedas "
-            "conectarte en los próximos días y te confirmamos el que mejor calce.\n\n"
-            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
-        )
     return _enviar_correo([lead.email], "Coordinemos tu entrevista — DIGETEL GROUP", cuerpo)
 
 
@@ -428,13 +434,33 @@ def _correo_descarte(lead: LeadCandidato) -> bool:
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/coordinar-meet")
 def lead_coordinar_meet(lead_id: int, db: Session = Depends(get_db),
                          user: User = Depends(require_role("administrador"))):
+    """"Entrevistar" en Gestión de Leads — punto 3.3 del pedido de
+    automatización RyS (21/09). Intenta agendar de verdad vía n8n (25 min,
+    Google Calendar de trabajaconnosotros@digetelgroup.com, invitado =
+    candidato); si el webhook todavía no está configurado o falla, cae al
+    correo con link genérico de Meet de siempre — nunca bloquea la acción."""
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
-    enviado = _correo_coordinar_meet(lead) if lead.email else False
-    lead.etapa = "contactado"
-    db.commit()
-    mensaje = "correo_enviado" if enviado else "correo_no_configurado"
+
+    resultado = _agendar_entrevista_n8n(lead) if lead.email else None
+    if resultado:
+        f = dict(lead.entrevista_data or {})
+        f["coordinacion"] = {
+            "fecha_hora": resultado.get("fecha_hora"),
+            "meet_link": resultado.get("meet_link"),
+            "calendar_event_id": resultado.get("calendar_event_id"),
+            "agendado_at": (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).strftime("%Y-%m-%d %H:%M"),
+        }
+        lead.entrevista_data = f
+        lead.etapa = "contactado"
+        db.commit()
+        mensaje = "entrevista_agendada"
+    else:
+        enviado = _correo_coordinar_meet_generico(lead) if lead.email else False
+        lead.etapa = "contactado"
+        db.commit()
+        mensaje = "correo_enviado" if enviado else "correo_no_configurado"
     return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok={mensaje}", status_code=303)
 
 
@@ -475,7 +501,24 @@ def lead_descartar(lead_id: int, db: Session = Depends(get_db),
     if not lead:
         raise HTTPException(404)
 
-    enviado = _correo_descarte(lead) if lead.email else False
+    # Punto 3.4 del pedido de automatización RyS (21/09): el correo de
+    # descarte ahora sale de trabajaconnosotros@digetelgroup.com (cuenta
+    # nueva, cuyas credenciales solo tiene n8n) — se intenta primero por el
+    # webhook de n8n; si todavía no está configurado o falla, cae al envío
+    # directo de siempre desde el SMTP de MICELIO (digetelperu.com).
+    from . import n8n
+    resultado_n8n = n8n.llamar_webhook("N8N_WEBHOOK_DESCARTAR_URL", {
+        "lead_id": lead.id,
+        "nombre_completo": lead.nombre_completo,
+        "email": lead.email,
+        "celular": _celular_lead_completo(lead),
+        "cargo": lead.pedido.cargo_solicitado if lead.pedido else None,
+        "empresa": lead.pedido.empresa.nombre if lead.pedido and lead.pedido.empresa else None,
+    }) if lead.email else None
+    if resultado_n8n and resultado_n8n.get("ok"):
+        enviado = True
+    else:
+        enviado = _correo_descarte(lead) if lead.email else False
     wa_link = None
     wa_numero = _celular_lead_completo(lead)
     if wa_numero:
@@ -498,6 +541,12 @@ def lead_descartar(lead_id: int, db: Session = Depends(get_db),
             "origen": lead.origen, "documento_tipo": lead.documento_tipo, "documento_numero": lead.documento_numero,
             "clasificacion": lead.clasificacion, "cv_filename": lead.cv_filename,
             "entrevista": lead.entrevista_data,
+            # Punto de cierre del pedido de automatización RyS (21/09): "toda
+            # la información de los leads debe quedar registrada como
+            # sustento, incluida conversaciones" — el análisis de IA y la
+            # transcripción de WhatsApp no se pierden al descartar.
+            "estrellas": lead.estrellas, "analisis_ia": lead.analisis_ia,
+            "conversacion_whatsapp": lead.conversacion_whatsapp,
         },
         descartado_por=user.nombre_completo,
     )

@@ -77,6 +77,7 @@ _MIGRACIONES_COLUMNAS = [
     ("empresas", "representante_numero_documento", "VARCHAR(30)"),
     ("empresas", "representante_nacionalidad", "VARCHAR(60)"),
     ("users", "man_academy_admin", "BOOLEAN"),
+    ("leads_candidatos", "conversacion_whatsapp", "JSON"),
 ]
 
 

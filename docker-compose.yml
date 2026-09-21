@@ -20,6 +20,19 @@ services:
       # o WhatsApp) — el valor real va en .env del servidor, nunca aquí:
       - LEADS_API_KEY=${LEADS_API_KEY:-}
       - TRABAJA_CON_NOSOTROS_EMAIL=trabajaconnosotros@digetelperu.com
+      # Automatización de Reclutamiento y Selección en n8n (21/09): MICELIO
+      # llama a estas URLs cuando RR.HH. presiona "Entrevistar" o
+      # "Descartar" en Gestión de Leads — n8n agenda la entrevista en
+      # Calendar (o manda el correo de descarte) desde
+      # trabajaconnosotros@digetelgroup.com, que solo n8n tiene. Si estas
+      # URLs no están configuradas, esas acciones caen al correo manual de
+      # siempre (nunca bloquean a RR.HH.). N8N_WEBHOOK_SECRET es la clave
+      # compartida que el workflow de n8n debe validar (header
+      # X-Webhook-Secret) antes de hacer nada — los valores reales van en
+      # .env del servidor, nunca en este archivo:
+      - N8N_WEBHOOK_ENTREVISTAR_URL=${N8N_WEBHOOK_ENTREVISTAR_URL:-}
+      - N8N_WEBHOOK_DESCARTAR_URL=${N8N_WEBHOOK_DESCARTAR_URL:-}
+      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
       # Integración con Man Academy (menú Capacitación): URL pública de esa
       # app y un secreto largo y aleatorio compartido con ella (mismo valor

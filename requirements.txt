@@ -9,6 +9,4 @@ pypdf>=4.0          # fusiona PDFs para la exportación selectiva ante SUNAFIL
 itsdangerous>=2.1    # firma la cookie de sesión del login (Administración de Personal)
 reportlab>=4.0    # genera los PDF firmados del legajo en Python puro (sin Word/LibreOffice)
 a2wsgi>=1.10      # adapta la app ASGI (FastAPI) a WSGI para Passenger (cPanel Setup Python App)
-requests>=2.31   # solo lo usa test_e2e.py (prueba automatizada), no el servidor
-google-api-python-client>=2.100   # agenda en Calendar y genera el Meet real al "Coordinar Meet"
-google-auth>=2.23                 # autenticación de la Cuenta de Servicio (Domain-Wide Delegation)
+requests>=2.31   # test_e2e.py, y las llamadas salientes de MICELIO a los webhooks de n8n (ver app/n8n.py)

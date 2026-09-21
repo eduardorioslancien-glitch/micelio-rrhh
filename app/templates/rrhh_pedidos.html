@@ -15,6 +15,7 @@
         <div class="field">
           <label>Estado</label>
           <select name="estado" onchange="this.form.submit()">
+            <option value="abierto_en_proceso" {{ 'selected' if f_estado == 'abierto_en_proceso' else '' }}>Abierto y En Proceso</option>
             {% for key, label in estados %}
             <option value="{{ key }}" {{ 'selected' if f_estado == key else '' }}>{{ label }}</option>
             {% endfor %}

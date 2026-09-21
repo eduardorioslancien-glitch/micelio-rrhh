@@ -799,6 +799,12 @@ class LeadCandidato(Base):
 
     id = Column(Integer, primary_key=True)
     pedido_id = Column(Integer, ForeignKey("pedidos_personal.id"), nullable=True)
+    # NOT NULL a nivel de base de datos (no se puede migrar en caliente sin
+    # riesgo en SQLite) — un lead que llega incompleto desde la automatización
+    # de WhatsApp (n8n) se crea con el sentinel LEAD_NOMBRE_PENDIENTE mientras
+    # no se sepa el nombre real, y se actualiza en cuanto n8n lo obtenga
+    # (ver api_leads.py). _lead_incompleto() usa este sentinel para detectar
+    # el estado "incompleto".
     nombre_completo = Column(String(200), nullable=False)
     email = Column(String(200), nullable=True)
     celular = Column(String(30), nullable=True)
@@ -815,18 +821,41 @@ class LeadCandidato(Base):
     # Postulación vía "Trabaja con Nosotros" (landing pública) — CV adjunto.
     cv_path = Column(String(500), nullable=True)
     cv_filename = Column(String(300), nullable=True)
-    # Quedan sin usar desde el 16/09: la evaluación inicial del CV la hace
-    # RR.HH. mirándolo, se quitó por completo la calificación por IA. No se
-    # borran las columnas (evita una migración de esquema en SQLite) pero
-    # ningún código las llena ni las lee.
+    # Reactivadas el 21/09 para la automatización de Reclutamiento y Selección
+    # con n8n: n8n llama a la IA (no MICELIO) para comparar el CV contra los
+    # requisitos del Cargo del pedido, y empuja acá el resultado vía
+    # POST /api/leads/{id}/analisis-ia — ver api_leads.py.
     estrellas = Column(Integer, nullable=True)
     analisis_ia = Column(Text, nullable=True)
 
     # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
     # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.
+    # También guarda, bajo la clave "coordinacion", la fecha/hora y el link
+    # de Meet de la entrevista que agenda n8n (Google Calendar de
+    # trabajaconnosotros@digetelgroup.com) al presionar "Entrevistar".
     entrevista_data = Column(JSON, nullable=True)
 
+    # Transcripción de la conversación de WhatsApp que arma n8n para
+    # completar nombre/correo/celular/CV — lista de
+    # {rol: "sistema"|"candidato", texto, ts}, en orden cronológico. Queda
+    # como sustento del proceso aunque el lead ya esté completo.
+    conversacion_whatsapp = Column(JSON, default=list)
+
     pedido = relationship("PedidoPersonal", back_populates="leads")
+
+
+LEAD_NOMBRE_PENDIENTE = "(Nombre pendiente — WhatsApp)"
+
+
+def lead_incompleto(lead: "LeadCandidato") -> bool:
+    """True si a este lead todavía le falta nombre, correo, celular o CV —
+    lo que dispara (o sigue esperando) la conversación de WhatsApp de n8n
+    para completarlo. Se calcula, no se guarda, para que nunca quede
+    desincronizado de los datos reales."""
+    return bool(
+        not lead.nombre_completo or lead.nombre_completo == LEAD_NOMBRE_PENDIENTE
+        or not lead.email or not lead.celular or not lead.cv_path
+    )
 
 
 class EncuestaCampana(Base):
