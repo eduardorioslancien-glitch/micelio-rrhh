@@ -26,7 +26,7 @@ from .models import (
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
-    STATUS_PENDIENTE, STATUS_FIRMADO, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
+    STATUS_PENDIENTE, STATUS_FIRMADO, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS, lead_incompleto,
 )
 from .auth import (
     get_current_user, require_login, require_role, hash_password, verify_password,
@@ -123,6 +123,44 @@ def _pedido_recibio_lead(pedido) -> None:
     siendo siempre manual — nunca se pisa acá."""
     if pedido and pedido.estado == "abierto":
         pedido.estado = "en_proceso"
+
+
+def _payload_lead_para_n8n(lead, pedido=None) -> dict:
+    """Arma el payload para avisarle a n8n de un lead — SIEMPRE se llama
+    mientras la sesión de base de datos del request sigue abierta (nunca
+    dentro de la BackgroundTask), para poder leer pedido.empresa.nombre sin
+    riesgo de DetachedInstanceError. Ver _notificar_lead_incompleto_n8n."""
+    return {
+        "lead_id": lead.id,
+        "nombre_completo": lead.nombre_completo,
+        "email": lead.email,
+        "celular": lead.celular,
+        "cv_adjunto": bool(lead.cv_path),
+        "cargo": pedido.cargo_solicitado if pedido else None,
+        "empresa": pedido.empresa.nombre if pedido and pedido.empresa else None,
+        "pedido_codigo": pedido.codigo if pedido else None,
+    }
+
+
+def _notificar_lead_incompleto_n8n(payload: dict, incompleto: bool) -> None:
+    """Punto 3.1 del pedido de automatización RyS (21/09): si un lead recién
+    creado (landing "Trabaja con Nosotros" o registro manual) tiene celular
+    pero le falta nombre, correo o CV, avisa a n8n para que arranque (o
+    continúe) la conversación de WhatsApp que complete esos datos — sin
+    celular no hay a quién escribirle, así que en ese caso no se llama a
+    nada (queda para que RR.HH. lo complete a mano).
+
+    Se llama en segundo plano (FastAPI BackgroundTasks) para no hacer
+    esperar a quien está llenando el formulario — ver los call sites en
+    public_landing.py y reclutamiento.py. Recibe el payload YA armado (por
+    _payload_lead_para_n8n, mientras la sesión seguía abierta) en vez de
+    los objetos ORM: para cuando esta función corre, la sesión del request
+    (Depends(get_db)) ya se cerró, y tocar una relación no cargada todavía
+    sobre un objeto fuera de sesión revienta con DetachedInstanceError."""
+    if not payload.get("celular") or not incompleto:
+        return
+    from . import n8n
+    n8n.llamar_webhook("N8N_WEBHOOK_NUEVO_LEAD_URL", payload)
 
 
 def _pedido_cubre_vacante(pedido) -> None:

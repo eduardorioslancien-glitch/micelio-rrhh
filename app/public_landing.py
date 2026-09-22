@@ -11,14 +11,14 @@ trabajador todavía, solo la postulación misma."""
 import os
 import uuid
 
-from fastapi import APIRouter, Request, Depends, Form, File, UploadFile, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, Depends, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import PedidoPersonal, LeadCandidato, Cargo, TIPOS_DOCUMENTO_POSTULANTE
-from .rrhh import _pedido_recibio_lead
+from .models import PedidoPersonal, LeadCandidato, Cargo, TIPOS_DOCUMENTO_POSTULANTE, lead_incompleto
+from .rrhh import _pedido_recibio_lead, _notificar_lead_incompleto_n8n, _payload_lead_para_n8n
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "cv_postulantes")
@@ -69,7 +69,8 @@ def landing_vacante_detalle(request: Request, pedido_id: int, db: Session = Depe
 
 
 @router.post("/trabaja-con-nosotros/{pedido_id}/postular")
-async def landing_postular(request: Request, pedido_id: int, nombre_completo: str = Form(...),
+async def landing_postular(request: Request, background_tasks: BackgroundTasks, pedido_id: int,
+                            nombre_completo: str = Form(...),
                             documento_tipo: str = Form(...), documento_numero: str = Form(...),
                             email: str = Form(...), celular: str = Form(""),
                             cv: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -109,6 +110,10 @@ async def landing_postular(request: Request, pedido_id: int, nombre_completo: st
 
     _pedido_recibio_lead(pedido)
     db.commit()
+    # Se arma el payload (y se lee lead_incompleto/pedido.empresa) ACÁ, con la
+    # sesión todavía abierta — la BackgroundTask ya no puede tocar objetos ORM.
+    payload_n8n = _payload_lead_para_n8n(lead, pedido)
+    background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead))
 
     return RedirectResponse(f"/trabaja-con-nosotros/{pedido_id}/gracias", status_code=303)
 

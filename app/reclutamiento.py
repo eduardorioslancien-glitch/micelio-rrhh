@@ -9,7 +9,7 @@ import os
 import uuid
 from urllib.parse import quote
 
-from fastapi import APIRouter, Request, Depends, Form, File, UploadFile, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, Depends, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -25,7 +25,8 @@ from .models import (
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import (
     _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead,
-    _pedido_cubre_vacante, _a_lima, _eliminar_employee_completo,
+    _pedido_cubre_vacante, _a_lima, _eliminar_employee_completo, _notificar_lead_incompleto_n8n,
+    _payload_lead_para_n8n,
 )
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
@@ -289,7 +290,8 @@ def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Sessi
 
 
 @router.post("/rrhh/reclutamiento/leads/nuevo")
-async def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), celular: str = Form(""),
+async def leads_crear(background_tasks: BackgroundTasks,
+                       nombre_completo: str = Form(...), email: str = Form(""), celular: str = Form(""),
                        origen: str = Form(""), pedido_id: str = Form(""), notas: str = Form(""),
                        cv: UploadFile = File(None),
                        db: Session = Depends(get_db),
@@ -323,6 +325,8 @@ async def leads_crear(nombre_completo: str = Form(...), email: str = Form(""), c
     if pedido:
         _pedido_recibio_lead(pedido)
         db.commit()
+    payload_n8n = _payload_lead_para_n8n(lead, pedido)
+    background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead))
 
     destino = f"/rrhh/reclutamiento/leads?pedido_id={pedido_id}" if pedido_id else "/rrhh/reclutamiento/leads?pedido_id=none"
     return RedirectResponse(destino, status_code=303)

@@ -32,6 +32,7 @@ services:
       # .env del servidor, nunca en este archivo:
       - N8N_WEBHOOK_ENTREVISTAR_URL=${N8N_WEBHOOK_ENTREVISTAR_URL:-}
       - N8N_WEBHOOK_DESCARTAR_URL=${N8N_WEBHOOK_DESCARTAR_URL:-}
+      - N8N_WEBHOOK_NUEVO_LEAD_URL=${N8N_WEBHOOK_NUEVO_LEAD_URL:-}
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
       # Integración con Man Academy (menú Capacitación): URL pública de esa
