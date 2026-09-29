@@ -448,14 +448,9 @@ def _doc_derechohabientes(fields):
 
 def _doc_autorizacion_deposito(fields):
     story, cierre, titulo, subtitulo = _legal_body("autorizacion_deposito", fields)
-    story += _section_caption("I. Depósito de Haberes (Remuneración Mensual)")
     story.append(_field_table([
         ["Banco", fields.get("banco"), "Tipo de Cuenta", fields.get("tipo_cuenta")],
         ["N.° de Cuenta", fields.get("num_cuenta"), "CCI", fields.get("cci")],
-    ]))
-    story += _section_caption("II. Depósito de CTS")
-    story.append(_field_table([
-        ["Entidad Depositaria (Banco)", fields.get("banco_cts"), "N.° de Cuenta CTS", fields.get("cuenta_cts")],
     ]))
     return story, cierre, titulo, subtitulo
 
@@ -825,6 +820,358 @@ def _doc_contrato(fields):
     return story, spec["cierre"], spec["titulo"], subtitulo
 
 
+# Contrato de Locación de Servicios (Régimen RHE) — transcrito del modelo
+# entregado por RR.HH. el 28/09. A diferencia del contrato de planilla, acá
+# NO hay periodo de prueba ni jornada (es de naturaleza civil, no laboral).
+_CLAUSULAS_LOCACION_SERVICIOS = [
+    ("Primera", "OBJETO DEL CONTRATO. El objeto del presente es contratar los servicios profesionales de EL "
+     "LOCADOR como {cargo} a fin de que realice las actividades descritas en el Anexo 1 de este documento. En "
+     "consecuencia, EL LOCADOR se obliga frente a DIGETEL a realizar y dar cumplimiento a los servicios "
+     "descritos en dicho Anexo."),
+    ("Segunda", "NATURALEZA DEL CONTRATO. Las partes dejan expresamente establecido que el presente Contrato "
+     "tiene naturaleza civil y no implica relación de subordinación ni dependencia alguna de EL LOCADOR con "
+     "DIGETEL. El presente documento es estrictamente de carácter comercial y profesional, y EL LOCADOR "
+     "obrará con autonomía. EL LOCADOR declara que la ejecución del presente Contrato no es su mayor ni única "
+     "fuente de ingreso y que sus actividades no son conexas ni inherentes a las actividades de DIGETEL."),
+    ("Tercera", "PAGO DE RETRIBUCIÓN. DIGETEL se obliga a pagar a EL LOCADOR la cantidad de S/ {remuneracion} "
+     "({remuneracion_letras}) mensuales, incluidos los impuestos de ley. A tales efectos, EL LOCADOR deberá "
+     "presentar dentro de los cinco (5) primeros días útiles del mes el recibo por honorarios correspondiente "
+     "al mes en curso, que será pagado por DIGETEL dentro de los cinco (5) días útiles siguientes a su "
+     "presentación. Todos los pagos se realizarán por transferencia a la cuenta bancaria: Banco {banco}, "
+     "Beneficiario {nombre_completo}, N.° de Cuenta {num_cuenta}, CCI {cci}. Cada una de LAS PARTES se hará "
+     "cargo de declarar y pagar los tributos, impuestos, gastos y cualquier otra erogación que le corresponda "
+     "de conformidad a la normativa aplicable. Cualesquiera montos que deba EL LOCADOR a DIGETEL por concepto "
+     "de indemnizaciones, reembolsos o cualquier otra causa podrán ser compensados de lo que DIGETEL adeude a "
+     "EL LOCADOR por el Precio o por cualquier otro concepto."),
+    ("Cuarta", "PLAZO DEL CONTRATO. La duración del presente Contrato es de {dias_contrato} días, contados a "
+     "partir del {fecha_contrato_larga} hasta el {fecha_fin_contrato_larga}. Salvo manifestación expresa en "
+     "contrario, el presente instrumento no será objeto de renovación ni prorrogado de manera automática, "
+     "estando sujeta cualquier renovación o prórroga al consentimiento expreso y escrito de LAS PARTES."),
+    ("Quinta", "TERMINACIÓN ANTICIPADA. La terminación de este Contrato tendrá lugar al vencimiento del plazo "
+     "señalado en la cláusula anterior, o su prórroga de haberla. No obstante, cualquiera de LAS PARTES podrá "
+     "terminar este Contrato anticipadamente dando aviso previo y por escrito a la otra parte, con al menos "
+     "quince (15) días continuos de antelación. LAS PARTES no tendrán derecho a indemnización alguna por tal "
+     "terminación anticipada, salvo que ésta derive del incumplimiento de alguna obligación del presente "
+     "Contrato, en cuyo caso la parte afectada podrá terminarlo unilateralmente mediante simple notificación."),
+    ("Sexta", "CONFIDENCIALIDAD. EL LOCADOR acuerda mantener la debida confidencialidad sobre la información "
+     "que reciba de DIGETEL con motivo del presente Contrato, en cualquier medio que le sea suministrada, "
+     "directamente o a través de dependientes, subcontratistas, asesores o auxiliares, aunque no haya sido "
+     "calificada como confidencial. Esta obligación no se extiende a información que, antes de su entrega, "
+     "sea de dominio público. DIGETEL podrá solicitar a EL LOCADOR la devolución, destrucción o borrado de la "
+     "información confidencial. Si una autoridad administrativa o judicial solicitara a EL LOCADOR dicha "
+     "información, éste deberá notificarlo de inmediato a DIGETEL."),
+    ("Séptima", "SECRETO DE LAS TELECOMUNICACIONES. EL LOCADOR declara conocer que en ejecución de los "
+     "servicios materia del presente Contrato tendrá acceso a información protegida, entre otros, por el "
+     "artículo 2.° numeral 10) de la Constitución Política del Perú, los artículos 161.° y siguientes del "
+     "Código Penal, los artículos 4.°, 87.° inciso 5) y 90.° del Texto Único Ordenado de la Ley de "
+     "Telecomunicaciones, los artículos 10.° y 15.° del Reglamento de la Ley de Telecomunicaciones y la Ley "
+     "N.° 29733, al calificar la misma como \"secreto de las telecomunicaciones\" y/o \"datos personales\". EL "
+     "LOCADOR se obliga a no sustraer, interceptar, interferir, alterar, desviar, acceder, utilizar, publicar "
+     "o facilitar el contenido de comunicaciones ni la información personal de los usuarios de los servicios "
+     "prestados por DIGETEL, observando en todo momento las instrucciones que ésta le imparta al respecto."),
+    ("Octava", "PROTECCIÓN DE DATOS PERSONALES. A efectos de la Ley N.° 29733 y su Reglamento (D.S. N.° "
+     "003-2013-JUS), y en virtud del acceso que EL LOCADOR tiene a datos personales de titularidad de DIGETEL "
+     "y sus clientes: (i) EL LOCADOR utilizará dicha información exclusivamente para los fines del presente "
+     "contrato y según las instrucciones de DIGETEL; (ii) no la comunicará, transferirá ni la proporcionará a "
+     "terceros sin autorización previa y por escrito de DIGETEL, ni la duplicará o reproducirá; (iii) "
+     "trasladará estas obligaciones a sus propios colaboradores; (iv) garantizará que solo la maneje personal "
+     "estrictamente necesario; (v) contará con las medidas de seguridad legalmente exigibles; (vi) al "
+     "finalizar el contrato, destruirá, eliminará o devolverá la información; (vii) responderá por cualquier "
+     "reclamo derivado del incumplimiento de esta cláusula; y (viii) su incumplimiento será causal de "
+     "resolución del presente Contrato."),
+    ("Novena", "ANTICORRUPCIÓN. LAS PARTES declaran y se obligan a que ellas y todas las personas que actúan a "
+     "su nombre se abstendrán de dar, ofrecer, aceptar o recibir, directa o indirectamente, dinero o cualquier "
+     "otra cosa de valor con la finalidad de obtener o retener una ventaja comercial indebida, incluyendo "
+     "pagos a funcionarios públicos, candidatos políticos o representantes de partidos políticos. La parte "
+     "afectada podrá dar por terminado este contrato inmediatamente, sin responsabilidad alguna, si concluye "
+     "que la otra ha incumplido esta cláusula, quedando además facultada a exigir la indemnización "
+     "correspondiente."),
+    ("Décima", "DERECHO DE AUTOR. La titularidad y propiedad de los derechos sobre creaciones intelectuales "
+     "que se generen con ocasión de la ejecución del presente contrato serán de DIGETEL, quien podrá "
+     "registrarlas ante Indecopi, reproducirlas, transformarlas, difundirlas, comercializarlas y explotarlas "
+     "por cualquier medio, sin que EL LOCADOR pueda comercializarlas en ningún momento. Las mejoras que "
+     "DIGETEL obtenga en bienes o procedimientos también le corresponderán, sin derecho a reclamo de EL "
+     "LOCADOR por este concepto."),
+    ("Décima Primera", "AUDITORÍAS/SUPERVISIONES. EL LOCADOR permitirá a DIGETEL el acceso a sus oficinas, "
+     "equipos y sistemas, y entregará la información relacionada con los Servicios, a fin de que se practiquen "
+     "auditorías con la frecuencia que DIGETEL requiera, para verificar la capacidad, diligencia y efectividad "
+     "de EL LOCADOR. Estas auditorías se notificarán por escrito con al menos un (1) día de anticipación, y la "
+     "información entregada en ellas queda sujeta a la cláusula de confidencialidad."),
+    ("Décima Segunda", "CONTRATO INTUITU PERSONAE/SUBCONTRATACIONES. El presente Contrato ha sido celebrado "
+     "por cada una de LAS PARTES debido al conocimiento que tiene de la otra; por ello, ninguna podrá ceder a "
+     "terceros los derechos y obligaciones derivados del mismo sin aprobación por escrito de la otra parte. No "
+     "obstante, DIGETEL podrá ceder el presente Contrato a cualquiera de sus filiales, subsidiarias, afiliadas "
+     "o relacionadas."),
+    ("Décima Tercera", "GARANTÍA Y DAÑOS. EL LOCADOR cumplirá fielmente y con la diligencia de un buen padre "
+     "de familia las obligaciones asumidas en el presente Contrato, e indemnizará a DIGETEL cualesquiera daños "
+     "causados debido a su incumplimiento, conforme a la normativa legal vigente."),
+    ("Décima Cuarta", "NOTIFICACIONES. Las notificaciones entre LAS PARTES se harán por correo electrónico: "
+     "(i) en el caso de DIGETEL, en {empresa_correo_notificaciones}; y (ii) en el caso de EL LOCADOR, en "
+     "{correo}."),
+    ("Décima Quinta", "MODIFICACIONES. Cualquier modificación pactada por LAS PARTES en relación con el monto, "
+     "los términos y condiciones del presente contrato deberá constar por escrito mediante addendum suscrito "
+     "por LAS PARTES."),
+    ("Décima Sexta", "GASTOS. Queda expresamente convenido que cada una de LAS PARTES pagará los honorarios de "
+     "sus propios abogados relativos a la negociación y celebración del presente Contrato."),
+    ("Décima Séptima", "DECLARACIONES DE EL LOCADOR. EL LOCADOR declara y garantiza que: a) cumple con las "
+     "leyes de la jurisdicción donde está domiciliado y tiene todos los requisitos, poder y autoridad para "
+     "celebrar este Contrato; b) tiene todas las facultades requeridas para suscribirlo y cumplirlo, sin que "
+     "ello viole disposición legal o contractual alguna con terceros; c) no requiere autorización, aprobación "
+     "o notificación de autoridad gubernamental ni de terceros para celebrarlo; d) no tiene conocimiento de "
+     "acción judicial, demanda o litigio que lo afecte y que pudiera tener un efecto adverso sobre este "
+     "Contrato; y e) está sometido a las leyes civiles o comerciales aplicables, sin gozar de inmunidad alguna."),
+    ("Décima Octava", "LEY APLICABLE. El presente contrato se regirá por las leyes de la República del Perú."),
+    ("Décima Novena", "RESOLUCIÓN AMISTOSA DE CONFLICTOS. Todo conflicto referido a la ejecución del presente "
+     "Contrato se resolverá agotando primero la negociación amistosa: la parte reclamante notificará por "
+     "escrito a la otra describiendo el hecho que origina la reclamación, y dentro de los cinco (5) días "
+     "hábiles siguientes se convocará a una reunión para solucionarlo de manera amistosa. Transcurridos "
+     "treinta (30) días continuos desde esa primera sesión sin acuerdo, cualquiera de LAS PARTES podrá acudir "
+     "a la instancia establecida en la cláusula siguiente."),
+    ("Vigésima", "DOMICILIO Y JURISDICCIÓN. Para todos los efectos del presente contrato, sus derivados y "
+     "consecuencias, LAS PARTES eligen la ciudad de Lima como domicilio especial, sometiéndose expresamente a "
+     "la jurisdicción de sus tribunales, con exclusión de cualquier otro que pudiera establecerse por ley."),
+]
+
+
+def _doc_locacion_servicios(fields):
+    """Contrato de Locación de Servicios — Régimen RHE (Recibo por Honorarios
+    Electrónico). Naturaleza civil, sin periodo de prueba ni jornada, a
+    diferencia del contrato de planilla. Modelo entregado por RR.HH. el
+    28/09 (CONTRATO DE SERVICIOS PROFESIONALES)."""
+    g = fields.get
+    tipo_doc = g("tipo_documento") or "DNI"
+    numero_doc = g("numero_documento") or ""
+    direccion = ", ".join(x for x in [g("direccion"), g("distrito"), g("provincia"), g("departamento")] if x)
+    correo = g("correo_corporativo") or g("correo_personal") or ""
+    dias_contrato = g("dias_contrato") or ""
+
+    computed = {
+        "num_doc": f"{tipo_doc} N.° {numero_doc}" if numero_doc else "________",
+        "ruc_locador": g("ruc") or "________",
+        "direccion": direccion or "________",
+        "correo": correo or "________",
+        "dias_contrato": str(dias_contrato) if dias_contrato else "________",
+        "fecha_contrato_larga": _fecha_larga(g("fecha_contrato")) or "________",
+        "fecha_fin_contrato_larga": _fecha_larga(g("fecha_fin_contrato")) or "________",
+        "remuneracion": g("remuneracion") or "________",
+        "remuneracion_letras": _monto_en_letras(g("remuneracion")) or "monto a completar por RR.HH.",
+        "banco": g("banco_haberes") or "________",
+        "num_cuenta": g("cuenta_haberes") or "________",
+        "cci": g("cci_haberes") or "________",
+        "cargo": g("cargo") or "________",
+        "empresa_razon_social": g("empresa_razon_social") or "________",
+        "empresa_ruc": g("empresa_ruc") or "________",
+        "empresa_domicilio_fiscal": g("empresa_domicilio_fiscal") or "________",
+        "empresa_correo_notificaciones": "trabajaconnosotros@digetelgroup.com",
+        "representante_legal": g("representante_legal") or "________",
+        "representante_tipo_documento": g("representante_tipo_documento") or "DNI",
+        "representante_numero_documento": g("representante_numero_documento") or "________",
+        "representante_nacionalidad": g("representante_nacionalidad") or "________",
+    }
+    merged = {**fields, **computed}
+
+    intro = _fill(
+        "Entre {empresa_razon_social}, con RUC N.° {empresa_ruc} (en lo sucesivo DIGETEL), domiciliada en "
+        "{empresa_domicilio_fiscal}, representada por {representante_legal}, {representante_nacionalidad}, "
+        "mayor de edad e identificado(a) con {representante_tipo_documento} N.° {representante_numero_documento}, "
+        "por una parte, y por la otra {nombre_completo} (en lo sucesivo EL LOCADOR), mayor de edad, con "
+        "domicilio en {direccion}, titular del {num_doc} y RUC {ruc_locador}, quienes actuando conjuntamente "
+        "podrán denominarse LAS PARTES, han acordado celebrar el presente Contrato de Locación de Servicios, "
+        "el cual se regirá por las cláusulas que siguen:",
+        merged,
+    )
+    story = [_body_text(intro), Spacer(1, 2 * mm)]
+    for nombre, texto in _CLAUSULAS_LOCACION_SERVICIOS:
+        story.append(_clause(nombre, texto, merged))
+
+    if fields.get("cargo_descripcion") or fields.get("cargo_funciones") or fields.get("cargo_responsabilidades"):
+        story.append(Spacer(1, 4 * mm))
+        story += _section_caption(f'ANEXO 1 — DESCRIPCIÓN Y ACUERDO DE SERVICIO: {merged["cargo"]}'.upper())
+        if fields.get("cargo_descripcion"):
+            story.append(_body_text(fields["cargo_descripcion"]))
+        if fields.get("cargo_funciones"):
+            story.append(_body_text("Servicios a prestar:"))
+            for i, f in enumerate(fields["cargo_funciones"], start=1):
+                story.append(_numbered_item(i, f))
+        if fields.get("cargo_responsabilidades"):
+            story.append(_body_text("Responsabilidades:"))
+            for i, r in enumerate(fields["cargo_responsabilidades"], start=1):
+                story.append(_numbered_item(i, r))
+
+    spec = LEGAL_TEXTS["locacion_servicios"]
+    return story, spec["cierre"], spec["titulo"], spec["subtitulo"]
+
+
+# Convenio de Aprendizaje con Predominio en la Empresa (Régimen APE) —
+# transcrito del modelo entregado por RR.HH. el 28/09. El Plan de
+# Capacitación (competencias, evaluación, mapa de recorrido) es el mismo
+# para todo aprendiz de "Asistente en Venta al Detalle" — es contenido fijo
+# de RR.HH., no algo que varíe por persona (solo varían nombre, documento,
+# fechas, cargo/especialidad y subvención, ver `computed` abajo). La
+# Política de Subvención Adicional (con las tablas de "torres habilitadas")
+# se adjunta como PDF estático aparte — ver ANEXO_POLITICA_SUBVENCION_APE.
+ANEXO_POLITICA_SUBVENCION_APE = os.path.join(BASE_DIR, "static", "legal", "politica_subvencion_ape.pdf")
+
+_CLAUSULAS_CONVENIO_APE = [
+    ("Primero", "EL (LA) APRENDIZ manifiesta su interés y necesidad de efectuar sus actividades de aprendizaje "
+     "en LA EMPRESA para los fines de obtener la certificación respectiva. Por su parte, LA EMPRESA acepta "
+     "colaborar, tanto con el CENTRO DE FORMACIÓN PROFESIONAL como con EL (LA) APRENDIZ en esta tarea "
+     "formativa."),
+    ("Segundo", "EL (LA) APRENDIZ desempeñará las actividades formativas de {cargo} en el área de "
+     "{area_formacion} en el domicilio de la empresa ubicado en {empresa_domicilio_fiscal}, de acuerdo con las "
+     "condiciones generales señaladas en el Plan de Capacitación anexo."),
+    ("Tercero", "Para efectos del presente convenio, LA EMPRESA se obliga a: brindar orientación y "
+     "capacitación técnica y profesional a EL (LA) APRENDIZ dentro de su área de formación académica, así "
+     "como evaluar su aprendizaje; designar a un supervisor para impartir la orientación correspondiente y "
+     "verificar el desarrollo y cumplimiento del Plan Específico de Aprendizaje; emitir los informes que "
+     "requiera el CENTRO DE FORMACIÓN PROFESIONAL; no cobrar suma alguna a EL (LA) APRENDIZ por la formación "
+     "brindada; pagar puntualmente a EL (LA) APRENDIZ la subvención mensual convenida; otorgar una subvención "
+     "adicional equivalente a media subvención económica mensual cada seis meses de duración continua del "
+     "aprendizaje; otorgar un descanso de quince (15) días debidamente subvencionados cuando la duración del "
+     "aprendizaje sea superior a doce (12) meses; cubrir los riesgos de enfermedad y accidentes de EL (LA) "
+     "APRENDIZ a través de ESSALUD o de un seguro privado con cobertura equivalente a catorce (14) "
+     "subvenciones mensuales en caso de enfermedad y treinta (30) por accidente; y expedir la certificación "
+     "de aprendizaje correspondiente."),
+    ("Cuarto", "Para efectos del presente convenio, EL (LA) APRENDIZ se obliga a: suscribir un convenio de "
+     "aprendizaje con LA EMPRESA acatando las disposiciones formativas que se le asignen; desarrollar sus "
+     "actividades de aprendizaje con disciplina y responsabilidad; cumplir con el desarrollo del Plan "
+     "Específico de Aprendizaje que aplique LA EMPRESA; y sujetarse a las disposiciones administrativas "
+     "internas que le señale LA EMPRESA."),
+    ("Quinto", "Para efectos del presente convenio, EL CENTRO DE FORMACIÓN PROFESIONAL se obliga a: "
+     "planificar y desarrollar los programas formativos que respondan a las necesidades del mercado laboral "
+     "con participación del sector productivo; dirigir y conducir las actividades de formación de EL (LA) "
+     "APRENDIZ en coordinación con la empresa; supervisar, evaluar y certificar las actividades formativas; y "
+     "coordinar con la empresa el mecanismo de monitoreo y supervisión de las actividades del APRENDIZ."),
+    ("Sexto", "LA EMPRESA ha contratado el seguro de FOLA para cubrir los riesgos de enfermedad y accidentes "
+     "de EL (LA) APRENDIZ."),
+    ("Séptimo", "LA EMPRESA concederá a EL (LA) APRENDIZ una subvención económica mensual de S/ "
+     "{subvencion_economica}. De conformidad con el artículo 47.° de la Ley N.° 28518, esta subvención "
+     "económica mensual no tiene carácter remunerativo y no está afecta al pago del Impuesto a la Renta, "
+     "otros impuestos, contribuciones ni aportaciones de ningún tipo a cargo de LA EMPRESA. La subvención "
+     "económica mensual no está sujeta a ningún tipo de retención a cargo de EL (LA) APRENDIZ, salvo "
+     "afiliación facultativa por parte de éste a un sistema pensionario. Adicionalmente, LA EMPRESA otorgará "
+     "una Asignación por Movilidad mensual, conforme a la Política de Subvención Adicional para Aprendices "
+     "que se adjunta como anexo."),
+    ("Octavo", "Las partes acuerdan la aplicación de las causas de modificación, suspensión y terminación del "
+     "convenio: es causa de modificación, el acuerdo entre EL (LA) APRENDIZ, LA EMPRESA y EL CENTRO DE "
+     "FORMACIÓN PROFESIONAL. Son causas de suspensión: la enfermedad y el accidente comprobados; el descanso "
+     "físico subvencionado en caso de prórroga a un plazo mayor de doce meses; el permiso concedido por la "
+     "empresa; la sanción disciplinaria; y el caso fortuito o fuerza mayor. Son causas de terminación: el "
+     "cumplimiento del plazo estipulado; el mutuo disenso entre EL (LA) APRENDIZ y LA EMPRESA; el "
+     "fallecimiento de EL (LA) APRENDIZ; la invalidez absoluta permanente; no guardar reserva de la "
+     "información conocida durante la práctica; el incumplimiento de las obligaciones de EL (LA) APRENDIZ o "
+     "del CENTRO DE FORMACIÓN PROFESIONAL señaladas en las cláusulas Cuarto y Quinto; y la renuncia o retiro "
+     "voluntario de EL (LA) APRENDIZ, mediante aviso a LA EMPRESA con antelación de diez (10) días hábiles."),
+    ("Noveno", "EL (LA) APRENDIZ declara conocer la naturaleza del presente convenio, el cual no tiene "
+     "carácter laboral, de tal modo que sólo genera para las partes los derechos y obligaciones "
+     "específicamente previstos en el mismo y en el texto de la Ley N.° 28518 y el Decreto Supremo N.° "
+     "007-2005-TR."),
+    ("Décimo", "Para todos los efectos relacionados con el presente convenio, las partes señalan como su "
+     "domicilio el consignado en la parte introductoria de éste, los cuales se tendrán por válidos en tanto la "
+     "variación no haya sido comunicada por escrito a la otra parte. Las partes, después de leído el presente "
+     "convenio, se ratifican en su contenido y lo suscriben en señal de conformidad, quedando el cuarto "
+     "ejemplar puesto en conocimiento y registrado ante la Autoridad Administrativa de Trabajo dentro de los "
+     "quince (15) días naturales de la suscripción."),
+]
+
+
+def _doc_convenio_ape(fields):
+    """Convenio de Aprendizaje con Predominio en la Empresa — Régimen APE.
+    Modelo entregado por RR.HH. el 28/09 (CONVENIO - PLAN FORMATIVO Y
+    POLITICA ape.docx). El Centro de Formación Profesional (CETPRO WORLDNET)
+    es fijo — es el único con el que Digetel tiene convenio institucional."""
+    g = fields.get
+    tipo_doc = g("tipo_documento") or "DNI"
+    numero_doc = g("numero_documento") or ""
+    direccion = ", ".join(x for x in [g("direccion"), g("distrito"), g("provincia"), g("departamento")] if x)
+    dias_contrato = g("dias_contrato") or ""
+
+    computed = {
+        "num_doc": f"{tipo_doc} N.° {numero_doc}" if numero_doc else "________",
+        "direccion": direccion or "________",
+        "nacionalidad": g("nacionalidad") or "________",
+        "fecha_nacimiento_larga": _fecha_larga(g("fecha_nacimiento")) or "________",
+        "sexo": g("sexo") or "________",
+        "cargo": g("cargo") or "________",
+        "area_formacion": g("area") or g("cargo") or "________",
+        "dias_contrato": str(dias_contrato) if dias_contrato else "________",
+        "fecha_contrato_larga": _fecha_larga(g("fecha_contrato")) or "________",
+        "fecha_fin_contrato_larga": _fecha_larga(g("fecha_fin_contrato")) or "________",
+        "horario": g("horario") or "________",
+        "subvencion_economica": g("remuneracion") or "________",
+        "empresa_razon_social": g("empresa_razon_social") or "________",
+        "empresa_ruc": g("empresa_ruc") or "________",
+        "empresa_domicilio_fiscal": g("empresa_domicilio_fiscal") or "________",
+    }
+    merged = {**fields, **computed}
+
+    intro = _fill(
+        "Conste por el presente documento que se firma por triplicado, el Convenio de Aprendizaje con "
+        "Predominio en la Empresa, celebrado de conformidad con el artículo 11.° y siguientes de la Ley N.° "
+        "28518, Ley sobre Modalidades Formativas Laborales, y su Reglamento aprobado mediante Decreto Supremo "
+        "N.° 007-2005-TR, que se celebra entre {empresa_razon_social}, con RUC N.° {empresa_ruc}, domiciliada "
+        "en {empresa_domicilio_fiscal} (en adelante, LA EMPRESA), el Centro de Educación Técnico-Productiva "
+        "WORLDNET (CETPRO \"WORLDNET\"), representado por INNOVACIÓN Y FORMACIÓN DE TALENTO S.A.C., RUC N.° "
+        "20611357088, con domicilio en Jr. Cusco 204, Chupaca (en adelante, EL CENTRO DE FORMACIÓN "
+        "PROFESIONAL), y {nombre_completo}, identificado(a) con {num_doc}, de nacionalidad {nacionalidad}, "
+        "nacido(a) el {fecha_nacimiento_larga}, sexo {sexo}, con domicilio en {direccion} (en adelante, EL/LA "
+        "APRENDIZ), de acuerdo a los términos y condiciones siguientes:",
+        merged,
+    )
+    story = [_body_text(intro), Spacer(1, 2 * mm)]
+    for nombre, texto in _CLAUSULAS_CONVENIO_APE:
+        story.append(_clause(nombre, texto, merged))
+
+    story.append(Spacer(1, 4 * mm))
+    story += _section_caption("ANEXO — PLAN DE CAPACITACIÓN")
+    story.append(_field_table([
+        ("Ocupación / especialidad", merged["cargo"], "Duración", f'{merged["dias_contrato"]} días'),
+        ("Inicio", merged["fecha_contrato_larga"], "Término", merged["fecha_fin_contrato_larga"]),
+    ]))
+    story.append(_body_text(
+        "Objetivos que debe lograr el/la beneficiario(a) al término de su formación: complementar la "
+        "formación específica adquirida en el Centro de Formación, y consolidar el desarrollo de habilidades "
+        "sociales y personales relacionadas al ámbito laboral."
+    ))
+    story.append(_body_text("Función principal del puesto: orientación y asistencia en venta al detalle; "
+                             "asesoría y consultoría de servicios y/o productos; satisfacción de necesidades "
+                             "específicas de los clientes; conocimiento de las ofertas, promociones y demás "
+                             "productos ofrecidos.", italic=True))
+    story.append(_body_text("Competencias específicas: conocer y aplicar los sistemas de atención y servicio "
+                             "al cliente; compromiso de aseguramiento de la calidad y mejora continua; "
+                             "capacidad de manejo de los productos y servicios que se ofrecen; manejo de "
+                             "técnicas de promoción.", italic=True))
+    story.append(_body_text("Competencias genéricas/transversales: comunicación interpersonal fluida; "
+                             "desarrollo integral humano y manejo de emociones; trabajo en equipo y respeto a "
+                             "las normas; autoestima y respeto por sí mismo y por los demás.", italic=True))
+    story.append(_body_text(
+        "El detalle completo de criterios de evaluación, hitos de práctica mensual y la Política de "
+        "Subvención Adicional para Aprendices (incluida la Asignación por Movilidad) se adjuntan como anexo "
+        "aparte a este documento.",
+    ))
+
+    spec = LEGAL_TEXTS["convenio_ape"]
+    return story, spec["cierre"], spec["titulo"], spec["subtitulo"]
+
+
+def generar_contrato_por_regimen(fields):
+    """Punto 2 de "Contratos y Renovaciones" (28/09): decide qué documento
+    generar según el Régimen Laboral de la ficha — Régimen General/MYPE
+    (contrato de trabajo), RHE (locación de servicios) o APE (convenio de
+    aprendizaje). Devuelve (story, cierre, titulo, subtitulo, anexo_pdf) —
+    `anexo_pdf` es la ruta de un PDF estático a adjuntar además del firmado
+    (solo APE lo usa; None en los demás casos)."""
+    regimen = (fields.get("regimen_laboral_persona") or "").strip().upper()
+    if regimen.startswith("RHE"):
+        story, cierre, titulo, subtitulo = _doc_locacion_servicios(fields)
+        return story, cierre, titulo, subtitulo, None
+    if regimen.startswith("APE"):
+        story, cierre, titulo, subtitulo = _doc_convenio_ape(fields)
+        return story, cierre, titulo, subtitulo, ANEXO_POLITICA_SUBVENCION_APE
+    story, cierre, titulo, subtitulo = _doc_contrato(fields)
+    return story, cierre, titulo, subtitulo, None
+
+
 _SALUD_ANTECEDENTES_FAMILIARES = [
     ("antecedente_fam_cancer", "Cáncer"), ("antecedente_fam_diabetes", "Diabetes"),
     ("antecedente_fam_cardiaco", "Problemas Cardiacos"), ("antecedente_fam_hipertension", "Hipertensión"),
@@ -960,7 +1307,11 @@ def _build_doc(doc_type, fields):
     if doc_type == "sistema_pensionario":
         return _doc_sistema_pensionario(fields)
     if doc_type == "contrato":
-        return _doc_contrato(fields)
+        # El contrato/convenio ya no vive en DOC_TYPES (28/09) — este
+        # doc_type ahora solo lo usa la ruta standalone /c/{token} (ver
+        # main.py), que arma el documento correcto según Régimen Laboral.
+        story, cierre, titulo, subtitulo, _anexo = generar_contrato_por_regimen(fields)
+        return story, cierre, titulo, subtitulo
     return _legal_body(doc_type, fields)  # declaracion_jurada, autorizacion_datos
 
 

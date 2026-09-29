@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -78,6 +78,28 @@
       {% if e.estado != 'activo' %}
       <p class="muted" style="margin-top:10px;">Cesado el {{ e.fecha_baja.strftime('%d/%m/%Y') if e.fecha_baja else '—' }} — {{ e.motivo_baja }}</p>
       {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% set contrato_doc = e.documents|selectattr("doc_type", "equalto", "contrato")|first %}
+  <div class="card">
+    <h2>Contrato / Convenio</h2>
+    <p class="muted">Desde el 28/09 el contrato ya no es parte del legajo — se firma aparte, con su propio
+      enlace, cuando corresponda (RR.HH. decide cuándo enviarlo). El tipo de documento (Contrato de Trabajo,
+      Locación de Servicios o Convenio APE) se decide solo, según el Régimen Laboral de la ficha.</p>
+    <p>
+      {% if contrato_doc and contrato_doc.status == 'firmado' %}
+        <span class="badge firmado">Firmado</span>
+        <a class="btn small secondary" href="/descargas/{{ contrato_doc.id }}" style="margin-left:8px;">Descargar PDF firmado</a>
+      {% else %}
+        <span class="badge pendiente">Pendiente de firma</span>
+      {% endif %}
+    </p>
+    {% if can_edit %}
+    <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+      <code id="enlace-firma-contrato" style="flex:1; overflow-wrap:break-word;">{{ request.url.scheme }}://{{ request.url.netloc }}/f/{{ e.token }}/contrato</code>
+      <button class="btn small secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('enlace-firma-contrato').textContent); this.textContent='Copiado ✓';">Copiar</button>
     </div>
     {% endif %}
   </div>

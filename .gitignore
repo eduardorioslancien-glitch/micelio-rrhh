@@ -36,3 +36,7 @@ backups/
 
 # Secretos de entorno para docker-compose
 .env
+
+# Logs del servidor local de desarrollo (uvicorn)
+local_dev.log
+local_dev_err.log

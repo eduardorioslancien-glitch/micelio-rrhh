@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>{{ lead.nombre_completo }} — Candidato — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -41,6 +41,7 @@
     <table style="margin-top:10px;">
       <tr><td style="width:220px;"><strong>Correo</strong></td><td>{{ lead.email or "—" }}</td></tr>
       <tr><td><strong>Celular</strong></td><td>{{ lead.celular or "—" }}</td></tr>
+      <tr><td><strong>Distrito</strong></td><td>{{ lead.distrito or "—" }}{% if lead.distrito and pedido_base_distritos %} <span class="muted" style="font-size:12px;">({{ "dentro de la zona de la base" if lead.distrito in pedido_base_distritos else "fuera de la zona de la base" }})</span>{% endif %}</td></tr>
       <tr><td><strong>Documento</strong></td><td>{{ (lead.documento_tipo + " " + lead.documento_numero) if lead.documento_tipo and lead.documento_numero else "—" }}</td></tr>
       <tr><td><strong>Origen</strong></td><td>{{ lead.origen or "—" }}</td></tr>
       <tr><td><strong>Pedido / Cargo</strong></td><td>{{ lead.pedido.codigo + " — " + lead.pedido.cargo_solicitado if lead.pedido else "—" }}</td></tr>

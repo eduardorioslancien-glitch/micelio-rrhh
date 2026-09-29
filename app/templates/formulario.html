@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Legajo Digital — DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
 </head>
 <body>
@@ -27,7 +27,7 @@
         <li>Declaración Jurada</li>
         <li>Autorización de Tratamiento de Datos Personales (Ley N.° 29733)</li>
         <li>Formato de Derechohabientes EsSalud</li>
-        <li>Autorización de Depósito de Haberes y CTS</li>
+        <li>Autorización de Depósito de Haberes</li>
       </ol>
       <p class="muted">Todo el proceso toma unos 10-15 minutos. Puedes cerrar la ventana y continuar más tarde desde el mismo enlace.</p>
       <button class="btn" onclick="goStep('1a')">Comenzar</button>
@@ -39,7 +39,7 @@
     <div class="card">
       <h2>I. Datos Personales</h2>
       <div class="grid3">
-        <div class="field"><label>Código de Trabajador</label><input type="text" id="codigo_trabajador" readonly style="background:#F2F2F2;"></div>
+        <div class="field" hidden><label>Código de Trabajador</label><input type="text" id="codigo_trabajador" readonly style="background:#F2F2F2;"></div>
         <div class="field"><label>Apellido Paterno</label><input type="text" id="apellido_paterno"></div>
         <div class="field"><label>Apellido Materno</label><input type="text" id="apellido_materno"></div>
         <div class="field"><label>Nombres</label><input type="text" id="nombres"></div>
@@ -76,14 +76,14 @@
       </div>
       <div class="section-title">Contacto</div>
       <div class="grid3">
-        <div class="field" style="grid-column:span 2;"><label>Teléfono Fijo</label>
-          <div class="phone-row">
+        <div class="field"><label>Teléfono Fijo</label>
+          <div class="phone-row compact">
             <select id="telefono_fijo_codigo">{% include "_codigo_pais_options.html" %}</select>
             <input type="text" id="telefono_fijo">
           </div>
         </div>
-        <div class="field" style="grid-column:span 2;"><label>Celular</label>
-          <div class="phone-row">
+        <div class="field"><label>Celular</label>
+          <div class="phone-row compact">
             <select id="celular_codigo">{% include "_codigo_pais_options.html" %}</select>
             <input type="text" id="celular">
           </div>
@@ -272,11 +272,11 @@
         <input type="file" id="file_recibo_agua_luz" accept=".pdf,.jpg,.jpeg,.png">
       </div>
       <div class="upload-box">
-        <label class="title">Curriculum Vitae (CV)</label>
+        <label class="title">Curriculum Vitae (CV) *</label>
         <input type="file" id="file_cv" accept=".pdf,.jpg,.jpeg,.png">
       </div>
       <div class="upload-box">
-        <label class="title">Certificado Único Laboral (CUL)</label>
+        <label class="title">Certificado Único Laboral (CUL) *</label>
         <input type="file" id="file_cul" accept=".pdf,.jpg,.jpeg,.png">
       </div>
       <div class="upload-box">
@@ -307,7 +307,6 @@
         {% endif %}
         {% if key == 'derechohabientes' %}<div id="resumen_derechohabientes"></div>{% endif %}
         {% if key == 'autorizacion_deposito' %}<div id="resumen_bancario"></div>{% endif %}
-        {% if key == 'contrato' %}<div id="resumen_contrato"></div>{% endif %}
         {% if key == 'sistema_pensionario' %}<div id="resumen_pensionario"></div>{% endif %}
         {% if legal[key].nota_legal %}<p><em>{{ legal[key].nota_legal }}</em></p>{% endif %}
         <p><em>{{ legal[key].cierre }}</em></p>
@@ -407,7 +406,6 @@ function goStep(name) {
   if (name.startsWith("doc-")) initSigPad(name.replace("doc-", ""));
   if (name.startsWith("doc-derechohabientes")) fillDerechohabientesSummary();
   if (name.startsWith("doc-autorizacion_deposito")) fillBankSummary();
-  if (name.startsWith("doc-contrato")) fillContratoSummary();
   if (name.startsWith("doc-sistema_pensionario")) fillPensionarioSummary();
   fillIntros();
   window.scrollTo(0, 0);
@@ -705,8 +703,10 @@ function collectFicha() {
 async function continuarDesdeDocumentos() {
   const reqIdentidad = document.getElementById("file_documento_identidad");
   const reqRecibo = document.getElementById("file_recibo_agua_luz");
-  if (!reqIdentidad.files.length || !reqRecibo.files.length) {
-    alert("El Documento de Identidad y el Recibo de Agua o Luz son obligatorios. Adjunta ambos para continuar.");
+  const reqCv = document.getElementById("file_cv");
+  const reqCul = document.getElementById("file_cul");
+  if (!reqIdentidad.files.length || !reqRecibo.files.length || !reqCv.files.length || !reqCul.files.length) {
+    alert("El Documento de Identidad, el Recibo de Agua o Luz, el CV y el CUL son obligatorios. Adjunta los cuatro para continuar.");
     return;
   }
 
@@ -768,36 +768,6 @@ function fillBankSummary() {
   if (!el) return;
   el.innerHTML = `
     <p><strong>Depósito de haberes:</strong> ${ficha.banco_haberes || "—"} · Cuenta ${ficha.cuenta_haberes || "—"} · CCI ${ficha.cci_haberes || "—"}</p>
-    <p><strong>Depósito de CTS:</strong> ${ficha.banco_cts || "—"} · Cuenta ${ficha.cuenta_cts || "—"} · CCI ${ficha.cci_cts || "—"}</p>
-  `;
-}
-
-function fillContratoSummary() {
-  const el = document.getElementById("resumen_contrato");
-  if (!el) return;
-  const f = FICHA_ACTUAL || {};
-  if (!f.cargo || !f.regimen_laboral_persona) {
-    el.innerHTML = "<p><em>Recursos Humanos todavía no ha completado tus datos laborales (cargo, régimen, " +
-      "remuneración). El contrato con el detalle completo de tus condiciones se genera recién cuando estén " +
-      "completos — puedes firmar los demás documentos y volver a este enlace más adelante para firmar el " +
-      "contrato.</em></p>";
-    document.getElementById("btn-firmar-contrato").disabled = !f.cargo;
-    return;
-  }
-  document.getElementById("btn-firmar-contrato").disabled = false;
-  const variante = f.personal_confianza ? "Personal de Confianza" :
-    (String(f.regimen_laboral_persona).toUpperCase() === "MYPE" ? "Régimen MYPE — Plazo Fijo" : "Régimen General — Plazo Fijo");
-  el.innerHTML = `
-    <p><strong>Modalidad:</strong> ${variante}</p>
-    <table>
-      <tr><td>Cargo</td><td>${f.cargo || "—"}</td></tr>
-      <tr><td>Régimen Laboral</td><td>${f.regimen_laboral_persona || "—"}</td></tr>
-      <tr><td>Vigencia</td><td>${f.fecha_contrato || "—"} a ${f.fecha_fin_contrato || "—"}</td></tr>
-      <tr><td>Periodo de Prueba</td><td>${f.periodo_prueba_dias || "30"} días</td></tr>
-      <tr><td>Horario</td><td>${f.horario || "—"}</td></tr>
-      <tr><td>Remuneración</td><td>S/ ${f.remuneracion || "—"}</td></tr>
-    </table>
-    <p class="hint">El contrato completo, con todas las cláusulas legales, se genera en PDF con estos datos al firmar — podrás descargarlo desde este mismo enlace.</p>
   `;
 }
 

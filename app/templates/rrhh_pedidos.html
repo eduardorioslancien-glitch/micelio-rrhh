@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Registro de Pedidos — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -15,7 +15,6 @@
         <div class="field">
           <label>Estado</label>
           <select name="estado" onchange="this.form.submit()">
-            <option value="abierto_en_proceso" {{ 'selected' if f_estado == 'abierto_en_proceso' else '' }}>Abierto y En Proceso</option>
             {% for key, label in estados %}
             <option value="{{ key }}" {{ 'selected' if f_estado == key else '' }}>{{ label }}</option>
             {% endfor %}
@@ -24,10 +23,11 @@
         </div>
       </form>
     </div>
+    <div class="scroll-5">
     <table>
       <tr>
         <th>Código</th><th>Cargo solicitado</th><th>Empresa</th><th>Área</th><th>Base</th><th>Cant.</th><th>Urgencia</th>
-        <th>Solicitante</th><th>Fecha tope</th><th>Estado</th><th></th>
+        <th>Solicitante</th><th>Fecha tope</th>{% if f_estado != 'abierto' %}<th>Estado</th>{% endif %}<th></th>
       </tr>
       {% for p in pedidos %}
       <tr>
@@ -44,7 +44,7 @@
         <td>{{ p.urgencia or "—" }}</td>
         <td>{{ p.solicitante or "—" }}</td>
         <td>{{ p.fecha_requerida.strftime("%d/%m/%Y") if p.fecha_requerida else "—" }}</td>
-        <td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) }}</span></td>
+        {% if f_estado != 'abierto' %}<td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) }}</span></td>{% endif %}
         <td>
           <form method="post" action="/rrhh/reclutamiento/pedidos/{{ p.id }}/estado" class="inline-form" style="margin:0;">
             <select name="estado" onchange="this.form.submit()">
@@ -60,6 +60,7 @@
       <tr><td colspan="11" class="muted">Todavía no hay pedidos de personal registrados.</td></tr>
       {% endfor %}
     </table>
+    </div>
 
     {% if puede_generar %}
     <h3 style="margin-top:22px;">Registrar nuevo pedido</h3>

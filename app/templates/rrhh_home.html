@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>MICELIO — Sistema de Recursos Humanos DIGETEL GROUP</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -81,6 +81,29 @@
     <p class="muted">Nadie más cumple años esta semana.</p>
     {% endif %}
   </div>
+
+  {% if contratos_por_vencer_pronto %}
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">⏰ Contratos a vencer en los próximos 15 días</h2>
+      <a class="btn small secondary" href="/rrhh/contratos">Ver todos los contratos</a>
+    </div>
+    <table style="margin-top:10px;">
+      <tr><th>Trabajador</th><th>Empresa</th><th>Tipo de Contrato</th><th>Vence</th><th>Días</th></tr>
+      {% for c in contratos_por_vencer_pronto %}
+      <tr>
+        <td><a href="/rrhh/personal/{{ c.employee.id }}">{{ c.employee.nombre_completo }}</a></td>
+        <td class="muted">{{ c.employee.empresa_rel.nombre if c.employee.empresa_rel else "—" }}</td>
+        <td class="muted">{{ c.tipo_contrato }}</td>
+        <td>{{ c.fecha_fin_contrato.strftime('%d/%m/%Y') }}</td>
+        <td><span class="badge {{ 'cancelado' if c.dias_restantes < 0 else 'abierto' }}">
+          {{ 'vencido hace ' + (c.dias_restantes * -1)|string + ' días' if c.dias_restantes < 0 else c.dias_restantes|string + ' días' }}
+        </span></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
 
   <h2 style="margin:20px 4px 4px;">Anuncios</h2>
   {% if anuncios %}

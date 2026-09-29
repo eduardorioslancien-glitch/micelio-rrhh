@@ -21,6 +21,7 @@ from .models import (
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
     CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE, LEAD_NOMBRE_PENDIENTE, lead_incompleto,
+    lead_semaforo,
 )
 from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import (
@@ -122,15 +123,12 @@ def _generar_codigo_pedido(db: Session) -> str:
 @router.get("/rrhh/reclutamiento/pedidos", response_class=HTMLResponse)
 def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_db),
                   user: User = Depends(require_role("administrador", "opeoka"))):
-    # Punto 2 del pedido de automatización RyS (21/09): al entrar sin filtro
-    # elegido, se ven los pedidos ABIERTO y EN_PROCESO juntos (lo que RR.HH.
-    # necesita mirar primero). "Todos" y cada estado puntual son opciones
-    # explícitas del selector, no el default.
-    f_estado = estado if estado else "abierto_en_proceso"
+    # Punto pedido (28/09): al entrar sin filtro elegido, se ven solo los
+    # pedidos ABIERTO (lo que RR.HH. necesita mirar primero). "Todos" y cada
+    # estado puntual son opciones explícitas del selector, no el default.
+    f_estado = estado if estado else "abierto"
     query = db.query(PedidoPersonal)
-    if f_estado == "abierto_en_proceso":
-        query = query.filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
-    elif f_estado != "todos":
+    if f_estado != "todos":
         query = query.filter(PedidoPersonal.estado == f_estado)
     pedidos = query.order_by(PedidoPersonal.created_at.desc()).all()
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
@@ -248,18 +246,22 @@ def _orden_leads(lead: LeadCandidato):
 @router.get("/rrhh/reclutamiento/leads", response_class=HTMLResponse)
 def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Session = Depends(get_db),
                 user: User = Depends(require_role("administrador"))):
+    # Punto pedido (28/09): "últimos 10 Pedidos con scroll" — se traen todos
+    # los abiertos (más reciente primero, igual que antes) y el límite a 10
+    # visibles es en la plantilla (contenedor con scroll), no acá, para no
+    # tener que paginar si hay más de 10.
     pedidos_abiertos = (
         db.query(PedidoPersonal)
-        .filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
+        .filter(PedidoPersonal.estado == "abierto")
         .order_by(PedidoPersonal.created_at.desc()).all()
     )
 
     # Punto pedido por el usuario: la pantalla principal de Gestión de Leads
-    # muestra primero los Pedidos abiertos/en proceso (cargo + cantidad); al
-    # entrar a uno se filtran/registran los candidatos de ESE pedido. "Sin
-    # pedido" (pedido_id=none) muestra los pocos candidatos sueltos que no
-    # quedaron ligados a ninguno (siempre fue posible dejarlo así al
-    # registrar manualmente).
+    # muestra primero los Pedidos abiertos (cargo + cantidad); al entrar a
+    # uno se filtran/registran los candidatos de ESE pedido. "Sin pedido"
+    # (pedido_id=none) muestra los pocos candidatos sueltos que no quedaron
+    # ligados a ninguno (siempre fue posible dejarlo así al registrar
+    # manualmente).
     pedido_actual = None
     if pedido_id and pedido_id != "none":
         pedido_actual = db.query(PedidoPersonal).get(int(pedido_id))
@@ -284,7 +286,7 @@ def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Sessi
     return templates.TemplateResponse(request, "rrhh_leads.html", _ctx(
         request, user, leads=leads, pedidos_abiertos=pedidos_abiertos, etapas=ETAPAS_LEAD,
         etapa_labels=ETAPA_LABELS, estado_labels=ESTADO_LABELS, origenes=ORIGENES_LEAD,
-        f_etapa=etapa, f_pedido=pedido_id, lead_incompleto=lead_incompleto,
+        f_etapa=etapa, f_pedido=pedido_id, lead_incompleto=lead_incompleto, lead_semaforo=lead_semaforo,
         pedido_actual=pedido_actual, leads_por_pedido=leads_por_pedido, active="leads",
     ))
 
@@ -369,11 +371,13 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
         disc_resultado = lead.entrevista_data["disc"]
     disc_respuestas_guardadas = (lead.entrevista_data or {}).get("disc_respuestas") or {}
     entrevistadores = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
+    pedido_base_distritos = (lead.pedido.base.distritos or []) if lead.pedido and lead.pedido.base else []
     return templates.TemplateResponse(request, "rrhh_lead_detalle.html", _ctx(
         request, user, lead=lead, cargo=cargo, disc_preguntas=DISC_PREGUNTAS,
         disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado,
         disc_respuestas_guardadas=disc_respuestas_guardadas, entrevistadores=entrevistadores,
-        clasificaciones=CLASIFICACIONES_LEAD, lead_incompleto=lead_incompleto(lead), active="leads",
+        clasificaciones=CLASIFICACIONES_LEAD, lead_incompleto=lead_incompleto(lead),
+        pedido_base_distritos=pedido_base_distritos, active="leads",
     ))
 
 

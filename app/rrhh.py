@@ -81,11 +81,16 @@ def _ensure_documents(db: Session, employee: Employee):
     db.commit()
 
 
-def _enviar_correo(destinatarios: list, asunto: str, cuerpo: str, cc: list = None) -> bool:
+def _enviar_correo(destinatarios: list, asunto: str, cuerpo: str, cc: list = None, adjuntos: list = None) -> bool:
     """Correo de texto plano (mismo mecanismo SMTP_* que main.py:
     send_completion_email — se duplica acá para no crear un import circular
     entre rrhh.py y main.py). No bloquea el flujo si SMTP_HOST no está
-    configurado: devuelve False y quien llama decide qué avisarle al usuario."""
+    configurado: devuelve False y quien llama decide qué avisarle al usuario.
+
+    `adjuntos` (28/09, para el boletín de Sistema Pensionario): lista de
+    rutas de archivo PDF en disco a adjuntar tal cual — se ignora en
+    silencio la que no exista, para no romper el envío por un archivo
+    movido/borrado."""
     import smtplib
     from email.message import EmailMessage
     host = os.environ.get("SMTP_HOST")
@@ -105,6 +110,11 @@ def _enviar_correo(destinatarios: list, asunto: str, cuerpo: str, cc: list = Non
     if cc:
         msg["Cc"] = ", ".join(cc)
     msg.set_content(cuerpo)
+    for ruta in (adjuntos or []):
+        if ruta and os.path.exists(ruta):
+            with open(ruta, "rb") as f:
+                msg.add_attachment(f.read(), maintype="application", subtype="pdf",
+                                    filename=os.path.basename(ruta))
 
     with smtplib.SMTP(host, port, timeout=20) as server:
         server.starttls()
@@ -114,15 +124,65 @@ def _enviar_correo(destinatarios: list, asunto: str, cuerpo: str, cc: list = Non
     return True
 
 
+_LEGAL_STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "legal")
+BOLETIN_PENSIONARIO_PDF = os.path.join(_LEGAL_STATIC_DIR, "boletin_sistema_pensionario.pdf")
+POLITICA_SUBVENCION_APE_PDF = os.path.join(_LEGAL_STATIC_DIR, "politica_subvencion_ape.pdf")
+
+
+def _enviar_boletin_pensionario(emp) -> bool:
+    """Punto 6 del pedido (28/09): al firmar el documento de Sistema
+    Pensionario, se le manda por correo — automático, sin que RR.HH. tenga
+    que acordarse — el Boletín Informativo oficial (SPP vs. SNP) que la
+    empresa está obligada a entregarle. Es el mismo PDF que RR.HH. ya venía
+    entregando en papel, ahora adjunto tal cual. No bloquea el flujo de
+    firma si SMTP no está configurado o si el trabajador no tiene correo."""
+    destino = emp.email or (emp.ficha_data or {}).get("correo_personal") or (emp.ficha_data or {}).get("correo_corporativo")
+    if not destino:
+        return False
+    cuerpo = (
+        f"Hola {emp.nombre_completo},\n\n"
+        "Adjunto el Boletín Informativo acerca de las características del Sistema Privado de "
+        "Pensiones (SPP) y del Sistema Nacional de Pensiones (SNP), que forma parte de la "
+        "elección de sistema pensionario que acabas de firmar.\n\n"
+        "Saludos,\nRecursos Humanos — DIGETEL GROUP"
+    )
+    return _enviar_correo(
+        [destino], "Boletín Informativo — Sistema Pensionario (SPP / SNP)", cuerpo,
+        adjuntos=[BOLETIN_PENSIONARIO_PDF],
+    )
+
+
+def _enviar_contrato_firmado(emp, pdf_path: str, regimen: str = None) -> bool:
+    """Punto 7 / Contratos-2 (28/09): el contrato ya no se envía junto con
+    el resto del legajo (correo de "legajo completo") — tiene su propio
+    correo, con su propio PDF firmado adjunto. Si el régimen es APE, se
+    adjunta también la Política de Subvención Adicional para Aprendices."""
+    from .models import CONTRATO_LABELS_POR_REGIMEN, CONTRATO_LABEL_DEFAULT
+    destino = emp.email or (emp.ficha_data or {}).get("correo_personal") or (emp.ficha_data or {}).get("correo_corporativo")
+    if not destino:
+        return False
+    regimen = (regimen or "").strip()
+    titulo_doc = CONTRATO_LABELS_POR_REGIMEN.get(regimen, CONTRATO_LABEL_DEFAULT)
+    adjuntos = [pdf_path]
+    cuerpo = (
+        f"Hola {emp.nombre_completo},\n\n"
+        f"Adjunto tu {titulo_doc.lower()} firmado electrónicamente."
+    )
+    if regimen.startswith("APE"):
+        adjuntos.append(POLITICA_SUBVENCION_APE_PDF)
+        cuerpo += " Se adjunta también la Política de Subvención Adicional para Aprendices vigente."
+    cuerpo += "\n\nSaludos,\nRecursos Humanos — DIGETEL GROUP"
+    return _enviar_correo([destino], f"Tu {titulo_doc} — DIGETEL GROUP", cuerpo, adjuntos=adjuntos)
+
+
 def _pedido_recibio_lead(pedido) -> None:
-    """Punto 1 del pedido de Reclutamiento (15/09): si un Pedido de Personal
-    está recién ABIERTO y le llega un lead (de cualquier canal: manual,
-    Trabaja con Nosotros, o la API externa/n8n), pasa automáticamente a EN
-    PROCESO. Vive acá (no en reclutamiento.py) para que public_landing.py
-    también lo pueda usar sin crear un import circular. CANCELADO sigue
-    siendo siempre manual — nunca se pisa acá."""
-    if pedido and pedido.estado == "abierto":
-        pedido.estado = "en_proceso"
+    """Desde el 28/09 ya no hace nada: Registro de Pedidos se redujo a 3
+    estados (Abierto/Cubierto/Cancelado), y un pedido ABIERTO que recibe
+    leads sigue ABIERTO (ya no pasa a "En proceso", que dejó de existir) —
+    el estado ahora solo lo cambia RR.HH. a mano. Se deja como no-op (en vez
+    de borrar las 3 llamadas en api_leads.py/reclutamiento.py/
+    public_landing.py) por si en el futuro vuelve a hacer falta algo acá."""
+    pass
 
 
 def _payload_lead_para_n8n(lead, pedido=None) -> dict:
@@ -139,6 +199,9 @@ def _payload_lead_para_n8n(lead, pedido=None) -> dict:
         "cargo": pedido.cargo_solicitado if pedido else None,
         "empresa": pedido.empresa.nombre if pedido and pedido.empresa else None,
         "pedido_codigo": pedido.codigo if pedido else None,
+        # Distritos que cubre la base del pedido (28/09) — para que n8n/la IA
+        # compare contra el distrito que le pregunte al candidato.
+        "base_distritos": (pedido.base.distritos or []) if pedido and pedido.base else [],
     }
 
 
@@ -330,11 +393,18 @@ def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depe
         tiene_consentimiento_geo = db.query(ConsentimientoAsistencia).filter(
             ConsentimientoAsistencia.employee_id == user.employee_id).first() is not None
 
+    # Punto 3 de "Contratos y Renovaciones" (28/09): a los administradores,
+    # justo después de los cumpleaños, un aviso de contratos por vencer en
+    # los próximos 15 días — ventana más corta que los 30 días del dashboard
+    # de KPIs (/rrhh/dashboard), pensada para que no se pase la fecha.
+    contratos_por_vencer_pronto = _contratos_no_indefinidos(db, dias_max=15) if user.rol == "administrador" else []
+
     return templates.TemplateResponse(request, "rrhh_home.html", _ctx(
         request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios,
         conteos_anuncio=conteos, active="home",
         puede_marcar_asistencia=puede_marcar_asistencia, puede_marcar_entrada=puede_marcar_entrada,
         tiene_consentimiento_geo=tiene_consentimiento_geo,
+        contratos_por_vencer_pronto=contratos_por_vencer_pronto,
     ))
 
 

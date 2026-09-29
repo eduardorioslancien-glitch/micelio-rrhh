@@ -28,14 +28,18 @@ Control de accesos (User.rol):
   - usuario: acceso solo a su propia información (autoservicio), vía
     User.employee_id.
 
-NOTA SOBRE EL CONTRATO (2026-09-16, RR.HH. entregó los formatos):
-El contrato de trabajo es un DOC_TYPE más ("contrato"), igual que la Ficha o
-las Declaraciones Juradas — usa el mismo Document/Signature/PDF firmado que
-el resto del legajo, sin columnas propias en Employee. La única diferencia
-es que su contenido (cláusulas) se arma en Python (`pdf_signed._doc_contrato`)
-en vez de leerse de legal_texts.json, porque cambia según el Régimen Laboral
-de la persona (General/MYPE) y si es Personal de Confianza — ver
-`pdf_signed.CONTRATOS_VARIANTES`.
+NOTA SOBRE EL CONTRATO (actualizada 2026-09-28):
+El contrato/convenio YA NO es parte del legajo de autoservicio (DOC_TYPES) —
+se sacó de ahí (punto 7 del pedido del 28/09) porque RR.HH. lo envía en su
+propio enlace, aparte, cuando corresponde (no necesariamente el mismo día
+que el resto del legajo). Sigue usando el mismo mecanismo Document/
+Signature/PDF firmado que el resto (su Document se crea bajo demanda, no
+con ensure_documents). Qué documento se genera depende del Régimen Laboral
+de la persona: Régimen General/MYPE → Contrato de Trabajo
+(`pdf_signed._doc_contrato`), RHE → Contrato de Locación de Servicios
+(`pdf_signed._doc_locacion_servicios`), APE → Convenio de Aprendizaje con
+Predominio en la Empresa (`pdf_signed._doc_convenio_ape`) — ver
+`pdf_signed.generar_contrato_por_regimen`.
 """
 import datetime
 import uuid
@@ -54,12 +58,23 @@ DOC_TYPES = [
     ("autorizacion_datos", "Autorización de Tratamiento de Datos Personales"),
     ("declaracion_salud", "Declaración Jurada de Salud"),
     ("derechohabientes", "Formato de Derechohabientes EsSalud"),
-    ("autorizacion_deposito", "Autorización de Depósito de Haberes y CTS"),
+    ("autorizacion_deposito", "Autorización de Depósito de Haberes"),
     ("sistema_pensionario", "Sistema Pensionario — Boletín, Elección y Constancia"),
-    # Va al final a propósito: el legajo TERMINA con la firma del contrato.
-    ("contrato", "Contrato de Trabajo"),
 ]
 DOC_TYPE_KEYS = [d[0] for d in DOC_TYPES]
+
+# El contrato (28/09) ya NO es el último paso del enlace de autoservicio
+# (/f/{token}) — RR.HH. lo envía aparte, en su propio enlace, una vez que
+# sabe qué tipo de contrato corresponde (ver ContratoDocumento y
+# pdf_signed.generar_contrato_por_regimen). Sigue usando el mismo mecanismo
+# de Document/Signature/PDF firmado que el resto, solo que su Document se
+# crea bajo demanda (no con ensure_documents) — ver main.py /c/{token}.
+CONTRATO_DOC_TYPE = "contrato"
+CONTRATO_LABELS_POR_REGIMEN = {
+    "RHE (Recibo por Honorarios Electrónico)": "Contrato de Locación de Servicios",
+    "APE (Aprendizaje con Predominio en la Empresa)": "Convenio de Aprendizaje con Predominio en la Empresa",
+}
+CONTRATO_LABEL_DEFAULT = "Contrato de Trabajo"  # Régimen General / MYPE
 
 STATUS_PENDIENTE = "pendiente"
 STATUS_ABIERTO = "abierto"
@@ -128,9 +143,11 @@ CATALOGO_TIPO_KEYS = [c[0] for c in CATALOGO_TIPOS]
 
 
 # Registro de Pedidos de Personal (Reclutamiento y Selección — Fase 3).
+# Solo 3 estados (28/09) — "en_proceso" se fusionó con "Abierto": para
+# efectos de mostrar la vacante y seguir recibiendo postulantes son lo mismo.
+# Los pedidos que ya tenían "en_proceso" se migran en database.py.
 ESTADOS_PEDIDO = [
     ("abierto", "Abierto"),
-    ("en_proceso", "En proceso"),
     ("cubierto", "Cubierto"),
     ("cancelado", "Cancelado"),
 ]
@@ -824,9 +841,17 @@ class LeadCandidato(Base):
     # Reactivadas el 21/09 para la automatización de Reclutamiento y Selección
     # con n8n: n8n llama a la IA (no MICELIO) para comparar el CV contra los
     # requisitos del Cargo del pedido, y empuja acá el resultado vía
-    # POST /api/leads/{id}/analisis-ia — ver api_leads.py.
-    estrellas = Column(Integer, nullable=True)
+    # POST /api/leads/{id}/analisis-ia — ver api_leads.py. estrellas admite
+    # un decimal (3.8) desde el 28/09 — Float, no Integer.
+    estrellas = Column(Float, nullable=True)
     analisis_ia = Column(Text, nullable=True)
+
+    # Distrito donde vive el candidato (28/09) — lo pregunta n8n por WhatsApp
+    # cuando ya tiene los datos obligatorios, para poder comparar contra
+    # BaseOperativa.distritos y avisar en el análisis de IA si vive dentro de
+    # la zona que cubre la base del pedido. Texto libre (nombre de distrito,
+    # ver ubigeo_peru.json) — no obligatorio, no afecta lead_incompleto().
+    distrito = Column(String(120), nullable=True)
 
     # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
     # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.
@@ -856,6 +881,19 @@ def lead_incompleto(lead: "LeadCandidato") -> bool:
         not lead.nombre_completo or lead.nombre_completo == LEAD_NOMBRE_PENDIENTE
         or not lead.email or not lead.celular or not lead.cv_path
     )
+
+
+def lead_semaforo(lead: "LeadCandidato") -> str:
+    """Punto pedido 28/09 — semáforo para revisar de un vistazo la lista de
+    candidatos de un pedido: "verde" (datos completos), "amarillo"
+    (respondió algo por WhatsApp pero sigue incompleto) o "rojo" (nunca
+    respondió — se calcula por si hay algún mensaje con rol "candidato" en
+    conversacion_whatsapp, no por tiempo transcurrido)."""
+    if not lead_incompleto(lead):
+        return "verde"
+    if any(m.get("rol") == "candidato" for m in (lead.conversacion_whatsapp or [])):
+        return "amarillo"
+    return "rojo"
 
 
 class EncuestaCampana(Base):

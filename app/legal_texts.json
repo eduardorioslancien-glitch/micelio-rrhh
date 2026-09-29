@@ -2,14 +2,14 @@
   "ficha": {
     "titulo": "Ficha de Datos del Personal",
     "subtitulo": "DIGETEL GROUP · Confirmación de Datos",
-    "intro": "Yo, {nombre_completo}, identificado(a) con documento N.° {num_doc}, confirmo que los datos personales, de contacto, laborales, previsionales y bancarios que acabo de registrar en el Portal RR.HH. son correctos y completos.",
+    "intro": "Yo, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, confirmo que los datos personales, de contacto, laborales, previsionales y bancarios que acabo de registrar en el Portal RR.HH. son correctos y completos.",
     "items": [],
     "cierre": "Al firmar electrónicamente, confirmo la veracidad de los datos consignados en mi ficha de personal."
   },
   "declaracion_jurada": {
     "titulo": "Declaración Jurada",
     "subtitulo": "DIGETEL GROUP · Legajo de Personal",
-    "intro": "Yo, {nombre_completo}, identificado(a) con documento de identidad N.° {num_doc}, con domicilio en {direccion}, trabajador(a) de {empresa} (integrante de DIGETEL GROUP), declaro bajo juramento lo siguiente:",
+    "intro": "Yo, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, con domicilio en {direccion}, trabajador(a) de {empresa} (integrante de DIGETEL GROUP), declaro bajo juramento lo siguiente:",
     "items": [
       "Que toda la información y documentación proporcionada a la Empresa para la elaboración de mi legajo personal (datos personales, académicos, familiares y de derechohabientes) es veraz, completa y se encuentra debidamente sustentada, asumiendo responsabilidad por cualquier inexactitud u omisión en la que pudiera incurrir.",
       "Que me comprometo a comunicar por escrito al área de Recursos Humanos cualquier cambio de domicilio dentro de los cinco (5) días hábiles siguientes de producido dicho cambio, siendo válidas para todo efecto legal las notificaciones cursadas a la última dirección registrada mientras no se comunique la variación.",
@@ -23,7 +23,7 @@
   "confidencialidad": {
     "titulo": "Acuerdo de Confidencialidad",
     "subtitulo": "DIGETEL GROUP · Secreto de las Telecomunicaciones y Datos Personales",
-    "intro": "Por medio del presente documento, {nombre_completo}, identificado(a) con documento N.° {num_doc}, con domicilio en {direccion} (en adelante, EL TRABAJADOR), se compromete a no divulgar, a partir de la fecha de firma del presente acuerdo, cualquier tipo de información de forma escrita o verbal con un tercero ajeno a la organización, que se considere sensible y de carácter confidencial a la que pudiera acceder por encargo de la empresa {empresa} (en adelante, DIGETEL), de acuerdo con los términos y condiciones siguientes:",
+    "intro": "Por medio del presente documento, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, con domicilio en {direccion} (en adelante, EL TRABAJADOR), se compromete a no divulgar, a partir de la fecha de firma del presente acuerdo, cualquier tipo de información de forma escrita o verbal con un tercero ajeno a la organización, que se considere sensible y de carácter confidencial a la que pudiera acceder por encargo de la empresa {empresa} (en adelante, DIGETEL), de acuerdo con los términos y condiciones siguientes:",
     "items": [
       "EL TRABAJADOR reconoce y entiende que el secreto de las telecomunicaciones es el derecho fundamental de toda persona a que sus comunicaciones no sean vulneradas, lo que genera la obligación de adoptar las medidas y procedimientos razonables para garantizar la inviolabilidad de las comunicaciones que se cursen a través de sus redes. Asimismo, conoce que se encuentra obligado(a) a proteger los datos personales de los abonados, clientes y usuarios de DIGETEL, a fin de que dicha información no sea obtenida por terceros, salvo las excepciones previstas en las normas legales vigentes.",
       "EL TRABAJADOR deberá mantener, guardar en estricta reserva y absoluta confidencialidad cualquier documento o información vinculada al secreto de las telecomunicaciones y la protección de los datos personales de los abonados y usuarios a la que pudiera acceder en ejecución de sus labores. En consecuencia, no podrá divulgar tales documentos e informaciones, sea en forma directa o indirecta.",
@@ -37,7 +37,7 @@
   "autorizacion_datos": {
     "titulo": "Autorización para el Tratamiento de Datos Personales",
     "subtitulo": "DIGETEL GROUP · Ley N.° 29733 y su Reglamento",
-    "intro": "De conformidad con lo establecido en la Ley N.° 29733, Ley de Protección de Datos Personales, y su Reglamento aprobado mediante Decreto Supremo N.° 003-2013-JUS, DIGETEL GROUP (en adelante, \"la Empresa\") informa y solicita el consentimiento del titular, {nombre_completo}, identificado(a) con documento N.° {num_doc}, para el tratamiento de sus datos personales, en los siguientes términos:",
+    "intro": "De conformidad con lo establecido en la Ley N.° 29733, Ley de Protección de Datos Personales, y su Reglamento aprobado mediante Decreto Supremo N.° 003-2013-JUS, DIGETEL GROUP (en adelante, \"la Empresa\") informa y solicita el consentimiento del titular, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, para el tratamiento de sus datos personales, en los siguientes términos:",
     "items": [
       "Finalidad: Los datos personales proporcionados serán tratados con la finalidad de gestionar la relación laboral, administrar planillas, beneficios sociales, seguros, capacitación, seguridad y salud en el trabajo, y demás obligaciones legales y contractuales derivadas del vínculo laboral con la Empresa.",
       "Datos tratados: Datos de identificación y contacto, domicilio, datos familiares y de derechohabientes, datos académicos y profesionales, datos bancarios y previsionales, así como datos de salud estrictamente necesarios para el cumplimiento de obligaciones en materia de seguridad y salud en el trabajo.",
@@ -50,29 +50,28 @@
   "derechohabientes": {
     "titulo": "Formato de Derechohabientes EsSalud",
     "subtitulo": "DIGETEL GROUP · Documento para el Legajo de Personal",
-    "intro": "El presente formato constituye el documento interno de sustento para el registro y actualización de los derechohabientes del trabajador {nombre_completo} (DNI {num_doc}) ante EsSalud (T-Registro / PLAME). La información aquí consignada debe coincidir con la documentación sustentatoria (partidas, DNI) que se adjunta al legajo.",
+    "intro": "El presente formato constituye el documento interno de sustento para el registro y actualización de los derechohabientes del trabajador {nombre_completo} ({tipo_doc} {num_doc}) ante EsSalud (T-Registro / PLAME). La información aquí consignada debe coincidir con la documentación sustentatoria (partidas, DNI) que se adjunta al legajo.",
     "items": [],
     "cierre": "Al firmar electrónicamente este documento, declaro que la información de derechohabientes consignada es veraz y me comprometo a comunicar al área de Recursos Humanos cualquier variación dentro de los plazos que establece la normativa vigente."
   },
   "autorizacion_deposito": {
-    "titulo": "Autorización de Depósito de Haberes y CTS",
+    "titulo": "Autorización de Depósito de Haberes",
     "subtitulo": "DIGETEL GROUP · Legajo de Personal",
-    "intro": "Yo, {nombre_completo}, identificado(a) con DNI / CE N.° {num_doc}, trabajador(a) de {empresa} (integrante de DIGETEL GROUP), autorizo a la Empresa a depositar mis remuneraciones (haberes) y, de corresponder, mi Compensación por Tiempo de Servicios (CTS), en las cuentas bancarias que declaro a continuación, siendo de mi entera responsabilidad la exactitud de estos datos.",
+    "intro": "Yo, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, trabajador(a) de {empresa} (integrante de DIGETEL GROUP), autorizo a la Empresa a depositar mis remuneraciones (haberes) en la cuenta bancaria que declaro a continuación, siendo de mi entera responsabilidad la exactitud de estos datos.",
     "items": [],
-    "nota_legal": "De acuerdo con la Ley de Compensación por Tiempo de Servicios (Texto Único Ordenado aprobado por Decreto Supremo N.° 001-97-TR), el/la trabajador(a) podrá comunicar por escrito a la Empresa el cambio de entidad depositaria de su CTS, con una anticipación no menor de ocho (8) días hábiles a la fecha en que corresponda efectuar el depósito semestral.",
-    "cierre": "Al firmar electrónicamente este documento, autorizo el depósito de mis haberes y CTS en las cuentas declaradas."
+    "cierre": "Al firmar electrónicamente este documento, autorizo el depósito de mis haberes en la cuenta declarada."
   },
   "declaracion_salud": {
     "titulo": "Declaración Jurada de Salud",
     "subtitulo": "DIGETEL GROUP · Legajo de Personal",
-    "intro": "Yo, {nombre_completo}, identificado(a) con documento N.° {num_doc}, en pleno goce de mis derechos constitucionales y de mis facultades mentales, declaro bajo juramento que la información de salud consignada a continuación es veraz y completa.",
+    "intro": "Yo, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, en pleno goce de mis derechos constitucionales y de mis facultades mentales, declaro bajo juramento que la información de salud consignada a continuación es veraz y completa.",
     "items": [],
     "cierre": "Al firmar electrónicamente este documento, declaro bajo juramento la veracidad de la información de salud consignada, para los fines legales correspondientes."
   },
   "sistema_pensionario": {
     "titulo": "Sistema Pensionario — Boletín, Elección y Constancia",
     "subtitulo": "DIGETEL GROUP · Sistema Privado (SPP) y Sistema Nacional (SNP) de Pensiones",
-    "intro": "El presente documento deja constancia de la entrega, a {nombre_completo} (documento N.° {num_doc}), del Boletín Informativo acerca de las características del Sistema Privado de Pensiones (SPP) y del Sistema Nacional de Pensiones (SNP), así como de su elección del sistema pensionario al cual se afilia.",
+    "intro": "El presente documento deja constancia de la entrega, a {nombre_completo} ({tipo_doc} {num_doc}), del Boletín Informativo acerca de las características del Sistema Privado de Pensiones (SPP) y del Sistema Nacional de Pensiones (SNP), así como de su elección del sistema pensionario al cual se afilia.",
     "items": [],
     "cierre": "Al firmar electrónicamente este documento, declaro haber recibido y leído el Boletín Informativo, y confirmo la elección del sistema pensionario consignada líneas arriba, dentro del plazo de diez (10) días calendario desde la entrega de este boletín."
   },
@@ -83,10 +82,24 @@
     "items": [],
     "cierre": "Como muestra de conformidad con todas las cláusulas del presente contrato, EL EMPLEADOR y EL TRABAJADOR lo suscriben en señal de conformidad, quedando el trabajador con una copia firmada digitalmente."
   },
+  "locacion_servicios": {
+    "titulo": "Contrato de Locación de Servicios",
+    "subtitulo": "DIGETEL GROUP · Régimen RHE",
+    "intro": "",
+    "items": [],
+    "cierre": "Como muestra de conformidad con todas las cláusulas del presente Contrato, DIGETEL y EL LOCADOR lo suscriben en señal de conformidad, quedando EL LOCADOR con una copia firmada digitalmente."
+  },
+  "convenio_ape": {
+    "titulo": "Convenio de Aprendizaje con Predominio en la Empresa",
+    "subtitulo": "DIGETEL GROUP · Ley N.° 28518 y su Reglamento",
+    "intro": "",
+    "items": [],
+    "cierre": "Como muestra de conformidad con todas las cláusulas del presente Convenio y su Plan de Capacitación, LA EMPRESA y EL (LA) APRENDIZ lo suscriben en señal de conformidad, quedando EL (LA) APRENDIZ con una copia firmada digitalmente. Se adjunta como anexo la Política de Subvención Adicional para Aprendices vigente."
+  },
   "consentimiento_geolocalizacion": {
     "titulo": "Consentimiento para el Tratamiento de Datos de Geolocalización y Marcación de Asistencia",
     "subtitulo": "DIGETEL GROUP · Ley N.° 29733 y su Reglamento — Sistema MICELIO",
-    "intro": "De conformidad con lo establecido en la Ley N.° 29733, Ley de Protección de Datos Personales, y su Reglamento aprobado mediante Decreto Supremo N.° 003-2013-JUS, DIGETEL GROUP (en adelante, \"la Empresa\") informa y solicita el consentimiento del titular, {nombre_completo}, identificado(a) con documento N.° {num_doc}, para el tratamiento de los datos descritos a continuación, con motivo del uso del módulo de Control de Asistencia del sistema MICELIO. Este consentimiento es independiente del otorgado para el tratamiento general de datos personales con motivo de la contratación, y se solicita una única vez, previo al primer uso del marcador de asistencia.",
+    "intro": "De conformidad con lo establecido en la Ley N.° 29733, Ley de Protección de Datos Personales, y su Reglamento aprobado mediante Decreto Supremo N.° 003-2013-JUS, DIGETEL GROUP (en adelante, \"la Empresa\") informa y solicita el consentimiento del titular, {nombre_completo}, identificado(a) con {tipo_doc} N.° {num_doc}, para el tratamiento de los datos descritos a continuación, con motivo del uso del módulo de Control de Asistencia del sistema MICELIO. Este consentimiento es independiente del otorgado para el tratamiento general de datos personales con motivo de la contratación, y se solicita una única vez, previo al primer uso del marcador de asistencia.",
     "items": [
       "Finalidad: Los datos descritos en el numeral siguiente serán tratados exclusivamente con la finalidad de registrar, verificar y controlar el cumplimiento de la jornada laboral (marcación de ingreso y salida), incluyendo la determinación referencial de si la marcación se realizó dentro o fuera de las zonas de trabajo autorizadas por la Empresa (geocercas), como sustento ante eventuales controversias laborales y para la correcta liquidación de beneficios sociales vinculados a la asistencia.",
       "Datos tratados: (a) coordenadas de geolocalización (latitud, longitud y precisión estimada) reportadas por el dispositivo del trabajador únicamente al momento de cada marcación de ingreso o salida; (b) dirección IP pública, tipo de dispositivo, sistema operativo y navegador utilizados; (c) fecha y hora de la marcación, determinada por el servidor de la Empresa y no por el reloj del dispositivo del trabajador; y (d) una firma manuscrita digital (trazo biométrico de aceptación) registrada una única vez al momento de otorgar el presente consentimiento, la cual no se vuelve a solicitar en cada marcación diaria.",

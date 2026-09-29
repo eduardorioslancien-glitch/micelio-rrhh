@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Editar ficha — {{ e.nombre_completo }} — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -62,14 +62,14 @@
     </div>
     <div class="section-title">Contacto</div>
     <div class="grid3">
-      <div class="field" style="grid-column:span 2;"><label>Teléfono Fijo</label>
-        <div class="phone-row">
+      <div class="field"><label>Teléfono Fijo</label>
+        <div class="phone-row compact">
           <select id="telefono_fijo_codigo">{% include "_codigo_pais_options.html" %}</select>
           <input type="text" id="telefono_fijo">
         </div>
       </div>
-      <div class="field" style="grid-column:span 2;"><label>Celular</label>
-        <div class="phone-row">
+      <div class="field"><label>Celular</label>
+        <div class="phone-row compact">
           <select id="celular_codigo">{% include "_codigo_pais_options.html" %}</select>
           <input type="text" id="celular">
         </div>
@@ -146,9 +146,9 @@
         <select id="jefe_inmediato"><option value="">Seleccionar…</option>{% for n in empleados_activos %}<option>{{ n }}</option>{% endfor %}</select>
       </div>
       <div class="field"><label>Fecha de Ingreso</label><input type="date" id="fecha_ingreso"></div>
-      <div class="field"><label>Fecha de Contrato</label><input type="date" id="fecha_contrato"></div>
-      <div class="field"><label>Fecha de Vencimiento de Contrato</label><input type="date" id="fecha_fin_contrato"></div>
-      <div class="field"><label>Periodo de Prueba (días)</label><input type="number" id="periodo_prueba_dias" value="30" min="0" title="30 días por defecto (Art. 10 LPCL); puede ampliarse hasta 6 meses en personal calificado o 1 año en cargos de confianza/dirección"></div>
+      <div class="field"><label>Fecha de Contrato</label><input type="date" id="fecha_contrato" onchange="calcularFechaFinContrato()"></div>
+      <div class="field"><label>Cantidad de Días del Contrato</label><input type="number" id="dias_contrato" min="0" onchange="calcularFechaFinContrato()" oninput="calcularFechaFinContrato()"></div>
+      <div class="field"><label>Fecha de Vencimiento de Contrato</label><input type="date" id="fecha_fin_contrato" readonly style="background:#F2F2F2;" title="Se calcula sola: Fecha de Contrato + Cantidad de Días del Contrato"></div>
       <div class="field"><label>Tipo de Contrato</label>
         <select id="tipo_contrato"><option value="">Seleccionar…</option><option>Plazo Indeterminado</option><option>Plazo Fijo</option><option>Por Obra o Servicio</option><option>Part Time</option><option>Locación de Servicios</option><option>Practicante</option></select>
       </div>
@@ -215,8 +215,6 @@
       <div class="field"><label>Comisión</label>
         <select id="comision"><option value="">Seleccionar…</option><option>Flujo</option><option>Mixta</option><option>No aplica</option></select>
       </div>
-      <div class="field"><label>Seguro</label><input type="text" id="seguro"></div>
-      <div class="field"><label>Fecha de Afiliación</label><input type="date" id="fecha_afiliacion"></div>
     </div>
   </div>
 
@@ -318,6 +316,16 @@ function actualizarEdad() {
   const m = hoy.getMonth() - nac.getMonth();
   if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;
   el.value = edad >= 0 ? edad : "";
+}
+
+function calcularFechaFinContrato() {
+  const fInicio = document.getElementById("fecha_contrato").value;
+  const dias = parseInt(document.getElementById("dias_contrato").value, 10);
+  const el = document.getElementById("fecha_fin_contrato");
+  if (!fInicio || !dias || dias < 0) { el.value = ""; return; }
+  const fin = new Date(fInicio + "T00:00:00");
+  fin.setDate(fin.getDate() + dias);
+  el.value = fin.toISOString().slice(0, 10);
 }
 
 function actualizarCodigoTrabajador() {
@@ -580,10 +588,10 @@ function collectFicha() {
     "emerg1_nombre","emerg1_parentesco","emerg1_celular","emerg1_celular_codigo","emerg1_direccion",
     "emerg2_nombre","emerg2_parentesco","emerg2_celular","emerg2_celular_codigo","emerg2_direccion",
     "lab_codigo","area","gerencia","cargo","sede","centro_costos","jefe_inmediato",
-    "fecha_ingreso","fecha_contrato","fecha_fin_contrato","periodo_prueba_dias","tipo_contrato","regimen_laboral_persona","modalidad","horario","jornada","turno",
+    "fecha_ingreso","fecha_contrato","fecha_fin_contrato","dias_contrato","tipo_contrato","regimen_laboral_persona","modalidad","horario","jornada","turno",
     "grupo_ocupacional","remuneracion","bonificaciones","asignacion_familiar","movilidad",
     "banco_haberes","tipo_cuenta_haberes","cuenta_haberes","cci_haberes","banco_cts","cuenta_cts","cci_cts",
-    "sistema_pension","afp","cuspp","comision","seguro","fecha_afiliacion",
+    "sistema_pension","afp","cuspp","comision",
     "talla_camisa","talla_polo","talla_pantalon","talla_zapato","talla_chaleco","talla_casco","talla_guantes",
     "grupo_sanguineo","eps","essalud","alergias","restricciones","medicamentos",
     "examen_medico_fecha","examen_medico_vencimiento","vacunas",

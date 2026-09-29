@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Gestión de Leads — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 {% include "_rrhh_topbar.html" %}
@@ -21,14 +21,17 @@
   {% endif %}
 
   {% if not f_pedido %}
-  <!-- Vista principal: Pedidos abiertos/en proceso, con su cargo y cantidad.
-       Se entra a uno para ver/registrar sus postulantes. -->
+  <!-- Vista principal: Pedidos abiertos, más reciente primero. Se entra a
+       uno para ver/registrar sus postulantes. Todos están "Abierto" (por
+       eso ya no se repite el estado acá) — el contenedor con scroll evita
+       que la lista crezca sin límite en pantalla. -->
   <div class="card">
     <h2>Gestión de Leads</h2>
-    <p class="muted">Elige un pedido de personal abierto o en proceso para ver o registrar a los postulantes
+    <p class="muted">Elige un pedido de personal abierto para ver o registrar a los postulantes
       que hayan llegado (correo, WhatsApp, etc.).</p>
+    <div class="scroll-10">
     <table>
-      <tr><th>Código</th><th>Cargo</th><th>Empresa</th><th>Base</th><th>Cantidad</th><th>Candidatos</th><th>Estado</th><th></th></tr>
+      <tr><th>Código</th><th>Cargo</th><th>Empresa</th><th>Base</th><th>Cantidad</th><th>Candidatos</th><th></th></tr>
       {% for p in pedidos_abiertos %}
       <tr>
         <td class="muted">{{ p.codigo or "—" }}</td>
@@ -37,13 +40,13 @@
         <td>{{ p.base.nombre if p.base else "—" }}</td>
         <td>{{ p.cantidad }}</td>
         <td>{{ leads_por_pedido.get(p.id, 0) }}</td>
-        <td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) if estado_labels else p.estado }}</span></td>
         <td><a class="btn small" href="/rrhh/reclutamiento/leads?pedido_id={{ p.id }}">Ver candidatos</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="8" class="muted">No hay pedidos de personal abiertos ni en proceso en este momento.</td></tr>
+      <tr><td colspan="7" class="muted">No hay pedidos de personal abiertos en este momento.</td></tr>
       {% endfor %}
     </table>
+    </div>
     {% if leads_por_pedido.get(none, 0) %}
     <p style="margin-top:14px;">
       <a href="/rrhh/reclutamiento/leads?pedido_id=none">Ver candidatos sin pedido asignado ({{ leads_por_pedido.get(none, 0) }})</a>
@@ -74,11 +77,16 @@
         </div>
       </form>
     </div>
-    <p class="muted">Ordenados por antigüedad de postulación — el más antiguo primero.</p>
+    <p class="muted">Ordenados por antigüedad de postulación — el más antiguo primero.
+      <span class="semaforo verde"></span>datos completos ·
+      <span class="semaforo amarillo"></span>respondió, falta completar ·
+      <span class="semaforo rojo"></span>no ha respondido</p>
+    <div class="scroll-10">
     <table>
-      <tr><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th><th></th></tr>
+      <tr><th></th><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th><th></th></tr>
       {% for l in leads %}
       <tr>
+        <td><span class="semaforo {{ lead_semaforo(l) }}" title="{{ lead_semaforo(l) }}"></span></td>
         <td>
           <a href="/rrhh/reclutamiento/leads/{{ l.id }}"><strong>{{ l.nombre_completo if not l.nombre_completo.startswith('(Nombre pendiente') else '(nombre pendiente)' }}</strong></a>
           {% if lead_incompleto(l) %}<br><span class="badge pendiente" style="font-size:11px;">Incompleto — en conversación por WhatsApp</span>{% endif %}
@@ -91,9 +99,10 @@
         <td><a class="btn small secondary" href="/rrhh/reclutamiento/leads/{{ l.id }}">Ver</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="muted">Todavía no hay candidatos para este pedido.</td></tr>
+      <tr><td colspan="7" class="muted">Todavía no hay candidatos para este pedido.</td></tr>
       {% endfor %}
     </table>
+    </div>
 
     <h3 style="margin-top:22px;">Registrar candidato</h3>
     <p class="hint">Ingresa manualmente a quien haya llegado por correo, WhatsApp u otro medio (en un futuro esto se automatiza con n8n).</p>

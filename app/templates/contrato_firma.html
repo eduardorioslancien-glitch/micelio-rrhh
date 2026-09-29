@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo_doc }} — DIGETEL GROUP</title>
+<link rel="stylesheet" href="/static/style.css?v=16">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
+</head>
+<body>
+<div class="topbar">
+  <img src="/static/dg_logo.png" alt="DG">
+  <div>
+    <h1>{{ titulo_doc }}</h1>
+    <div class="sub">{{ e.empresa }} · {{ e.nombre_completo }}</div>
+  </div>
+</div>
+<div class="container" style="max-width:760px;">
+
+  {% if ya_firmado %}
+  <div class="card" style="text-align:center;">
+    <div class="done-icon">&#10003;</div>
+    <h2>Documento firmado</h2>
+    <p>Ya firmaste tu {{ titulo_doc|lower }} — te lo enviamos por correo con copia firmada.</p>
+  </div>
+  {% else %}
+  <div class="card">
+    <h2>{{ titulo_doc }}</h2>
+    <p class="muted">Revisa el documento antes de firmar — se generó con tus propios datos de la ficha.</p>
+    <p><a class="action-link" href="/f/{{ token }}/contrato/borrador.pdf" target="_blank" rel="noopener">Ver el documento completo (PDF)</a></p>
+
+    <label style="display:flex; gap:8px; align-items:center; margin:16px 0; text-transform:none; font-weight:400;">
+      <input type="checkbox" id="chk-contrato" style="width:auto;"> He leído y acepto el contenido de este documento.
+    </label>
+
+    <div class="field">
+      <label>Firma electrónica</label>
+      <canvas id="sigpad-contrato" class="sigpad" width="460" height="160"></canvas>
+      <div class="hint">Dibuja tu firma con el mouse o el dedo. <a href="#" onclick="clearSig(); return false;">Borrar</a></div>
+    </div>
+
+    <div id="firma_status" class="hint"></div>
+
+    <div class="footer-nav">
+      <button class="btn" id="btn-firmar" onclick="firmarContrato()">Firmar documento</button>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+<script>
+let sigPad = null;
+window.addEventListener("load", () => {
+  const canvas = document.getElementById("sigpad-contrato");
+  if (canvas) sigPad = new SignaturePad(canvas, { penColor: "#0E3585" });
+});
+function clearSig() { if (sigPad) sigPad.clear(); }
+
+async function firmarContrato() {
+  const chk = document.getElementById("chk-contrato");
+  if (!chk.checked) { alert("Debes marcar que has leído y aceptas el documento."); return; }
+  if (!sigPad || sigPad.isEmpty()) { alert("Por favor dibuja tu firma."); return; }
+
+  const btn = document.getElementById("btn-firmar");
+  btn.disabled = true; btn.textContent = "Firmando…";
+
+  const signature_image = sigPad.toDataURL("image/png");
+  const res = await fetch(`/f/{{ token }}/firmar/contrato`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ signature_image }),
+  });
+  btn.disabled = false; btn.textContent = "Firmar documento";
+
+  if (!res.ok) {
+    let msg = "Ocurrió un error al firmar. Intenta nuevamente.";
+    try { const data = await res.json(); if (data.detail) msg = data.detail; } catch (e) {}
+    alert(msg);
+    return;
+  }
+  document.getElementById("firma_status").textContent = "";
+  location.reload();
+}
+</script>
+</body>
+</html>

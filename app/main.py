@@ -336,6 +336,44 @@ def formulario(request: Request, token: str, db: Session = Depends(get_db)):
     })
 
 
+@app.get("/f/{token}/contrato", response_class=HTMLResponse)
+def contrato_firma(request: Request, token: str, db: Session = Depends(get_db)):
+    """Enlace standalone para firmar el contrato/convenio — separado del
+    legajo (28/09, punto 7): RR.HH. lo manda aparte, cuando corresponde, no
+    necesariamente el mismo día que el resto del legajo. Qué documento se
+    muestra (Contrato de Trabajo / Locación de Servicios / Convenio APE) se
+    decide solo, según el Régimen Laboral de la ficha."""
+    from .models import CONTRATO_LABELS_POR_REGIMEN, CONTRATO_LABEL_DEFAULT
+    emp = get_employee_or_404(db, token)
+    doc = next((d for d in emp.documents if d.doc_type == "contrato"), None)
+    ya_firmado = doc is not None and doc.status == STATUS_FIRMADO
+    regimen = ((emp.ficha_data or {}).get("regimen_laboral_persona") or "").strip()
+    titulo_doc = CONTRATO_LABELS_POR_REGIMEN.get(regimen, CONTRATO_LABEL_DEFAULT)
+    return templates.TemplateResponse(request, "contrato_firma.html", {
+        "e": emp, "token": token, "ya_firmado": ya_firmado, "titulo_doc": titulo_doc,
+    })
+
+
+@app.get("/f/{token}/contrato/borrador.pdf")
+def contrato_borrador_pdf(token: str, db: Session = Depends(get_db)):
+    """Vista previa del documento (sin firmar) para que la persona lo revise
+    antes de firmar — mismo generador que el documento final, sin bloque de
+    firma real."""
+    emp = get_employee_or_404(db, token)
+    doc_fields = build_doc_fields(emp, "contrato", db)
+    out_path = os.path.join(GENERATED_DIR, f"contrato_borrador_{emp.token}.pdf")
+    empresa_obj = emp.empresa_rel
+    build_pdf(
+        doc_type="contrato", fields=doc_fields, signature_image_path="",
+        signed_at="(borrador — pendiente de firma)", ip="", hash_="(pendiente)",
+        out_path=out_path,
+        empresa_nombre=empresa_obj.nombre if empresa_obj else emp.empresa,
+        representante_legal=empresa_obj.representante_legal if empresa_obj else None,
+        firma_empresa_path=empresa_obj.firma_representante_path if empresa_obj else None,
+    )
+    return FileResponse(out_path, filename="borrador_contrato.pdf", media_type="application/pdf")
+
+
 @app.get("/f/{token}/estado")
 def formulario_estado(token: str, db: Session = Depends(get_db)):
     emp = get_employee_or_404(db, token)
@@ -430,11 +468,20 @@ async def subir_documento(token: str, request: Request, tipo: str = Form(...),
 
 @app.post("/f/{token}/firmar/{doc_type}")
 async def firmar_documento(token: str, doc_type: str, request: Request, db: Session = Depends(get_db)):
-    if doc_type not in DOC_TYPE_KEYS:
+    if doc_type != "contrato" and doc_type not in DOC_TYPE_KEYS:
         raise HTTPException(400, "Tipo de documento inválido.")
     emp = get_employee_or_404(db, token)
     ensure_documents(db, emp)
-    doc = next(d for d in emp.documents if d.doc_type == doc_type)
+    doc = next((d for d in emp.documents if d.doc_type == doc_type), None)
+    if doc is None and doc_type == "contrato":
+        # El contrato/convenio (28/09) ya no es parte del legajo de
+        # autoservicio — su Document se crea bajo demanda, la primera vez
+        # que se usa el enlace standalone /f/{token}/contrato.
+        doc = Document(employee_id=emp.id, doc_type="contrato", status=STATUS_ABIERTO)
+        db.add(doc)
+        db.commit()
+    elif doc is None:
+        raise HTTPException(404, "Documento no encontrado.")
 
     # Idempotencia (bug del 15/09 — "muchos han tenido error al firmar y no
     # han podido continuar"): en el log de producción esto siempre era el
@@ -468,7 +515,15 @@ async def firmar_documento(token: str, doc_type: str, request: Request, db: Sess
 
     # --- Construir el payload de datos que va impreso en el documento firmado ---
     doc_fields = build_doc_fields(emp, doc_type, db)
-    consent_text = LEGAL_TEXTS[doc_type]["cierre"]
+    if doc_type == "contrato":
+        # El cierre (y por tanto el hash) depende de qué documento se generó
+        # realmente según el Régimen Laboral — no siempre es el "contrato"
+        # genérico de legal_texts.json (puede ser locación de servicios o
+        # convenio APE). Ver pdf_signed.generar_contrato_por_regimen.
+        from .pdf_signed import generar_contrato_por_regimen
+        _story, consent_text, _titulo, _subtitulo, _anexo = generar_contrato_por_regimen(doc_fields)
+    else:
+        consent_text = LEGAL_TEXTS[doc_type]["cierre"]
 
     hash_source = json.dumps({"doc_type": doc_type, "fields": doc_fields, "consent": consent_text},
                               sort_keys=True, ensure_ascii=False, default=str)
@@ -506,7 +561,32 @@ async def firmar_documento(token: str, doc_type: str, request: Request, db: Sess
     log_event(db, emp, "documento_firmado", request, document=doc,
               meta={"doc_type": doc_type, "hash": content_hash[:16]})
 
-    if all(d.status == STATUS_FIRMADO for d in emp.documents):
+    if doc_type == "sistema_pensionario":
+        # Punto 6 del pedido (28/09): boletín informativo por correo, en
+        # automático, al firmar este documento — no bloquea el flujo si
+        # falla (SMTP no configurado, correo faltante, etc.).
+        try:
+            from .rrhh import _enviar_boletin_pensionario
+            if _enviar_boletin_pensionario(emp):
+                log_event(db, emp, "boletin_pensionario_enviado", request)
+        except Exception as e:
+            log_event(db, emp, "boletin_pensionario_error", request, meta={"error": str(e)})
+
+    if doc_type == "contrato":
+        # El contrato ya no dispara el correo de "legajo completo" (no forma
+        # parte de él) — se manda su propio correo con el PDF firmado (y el
+        # anexo de Política de Subvención, si es un Convenio APE).
+        try:
+            from .rrhh import _enviar_contrato_firmado
+            if _enviar_contrato_firmado(emp, pdf_path, regimen=doc_fields.get("regimen_laboral_persona")):
+                log_event(db, emp, "contrato_correo_enviado", request)
+        except Exception as e:
+            log_event(db, emp, "contrato_correo_error", request, meta={"error": str(e)})
+
+    # doc_type != "contrato": el contrato ya no es parte del legajo (28/09,
+    # se firma aparte, muchas veces después de que el legajo ya se completó)
+    # — no debe disparar de nuevo el correo de "legajo completo".
+    if doc_type != "contrato" and all(d.status == STATUS_FIRMADO for d in emp.documents if d.doc_type != "contrato"):
         emp.completed_at = datetime.datetime.utcnow()
         db.commit()
         log_event(db, emp, "legajo_completo", request)
@@ -536,6 +616,10 @@ def build_doc_fields(emp: Employee, doc_type: str, db: Session = None) -> dict:
     base = {
         "nombre_completo": emp.nombre_completo,
         "num_doc": ficha.get("numero_documento", ficha.get("num_doc", "")),
+        # Tipo de documento (DNI/CE/Pasaporte) real de la persona — todos los
+        # documentos a firmar lo usan en vez de asumir "DNI" (punto 5 del
+        # pedido del 28/09).
+        "tipo_doc": ficha.get("tipo_documento") or "DNI",
         "direccion": ficha.get("direccion", ""),
         "empresa": emp.empresa or ficha.get("empresa", ""),
         "cargo": ficha.get("cargo", ""),
@@ -543,9 +627,11 @@ def build_doc_fields(emp: Employee, doc_type: str, db: Session = None) -> dict:
     }
     if doc_type == "ficha":
         num_doc = base["num_doc"]  # dict(ficha) pisaría esta clave más abajo si no la guardamos antes
+        tipo_doc = base["tipo_doc"]
         base = dict(ficha)  # todos los campos de las 11 secciones
         base["nombre_completo"] = emp.nombre_completo
         base["num_doc"] = num_doc
+        base["tipo_doc"] = tipo_doc
         base["empresa"] = emp.empresa or ficha.get("empresa", "")
         base["familia"] = familia
         base["educacion"] = emp.educacion_data or []
@@ -560,8 +646,6 @@ def build_doc_fields(emp: Employee, doc_type: str, db: Session = None) -> dict:
         base["tipo_cuenta"] = ficha.get("tipo_cuenta_haberes", "")
         base["num_cuenta"] = ficha.get("cuenta_haberes", "")
         base["cci"] = ficha.get("cci_haberes", "")
-        base["banco_cts"] = ficha.get("banco_cts", "")
-        base["cuenta_cts"] = ficha.get("cuenta_cts", "")
     if doc_type in ("contrato", "confidencialidad", "sistema_pensionario"):
         base = {**dict(ficha), **base}
         empresa_obj = emp.empresa_rel
@@ -612,10 +696,8 @@ def send_completion_email(emp: Employee) -> bool:
         f"Hola {emp.nombre_completo},\n\n"
         f"Gracias por completar tu legajo de personal en {emp.empresa or 'DIGETEL GROUP'}.\n"
         f"Adjuntamos copia de los documentos que firmaste electrónicamente: {doc_labels}.\n"
+        "\nSaludos,\nRecursos Humanos — DIGETEL GROUP"
     )
-    if emp.contrato_pdf_path:
-        cuerpo += "Se incluye también tu contrato de trabajo firmado.\n"
-    cuerpo += "\nSaludos,\nRecursos Humanos — DIGETEL GROUP"
     msg.set_content(cuerpo)
 
     for d in emp.documents:

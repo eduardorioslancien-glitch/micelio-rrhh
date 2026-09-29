@@ -57,7 +57,7 @@ _MIGRACIONES_COLUMNAS = [
     ("leads_candidatos", "documento_numero", "VARCHAR(20)"),
     ("leads_candidatos", "cv_path", "VARCHAR(500)"),
     ("leads_candidatos", "cv_filename", "VARCHAR(300)"),
-    ("leads_candidatos", "estrellas", "INTEGER"),
+    ("leads_candidatos", "estrellas", "FLOAT"),
     ("leads_candidatos", "analisis_ia", "TEXT"),
     ("leads_candidatos", "entrevista_data", "JSON"),
     ("asistencia_registros", "latitud", "FLOAT"),
@@ -78,6 +78,7 @@ _MIGRACIONES_COLUMNAS = [
     ("empresas", "representante_nacionalidad", "VARCHAR(60)"),
     ("users", "man_academy_admin", "BOOLEAN"),
     ("leads_candidatos", "conversacion_whatsapp", "JSON"),
+    ("leads_candidatos", "distrito", "VARCHAR(120)"),
 ]
 
 
@@ -90,6 +91,7 @@ def _run_migraciones_livianas():
                 conn.commit()
         _backfill_holding_por_defecto(conn)
         _backfill_codigo_pedidos(conn)
+        _backfill_fusion_estado_en_proceso(conn)
 
 
 def _backfill_holding_por_defecto(conn):
@@ -138,6 +140,17 @@ def _backfill_codigo_pedidos(conn):
         conn.exec_driver_sql(
             f"UPDATE pedidos_personal SET codigo = '{codigo}' WHERE id = {int(pedido_id)}"
         )
+    conn.commit()
+
+
+def _backfill_fusion_estado_en_proceso(conn):
+    """Pedido 28/09: se redujo Registro de Pedidos a 3 estados (Abierto/
+    Cubierto/Cancelado) — "En proceso" ya no existe como estado propio, se
+    fusiona con "Abierto" (para la vacante sigue sin cubrirse, es lo mismo).
+    Idempotente: tras la primera vez no quedan filas en "en_proceso"."""
+    conn.exec_driver_sql(
+        "UPDATE pedidos_personal SET estado = 'abierto' WHERE estado = 'en_proceso'"
+    )
     conn.commit()
 
 

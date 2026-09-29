@@ -73,6 +73,16 @@ tr:hover td { background: var(--light2); }
 .badge.entrevista { background: var(--light2); color: var(--navy-dark); }
 .badge.oferta { background: var(--light2); color: var(--navy-dark); }
 .badge.contratado { background: var(--green-bg); color: var(--green); }
+
+/* Semáforo de Gestión de Leads (28/09): verde=datos completos,
+   amarillo=respondió algo pero falta, rojo=nunca respondió por WhatsApp. */
+.semaforo { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+.semaforo.verde { background: var(--green); }
+.semaforo.amarillo { background: var(--yellow); }
+.semaforo.rojo { background: var(--red); }
+
+.scroll-10 { max-height: 420px; overflow-y: auto; }
+.scroll-5 { max-height: 240px; overflow-y: auto; }
 .badge.descartado { background: var(--red-bg); color: var(--red); }
 a.btn, button.btn {
   background: var(--navy);
@@ -170,6 +180,16 @@ label { font-size: 12px; font-weight: 600; color: var(--gray); text-transform: u
 .phone-row { display: flex; gap: 6px; align-items: flex-start; }
 .phone-row select { width: 92px; flex: none; margin-top: 0; }
 .phone-row input { flex: 1; min-width: 0; margin-top: 0; }
+/* Teléfono Fijo / Celular (28/09): a la mitad del ancho — ya no llevan
+   grid-column:span 2, solo ocupan su columna normal del grid3. */
+.phone-row.compact select { width: 68px; }
+
+/* Declaración Jurada de Salud (28/09): las preguntas Sí/No y su "Especificar"
+   quedaban desalineadas dentro de la misma fila porque cada label ocupa una
+   cantidad distinta de líneas según su largo — se les reserva la misma
+   altura y se alinean por abajo, así el select/input de al lado siempre
+   arranca en la misma línea. */
+.salud-alineado .field label { display: flex; align-items: flex-end; min-height: 2.6em; margin-bottom: 2px; }
 .link-box {
   background: var(--light2);
   border: 1px dashed var(--navy);

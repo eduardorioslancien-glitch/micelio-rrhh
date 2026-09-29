@@ -37,12 +37,12 @@ def _verificar_api_key(x_api_key: str = Header(None)):
 
 @router.get("/api/pedidos-abiertos")
 def api_pedidos_abiertos(db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
-    """Pedidos abiertos/en proceso, para que la automatización externa (n8n)
-    pueda saber a qué código de pedido corresponde un correo/mensaje y
-    enviarlo en la creación del lead."""
+    """Pedidos abiertos, para que la automatización externa (n8n) pueda
+    saber a qué código de pedido corresponde un correo/mensaje y enviarlo
+    en la creación del lead."""
     pedidos = (
         db.query(PedidoPersonal)
-        .filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
+        .filter(PedidoPersonal.estado == "abierto")
         .order_by(PedidoPersonal.created_at.desc())
         .all()
     )
@@ -52,6 +52,10 @@ def api_pedidos_abiertos(db: Session = Depends(get_db), _=Depends(_verificar_api
             "cargo": p.cargo_solicitado,
             "empresa": p.empresa.nombre if p.empresa else None,
             "base": p.base.nombre if p.base else None,
+            # Distritos que cubre la base del pedido (28/09) — para que la IA
+            # compare contra el distrito que le pregunte al candidato y avise
+            # si vive dentro de la zona. Vacío si el pedido no tiene base.
+            "base_distritos": (p.base.distritos or []) if p.base else [],
             "area": p.area,
             "cantidad": p.cantidad,
             "estado": p.estado,
@@ -131,18 +135,29 @@ async def api_crear_lead(
 async def api_actualizar_lead(lead_id: int, request: Request, db: Session = Depends(get_db),
                                _=Depends(_verificar_api_key)):
     """n8n va completando acá los datos que obtiene en la conversación de
-    WhatsApp (nombre, correo, celular) — solo actualiza los campos que
-    vengan en el body JSON, deja el resto tal cual. Campos aceptados:
+    WhatsApp (nombre, correo, celular, distrito) — solo actualiza los campos
+    que vengan en el body JSON, deja el resto tal cual. Campos aceptados:
     nombre_completo, email, celular, documento_tipo, documento_numero,
-    notas. El CV se sube aparte, con POST /api/leads/{id}/cv (multipart),
-    no acá."""
+    distrito, notas. El CV se sube aparte, con POST /api/leads/{id}/cv
+    (multipart), no acá.
+
+    `codigo_pedido` (28/09) es aparte: liga el lead a la vacante recién
+    elegida cuando alguien escribió primero por WhatsApp sin venir de una
+    postulación puntual (n8n le pregunta "a qué postulación va" con la
+    lista de GET /api/pedidos-abiertos). Si el código no existe, se ignora
+    en silencio — no rompe la conversación por un typo del lado de n8n."""
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404, "Lead no encontrado.")
     payload = await request.json()
-    for campo in ("nombre_completo", "email", "celular", "documento_tipo", "documento_numero", "notas"):
+    for campo in ("nombre_completo", "email", "celular", "documento_tipo", "documento_numero", "distrito", "notas"):
         if campo in payload and (payload[campo] or "").strip():
             setattr(lead, campo, payload[campo].strip())
+    codigo_pedido = (payload.get("codigo_pedido") or "").strip()
+    if codigo_pedido and not lead.pedido_id:
+        pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == codigo_pedido).first()
+        if pedido:
+            lead.pedido_id = pedido.id
     db.commit()
     db.refresh(lead)
     return {"id": lead.id, "nombre_completo": lead.nombre_completo, "incompleto": lead_incompleto(lead)}
@@ -218,9 +233,9 @@ async def api_guardar_analisis_ia(lead_id: int, request: Request, db: Session = 
                                    _=Depends(_verificar_api_key)):
     """n8n empuja acá el resultado de calificar el CV contra los requisitos
     del Cargo — punto 3.2 del pedido de automatización RyS (21/09). Body
-    JSON: {"estrellas": 1-5, "resumen": "texto explicando la calificación"}.
-    Este resumen es lo que se muestra en Gestión de Leads antes de los
-    botones Entrevistar/Descartar."""
+    JSON: {"estrellas": 1-5 (admite un decimal, ej. 3.8), "resumen": "texto
+    explicando la calificación"}. Este resumen es lo que se muestra en
+    Gestión de Leads antes de los botones Entrevistar/Descartar."""
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404, "Lead no encontrado.")
@@ -228,9 +243,9 @@ async def api_guardar_analisis_ia(lead_id: int, request: Request, db: Session = 
     estrellas = payload.get("estrellas")
     if estrellas is not None:
         try:
-            estrellas = int(estrellas)
+            estrellas = round(float(estrellas), 1)
         except (TypeError, ValueError):
-            raise HTTPException(400, "'estrellas' debe ser un número entero de 1 a 5.")
+            raise HTTPException(400, "'estrellas' debe ser un número de 1 a 5 (admite un decimal).")
         if not (1 <= estrellas <= 5):
             raise HTTPException(400, "'estrellas' debe estar entre 1 y 5.")
         lead.estrellas = estrellas

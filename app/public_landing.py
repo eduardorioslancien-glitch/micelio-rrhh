@@ -34,7 +34,7 @@ TAMANO_MAXIMO_CV = 20 * 1024 * 1024  # 20 MB — bug del 15/09: un CV de 19MB da
 def _vacantes_abiertas(db: Session):
     pedidos = (
         db.query(PedidoPersonal)
-        .filter(PedidoPersonal.estado.in_(["abierto", "en_proceso"]))
+        .filter(PedidoPersonal.estado == "abierto")
         .order_by(PedidoPersonal.created_at.desc())
         .all()
     )
@@ -56,7 +56,7 @@ def landing_vacantes(request: Request, db: Session = Depends(get_db)):
 @router.get("/trabaja-con-nosotros/{pedido_id}", response_class=HTMLResponse)
 def landing_vacante_detalle(request: Request, pedido_id: int, db: Session = Depends(get_db)):
     pedido = db.query(PedidoPersonal).get(pedido_id)
-    if not pedido or pedido.estado not in ("abierto", "en_proceso"):
+    if not pedido or pedido.estado != "abierto":
         raise HTTPException(404)
     # El match del Cargo es por nombre exacto; si no calza (o el cargo está
     # inactivo) igual se muestra la vacante con los datos del pedido.
@@ -75,7 +75,7 @@ async def landing_postular(request: Request, background_tasks: BackgroundTasks, 
                             email: str = Form(...), celular: str = Form(""),
                             cv: UploadFile = File(...), db: Session = Depends(get_db)):
     pedido = db.query(PedidoPersonal).get(pedido_id)
-    if not pedido or pedido.estado not in ("abierto", "en_proceso"):
+    if not pedido or pedido.estado != "abierto":
         raise HTTPException(404)
 
     nombre_archivo = cv.filename or ""
