@@ -216,7 +216,7 @@ def api_cargo_requisitos(nombre: str, db: Session = Depends(get_db), _=Depends(_
     return {
         "nombre": cargo.nombre,
         "descripcion": cargo.descripcion,
-        "funciones": cargo.funciones or [],
+        "funciones": cargo.funciones_todas,
         "responsabilidades": cargo.responsabilidades or [],
         "requisito_academico": cargo.requisito_academico,
         "requisito_experiencia": cargo.requisito_experiencia,

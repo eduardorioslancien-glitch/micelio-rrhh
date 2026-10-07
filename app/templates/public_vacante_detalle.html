@@ -31,11 +31,11 @@
       <p style="margin-top:8px;">{{ pedido.observaciones }}</p>
       {% endif %}
 
-      {% if cargo and (cargo.descripcion or cargo.funciones or cargo.requisito_academico or cargo.requisito_experiencia or cargo.requisito_conocimientos) %}
+      {% if cargo and (cargo.descripcion or cargo.funciones_todas or cargo.requisito_academico or cargo.requisito_experiencia or cargo.requisito_conocimientos) %}
         {% if cargo.descripcion %}<p>{{ cargo.descripcion }}</p>{% endif %}
-        {% if cargo.funciones %}
+        {% if cargo.funciones_todas %}
         <div class="section-title">Funciones</div>
-        <ul>{% for f in cargo.funciones %}<li>{{ f }}</li>{% endfor %}</ul>
+        <ul>{% for f in cargo.funciones_todas %}<li>{{ f }}</li>{% endfor %}</ul>
         {% endif %}
         {% if cargo.requisito_academico or cargo.requisito_experiencia or cargo.requisito_conocimientos %}
         <div class="section-title">Requisitos</div>

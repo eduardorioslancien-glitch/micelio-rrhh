@@ -54,7 +54,7 @@
   <a class="nav-top-link {{ 'active' if active == 'dashboard' else '' }}" href="/rrhh/dashboard">Dashboard</a>
   {% endif %}
 
-  {% set administracion_activos = ('personal', 'asistencia', 'contratos', 'parametrizacion', 'usuarios', 'holdings', 'unidades', 'empresas', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo') %}
+  {% set administracion_activos = ('personal', 'asistencia', 'contratos', 'parametrizacion', 'usuarios', 'holdings', 'unidades', 'empresas', 'procesos', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo') %}
   <details class="nav-group" {{ 'open' if active in administracion_activos else '' }}>
     <summary>Administración</summary>
     <div class="nav-children">
@@ -62,18 +62,19 @@
       <a href="/rrhh/asistencia" class="{{ 'active' if active == 'asistencia' else '' }}">Control de Asistencia</a>
       <a href="/rrhh/contratos" class="{{ 'active' if active == 'contratos' else '' }}">Contratos / Renovaciones</a>
       {% if user.rol == 'administrador' %}
-      {% set parametrizacion_activos = ('parametrizacion', 'holdings', 'unidades', 'empresas', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'usuarios') %}
+      {% set parametrizacion_activos = ('parametrizacion', 'holdings', 'unidades', 'empresas', 'procesos', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'usuarios') %}
       <details class="nav-group nested" {{ 'open' if active in parametrizacion_activos else '' }}>
         <summary>Parámetros</summary>
         <div class="nav-children">
           <a href="/rrhh/parametrizacion/holdings" class="{{ 'active' if active == 'holdings' else '' }}">Holdings</a>
           <a href="/rrhh/parametrizacion/unidades" class="{{ 'active' if active == 'unidades' else '' }}">Unidades de Negocio</a>
           <a href="/rrhh/parametrizacion/empresas" class="{{ 'active' if active == 'empresas' else '' }}">Empresas</a>
+          <a href="/rrhh/parametrizacion/procesos" class="{{ 'active' if active == 'procesos' else '' }}">Procesos y Funciones</a>
           <a href="/rrhh/parametrizacion/lineas-producto" class="{{ 'active' if active == 'lineas_producto' else '' }}">Líneas de Producto</a>
           <a href="/rrhh/parametrizacion/competencias" class="{{ 'active' if active == 'competencias' else '' }}">Principios, Valores y Competencias</a>
           <a href="/rrhh/parametrizacion/catalogo/area" class="{{ 'active' if active == 'area' else '' }}">Áreas</a>
           <a href="/rrhh/parametrizacion/catalogo/gerencia" class="{{ 'active' if active == 'gerencia' else '' }}">Gerencias</a>
-          <a href="/rrhh/parametrizacion/cargos" class="{{ 'active' if active == 'cargos' else '' }}">Cargos y Funciones</a>
+          <a href="/rrhh/parametrizacion/cargos" class="{{ 'active' if active == 'cargos' else '' }}">Cargos - MOF</a>
           <a href="/rrhh/parametrizacion/esquemas-pago" class="{{ 'active' if active == 'esquemas_pago' else '' }}">Esquemas de Pago</a>
           <a href="/rrhh/parametrizacion/bases" class="{{ 'active' if active == 'sede' else '' }}">Bases</a>
           <a href="/rrhh/parametrizacion/sedes-geocercas" class="{{ 'active' if active == 'sedes_geocercas' else '' }}">Sedes y Geocercas (GPS)</a>

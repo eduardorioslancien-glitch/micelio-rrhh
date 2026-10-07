@@ -41,6 +41,7 @@ from .auth import NotAuthenticated, Forbidden, MustChangePassword, require_role
 from . import rrhh as rrhh_module
 from . import reclutamiento as reclutamiento_module
 from . import clima as clima_module
+from . import procesos as procesos_module
 from . import public_landing as public_landing_module
 from . import api_leads as api_leads_module
 from . import man_academy as man_academy_module
@@ -101,6 +102,7 @@ with SessionLocal() as _db:
 app.include_router(rrhh_module.router)
 app.include_router(reclutamiento_module.router)
 app.include_router(clima_module.router)
+app.include_router(procesos_module.router)
 app.include_router(public_landing_module.router)
 app.include_router(api_leads_module.router)
 app.include_router(man_academy_module.router)
@@ -663,7 +665,7 @@ def build_doc_fields(emp: Employee, doc_type: str, db: Session = None) -> dict:
             cargo_obj = db.query(Cargo).filter(Cargo.nombre == ficha["cargo"]).first()
             if cargo_obj:
                 base["cargo_descripcion"] = cargo_obj.descripcion or ""
-                base["cargo_funciones"] = cargo_obj.funciones or []
+                base["cargo_funciones"] = cargo_obj.funciones_todas
                 base["cargo_responsabilidades"] = cargo_obj.responsabilidades or []
     return base
 

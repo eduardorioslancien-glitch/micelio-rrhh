@@ -41,8 +41,8 @@
     </table>
 
     <div class="section-title">Funciones</div>
-    {% if cargo.funciones %}
-    <ul class="lista-simple">{% for f in cargo.funciones %}<li>{{ f }}</li>{% endfor %}</ul>
+    {% if cargo.funciones_todas %}
+    <ul class="lista-simple">{% for f in cargo.funciones_todas %}<li>{{ f }}</li>{% endfor %}</ul>
     {% else %}
     <p class="muted">No hay funciones registradas.</p>
     {% endif %}

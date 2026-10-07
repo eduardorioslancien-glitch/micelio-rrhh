@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Procesos y Funciones — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=16">
+<style>
+  /* Estilos propios de esta pantalla (se dejan acá y no en style.css para no
+     tener que invalidar el caché de todas las demás pantallas). */
+  .pf-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .pf-pills { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .pf-pill { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--border);
+             border-radius:20px; color:var(--navy-dark); text-decoration:none; font-weight:600; font-size:13px; background:#fff; }
+  .pf-pill:hover { border-color:var(--navy); }
+  .pf-pill.activa { background:var(--navy); color:#fff; border-color:var(--navy); }
+  .pf-pill .pf-n { background:var(--yellow-bg); color:var(--yellow); border-radius:10px; padding:1px 7px; font-size:11px; }
+  .pf-pill.activa .pf-n { background:#fff; }
+
+  .pf-kpis { grid-template-columns: repeat(6, 1fr); gap:12px; }
+  @media (max-width: 1100px) { .pf-kpis { grid-template-columns: repeat(3, 1fr); } }
+  .pf-kpis .kpi-card.warn .kpi-value { color:var(--yellow); }
+  .pf-kpis .kpi-card.ok .kpi-value { color:var(--green); }
+  .pf-barra { height:10px; background:var(--light2); border-radius:6px; overflow:hidden; margin-top:14px; }
+  .pf-barra > div { height:100%; background:var(--green); }
+  .pf-faltan { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:13px; }
+  .pf-chip { padding:4px 10px; border-radius:14px; font-size:12px; font-weight:600; }
+  .pf-chip.warn { background:var(--yellow-bg); color:var(--yellow); }
+  .pf-chip.ok { background:var(--green-bg); color:var(--green); }
+
+  /* ayuda emergente: pasa el mouse (o toca) el "?" */
+  .pf-q { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%;
+          background:var(--light2); color:var(--navy-dark); font-size:11px; font-weight:700; cursor:help; position:relative;
+          margin-left:5px; vertical-align:middle; text-transform:none; }
+  .pf-q:hover::after, .pf-q:focus::after { content: attr(data-tip); position:absolute; z-index:30; left:50%; top:130%;
+          transform:translateX(-50%); width:240px; background:#1B2430; color:#fff; padding:9px 11px; border-radius:6px;
+          font-size:12px; font-weight:400; line-height:1.45; box-shadow:0 4px 14px rgba(0,0,0,.25); text-align:left; }
+
+  .pf-guia summary { cursor:pointer; font-weight:700; color:var(--navy-dark); }
+  .pf-pasos { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:12px; }
+  @media (max-width: 900px) { .pf-pasos { grid-template-columns:1fr; } }
+  .pf-paso { background:var(--light2); border-radius:8px; padding:12px 14px; font-size:13px; }
+  .pf-paso .pf-t { display:block; font-weight:700; color:var(--navy-dark); margin-bottom:4px; }
+  .pf-ejemplo { font-family:ui-monospace,Consolas,monospace; font-size:12px; background:#fff; border:1px dashed var(--border);
+                border-radius:6px; padding:8px 10px; margin-top:10px; white-space:pre; overflow-x:auto; }
+
+  .pf-barra-acciones { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .pf-barra-acciones .grow { flex:1; }
+
+  .pf-arbol, .pf-arbol ul { list-style:none; margin:0; padding:0; }
+  .pf-arbol ul { margin-left:22px; border-left:2px solid var(--light2); padding-left:10px; }
+  .pf-arbol li.pf-cerrado > ul { display:none; }
+  .pf-nodo { margin:3px 0; }
+  .pf-fila { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:7px 10px; border:1px solid var(--border);
+             border-radius:7px; background:#fff; }
+  .pf-nodo:target > .pf-fila { outline:3px solid #9DB9F2; }
+  .pf-nodo.pf-macro > .pf-fila { background:var(--navy); color:#fff; border-color:var(--navy); }
+  .pf-nodo.pf-macro > .pf-fila .pf-cod, .pf-nodo.pf-macro > .pf-fila .pf-desc { color:#D5E1FA; }
+  .pf-nodo.pf-func > .pf-fila { background:#FBFCFE; }
+  .pf-nodo.pf-func.pf-pend > .pf-fila { border-left:4px solid #E0A400; }
+  .pf-toggle { width:22px; height:22px; border:none; background:transparent; cursor:pointer; font-size:14px; color:inherit; padding:0; }
+  .pf-toggle.vacio { visibility:hidden; }
+  .pf-cod { font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--gray); min-width:34px; }
+  .pf-tipo { font-size:10px; text-transform:uppercase; font-weight:700; letter-spacing:.3px; padding:2px 7px; border-radius:4px;
+             background:var(--light2); color:var(--navy-dark); white-space:nowrap; }
+  .pf-nodo.pf-macro > .pf-fila .pf-tipo { background:rgba(255,255,255,.2); color:#fff; }
+  .pf-nodo.pf-func > .pf-fila .pf-tipo { background:#EEF3E8; color:#3E6B1F; }
+  .pf-nombre { font-weight:600; flex:1; min-width:160px; }
+  .pf-nodo.pf-func > .pf-fila .pf-nombre { font-weight:500; }
+  .pf-desc { flex-basis:100%; font-size:12px; color:var(--gray); margin-left:62px; }
+  .pf-mod { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+  .pf-mod-persona { background:#E3EBFC; color:var(--navy-dark); }
+  .pf-mod-agente { background:#EBDDFB; color:#5B2A9A; }
+  .pf-mod-por_definir { background:var(--yellow-bg); color:var(--yellow); }
+  .pf-asig { font-size:12px; padding:2px 9px; border-radius:10px; background:var(--green-bg); color:var(--green); max-width:340px; }
+  .pf-asig.heredada { background:transparent; border:1px dashed var(--green); }
+  .pf-nodo.pf-macro > .pf-fila .pf-asig { background:rgba(255,255,255,.18); color:#fff; border-color:#fff; }
+  .pf-st { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+  .pf-st.warn { background:var(--yellow-bg); color:var(--yellow); }
+  .pf-st.ok { background:var(--green-bg); color:var(--green); }
+  .pf-st.agente { background:#EBDDFB; color:#5B2A9A; }
+  .pf-nodo.pf-macro > .pf-fila .pf-st.warn { background:#FFF1C2; }
+  .pf-acciones { display:flex; gap:5px; align-items:center; flex-wrap:wrap; margin-left:auto; }
+  .pf-acciones form { display:inline; margin:0; }
+  .pf-btn { font-size:11px; padding:3px 8px; border:1px solid var(--border); background:#fff; color:var(--navy-dark);
+            border-radius:5px; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .pf-btn:hover { border-color:var(--navy); background:var(--light2); }
+  .pf-btn.mini { padding:3px 6px; }
+  .pf-vacio { padding:34px 20px; text-align:center; color:var(--gray); }
+  .pf-vacio h3 { color:var(--navy-dark); margin-top:0; }
+
+  dialog.pf-dlg { border:none; border-radius:10px; padding:22px 24px; width:min(560px, 92vw); box-shadow:0 12px 40px rgba(0,0,0,.3); }
+  dialog.pf-dlg::backdrop { background:rgba(20,30,50,.45); }
+  .pf-dlg h3 { margin:0 0 4px; color:var(--navy-dark); }
+  .pf-dlg-acciones { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+  .pf-opciones { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .pf-sec { margin-top:12px; padding:12px; background:var(--light2); border-radius:8px; }
+  .pf-opcion { border:2px solid var(--border); border-radius:8px; padding:9px 10px; cursor:pointer; text-transform:none; font-weight:400; font-size:12px; }
+  .pf-opcion b { display:block; font-size:13px; color:var(--navy-dark); }
+  .pf-opcion input { width:auto; margin-right:5px; }
+  .pf-opcion:has(input:checked) { border-color:var(--navy); background:#F0F5FF; }
+  .pf-tabla-roles { min-width:640px; }
+  .pf-tabla-roles td:nth-child(1) { min-width:150px; }
+  .pf-tabla-roles td:nth-child(3) { min-width:220px; }
+  .pf-tabla-roles th, .pf-tabla-roles td:nth-child(2), .pf-tabla-roles td:nth-child(4) { white-space:nowrap; }
+  .pf-compartido { font-size:11px; color:#5B2A9A; }
+  .pf-lista { max-height:210px; overflow:auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; }
+  .pf-grp { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--navy-dark); margin:8px 0 3px; }
+  .pf-chk { display:flex; gap:7px; align-items:center; text-transform:none; font-weight:400; font-size:13px; padding:2px 0; cursor:pointer; }
+  .pf-chk input { width:auto; }
+  .pf-chip-persona { display:inline-block; background:#E3EBFC; color:var(--navy-dark); border-radius:12px; padding:2px 9px; font-size:12px; margin:2px 4px 2px 0; }
+  .pf-asig.agente { background:#EBDDFB; color:#5B2A9A; }
+  .pf-asig.agente.heredada { background:transparent; border:1px dashed #5B2A9A; }
+  .pf-asig.derivada { background:transparent; border:1px dashed var(--green); font-style:italic; }
+  .pf-asig.agente.derivada { border-color:#5B2A9A; }
+  .pf-nodo.pf-macro > .pf-fila .pf-asig.agente, .pf-nodo.pf-macro > .pf-fila .pf-asig.derivada { color:#fff; border-color:#fff; }
+  .pf-st.bad { background:var(--red-bg); color:var(--red); }
+  .pf-opciones.dos { grid-template-columns:repeat(2,1fr); }
+  .pf-x { border:none; background:transparent; color:var(--red); cursor:pointer; font-size:15px; line-height:1; padding:0 0 0 4px; }
+  .pf-asig.rol { background:var(--green-bg); color:var(--green); }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+{% if not empresa %}
+<div class="card">
+  <h2>Procesos y Funciones</h2>
+  <p class="muted">Todavía no hay empresas activas. Primero crea una en <a href="/rrhh/parametrizacion/empresas">Parámetros &rsaquo; Empresas</a> — la estructura de procesos se arma por empresa.</p>
+</div>
+{% else %}
+
+{# ------------------------------------------------------------------ #}
+{# Macros del árbol                                                    #}
+{# ------------------------------------------------------------------ #}
+{% macro fila(n) %}
+<div class="pf-fila">
+  <button type="button" class="pf-toggle {{ '' if n.hijos else 'vacio' }}" onclick="pfPlegar(this)" title="Plegar / desplegar">&#9662;</button>
+  <span class="pf-cod">{{ n.codigo }}</span>
+  <span class="pf-tipo">{{ n.tipo }}</span>
+  <span class="pf-nombre">{{ n.nombre }}</span>
+
+  {# Rol asignado (cargo) o agente IA #}
+  {% set e = n.efectivo %}
+  {% if e %}
+    <span class="pf-asig {{ e.tipo }} {{ e.origen }}"
+          title="{% if e.origen == 'heredada' %}Heredado de «{{ e.desde }}»{% elif e.origen == 'derivada' %}Se completó solo: todas sus funciones son de este mismo rol{% else %}Asignado directamente a este elemento{% endif %}">
+      {% if e.origen == 'heredada' %}↳ {% elif e.origen == 'derivada' %}⇡ {% endif %}
+      {% if e.tipo == 'rol' %}Rol: {{ e.cargo.nombre }}{% else %}Agente IA{% if e.nombre %}: {{ e.nombre }}{% endif %}{% endif %}
+    </span>
+    {% if e.tipo == 'rol' %}
+      {% if e.n_personas %}<span class="pf-mod pf-mod-persona" title="Personas que hoy tienen este cargo (de Personal)">{{ e.n_personas }} {{ 'persona' if e.n_personas == 1 else 'personas' }}</span>
+      {% else %}<span class="pf-mod pf-mod-por_definir" title="Nadie tiene este cargo todavía: hay que cubrirlo">Por cubrir</span>{% endif %}
+    {% endif %}
+  {% endif %}
+
+  {# Qué falta #}
+  {% if n.es_funcion %}
+    {% if n.estado == 'sin_asignar' %}<span class="pf-st warn" title="Esta función todavía no está asignada a ningún rol ni a un agente IA">Sin asignar</span>{% endif %}
+  {% else %}
+    {% if n.vacio %}<span class="pf-st warn" title="Este proceso todavía no tiene funciones ni subprocesos adentro">Sin funciones aún</span>{% endif %}
+    {% if n.falta_responsable %}<span class="pf-st warn" title="Sus funciones son de distintos roles o mezclan roles y agentes IA: asigna el proceso al rol responsable">Falta responsable</span>{% endif %}
+    {% if n.conflicto %}<span class="pf-st bad" title="Está asignado a un agente IA pero tiene funciones de un rol: asígnalo al rol responsable">Conflicto</span>{% endif %}
+    {% if n.n_sin_asignar %}<span class="pf-st warn">{{ n.n_sin_asignar }} sin asignar</span>{% endif %}
+    {% if not n.n_problemas and n.n_func %}<span class="pf-st ok">Completo</span>{% endif %}
+  {% endif %}
+
+  <span class="pf-acciones">
+    {% if not n.es_funcion %}
+      <button type="button" class="pf-btn" data-parent="{{ n.id }}" data-funcion="0" data-ruta="{{ n.ruta }}" data-label="{{ n.label_hijo }}" onclick="pfNuevo(this)">+ {{ n.label_hijo }}</button>
+      <button type="button" class="pf-btn" data-parent="{{ n.id }}" data-funcion="1" data-ruta="{{ n.ruta }}" data-label="Función" onclick="pfNuevo(this)">+ Función</button>
+    {% endif %}
+    <button type="button" class="pf-btn" data-id="{{ n.id }}" data-nombre="{{ n.nombre }}" data-funcion="{{ '1' if n.es_funcion else '0' }}"
+            data-tipo="{{ n.asig_tipo or '' }}" data-cargo="{{ n.asig_cargo_id or '' }}"
+            data-agente="{{ n.asig_agente_nombre or '' }}" data-nota="{{ n.asig_agente_nota or '' }}"
+            data-actual="{{ ('Ahora: ' ~ ('Rol ' ~ e.cargo.nombre if e.tipo == 'rol' else 'Agente IA') ~ (' (heredado de «' ~ e.desde ~ '»)' if e.origen == 'heredada' else (' (se completó solo por sus funciones)' if e.origen == 'derivada' else ''))) if (e and e.origen != 'propia') else '' }}"
+            title="Asignar rol: un cargo (la persona sale de Personal) o un agente IA" onclick="pfAsignar(this)">Asignar rol</button>
+    <button type="button" class="pf-btn" title="Cambiar el nombre o la descripción"
+            data-id="{{ n.id }}" data-nombre="{{ n.nombre }}" data-desc="{{ n.descripcion or '' }}"
+            data-tipo="{{ n.tipo }}" data-ruta="{{ n.ruta }}" onclick="pfEditar(this)">Editar</button>
+    <form method="post" action="/rrhh/parametrizacion/procesos/nodo/{{ n.id }}/mover"><input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}"><input type="hidden" name="direccion" value="arriba"><button class="pf-btn mini" type="submit" title="Subir">&#9650;</button></form>
+    <form method="post" action="/rrhh/parametrizacion/procesos/nodo/{{ n.id }}/mover"><input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}"><input type="hidden" name="direccion" value="abajo"><button class="pf-btn mini" type="submit" title="Bajar">&#9660;</button></form>
+    <form method="post" action="/rrhh/parametrizacion/procesos/nodo/{{ n.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar «{{ n.nombre|replace("'", "") }}»{% if n.n_desc %} y los {{ n.n_desc }} elementos que contiene{% endif %}? No se puede deshacer.{% if n.es_funcion %} Si estaba asignada a un rol, también desaparece del MOF de ese cargo.{% endif %}');">
+      <input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}">
+      <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar"></button>
+    </form>
+  </span>
+  {% if n.descripcion %}<div class="pf-desc">{{ n.descripcion }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro nodo(n) %}
+<li id="n{{ n.id }}" class="pf-nodo {{ 'pf-func' if n.es_funcion else ('pf-macro' if n.depth == 0 else 'pf-proc') }} {{ 'pf-pend' if (n.es_funcion and n.estado == 'sin_asignar') else '' }}">
+  {{ fila(n) }}
+  {% if n.hijos %}<ul>{% for h in n.hijos %}{{ nodo(h) }}{% endfor %}</ul>{% endif %}
+</li>
+{% endmacro %}
+
+<div class="card">
+  <div class="pf-head">
+    <div>
+      <h2 style="margin:0;">Procesos y Funciones</h2>
+      <p class="muted" style="max-width:720px;">El mapa de todo lo que se hace en cada empresa. Sirve para saber qué <b>roles (cargos)</b> deben existir, qué <b>funciones</b> tiene cada uno y qué se puede <b>automatizar con un agente IA</b> — y con eso calcular cuántas personas y cuántos agentes se necesitan. Todo se asigna a un <b>rol</b> (no a una persona): las personas de cada rol salen de Personal.</p>
+    </div>
+    <a class="btn secondary" href="/rrhh/parametrizacion/procesos/imprimir?empresa_id={{ empresa.id }}" target="_blank">Imprimir estructura</a>
+  </div>
+  <div class="pf-pills">
+    {% for e in empresas %}
+    <a class="pf-pill {{ 'activa' if e.id == empresa.id else '' }}" href="/rrhh/parametrizacion/procesos?empresa_id={{ e.id }}" title="Estructura de {{ e.nombre }}">
+      {{ e.nombre }}
+      {% set pend = resumen_empresas[e.id].sin_asignar + resumen_empresas[e.id].falta_responsable + resumen_empresas[e.id].conflictos %}
+      {% if pend %}<span class="pf-n" title="Pendientes de asignar">{{ pend }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  <p class="hint">Cada empresa tiene su propia estructura. El número ámbar indica cuántas cosas le faltan por asignar.</p>
+</div>
+
+<div class="card">
+  {% set faltan = ind.sin_asignar + ind.falta_responsable + ind.conflictos %}
+  <div class="kpi-grid pf-kpis">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ ind.macros }}</div>
+      <div class="kpi-label">Procesos macro <span class="pf-q" tabindex="0" data-tip="Las grandes áreas de trabajo de la empresa (por ejemplo: Gestión de RR.HH., Ventas, Finanzas). Son el primer nivel del árbol.">?</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ ind.procesos }}</div>
+      <div class="kpi-label">Procesos y subprocesos <span class="pf-q" tabindex="0" data-tip="Los procesos que cuelgan de un macro, y los subprocesos que cuelgan de ellos.">?</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ ind.funciones }}</div>
+      <div class="kpi-label">Funciones <span class="pf-q" tabindex="0" data-tip="Las tareas concretas que hace un rol. Son el último nivel: no se les puede agregar nada adentro. Las que asignes a un rol se agregan solas a su MOF en «Cargos - MOF».">?</span></div>
+    </div>
+    <div class="kpi-card {{ 'warn' if faltan else ('ok' if ind.funciones else '') }}">
+      <div class="kpi-value">{{ faltan }}</div>
+      <div class="kpi-label">Faltan por asignar <span class="pf-q" tabindex="0" data-tip="Funciones sin rol ni agente IA, y procesos con funciones mezcladas que todavía no tienen un rol responsable.">?</span></div>
+      <div class="kpi-sub">{{ ind.sin_asignar }} funciones · {{ ind.falta_responsable + ind.conflictos }} procesos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ ind.humanos }}</div>
+      <div class="kpi-label">Humanos necesarios <span class="pf-q" tabindex="0" data-tip="Suma de las personas que tienen hoy cada rol de esta estructura (según Personal). Un rol que nadie tiene todavía cuenta 1, porque hay que cubrirlo.">?</span></div>
+      <div class="kpi-sub">en {{ ind.roles }} roles · {{ ind.roles_por_cubrir }} por cubrir</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ ind.agentes }}</div>
+      <div class="kpi-label">Agentes IA a desarrollar <span class="pf-q" tabindex="0" data-tip="Un agente por cada proceso o función más alto que asignaste a un agente IA (cubre todo lo que tiene debajo). Si dos lugares usan el mismo nombre de agente, cuentan como uno.">?</span></div>
+      <div class="kpi-sub">cubren {{ ind.agente_funciones }} funciones</div>
+    </div>
+  </div>
+
+  {% if ind.funciones %}
+  <div class="pf-barra" title="{{ ind.pct }}% de las funciones ya tienen un rol o un agente IA"><div style="width:{{ ind.pct }}%;"></div></div>
+  <div class="pf-faltan">
+    <span class="muted"><b>{{ ind.pct }}%</b> de las funciones ya tiene rol o agente IA.</span>
+    {% if ind.sin_asignar %}<span class="pf-chip warn">{{ ind.sin_asignar }} funciones sin asignar</span>{% endif %}
+    {% if ind.falta_responsable %}<span class="pf-chip warn">{{ ind.falta_responsable }} procesos con funciones mezcladas necesitan un rol responsable</span>{% endif %}
+    {% if ind.conflictos %}<span class="pf-chip warn">{{ ind.conflictos }} procesos asignados a agente IA tienen funciones de un rol</span>{% endif %}
+    {% if ind.vacios %}<span class="pf-chip warn">{{ ind.vacios }} procesos sin funciones</span>{% endif %}
+    {% if ind.roles_por_cubrir %}<span class="pf-chip warn">{{ ind.roles_por_cubrir }} roles que nadie tiene todavía</span>{% endif %}
+    {% if not (ind.pendientes or ind.roles_por_cubrir) %}<span class="pf-chip ok">Todo asignado y cubierto</span>{% endif %}
+    {% if ind.pendientes %}
+      {% if solo_pendientes %}
+        <a href="/rrhh/parametrizacion/procesos?empresa_id={{ empresa.id }}">Ver todo el árbol</a>
+      {% else %}
+        <a href="/rrhh/parametrizacion/procesos?empresa_id={{ empresa.id }}&solo_pendientes=1">Ver en el árbol solo lo que falta</a>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card pf-guia">
+  <details {{ 'open' if not ind.macros else '' }}>
+    <summary>¿Cómo se usa esta pantalla? (guía rápida de 3 pasos)</summary>
+    <div class="pf-pasos">
+      <div class="pf-paso"><span class="pf-t">1. Arma la estructura</span>Empieza con un <b>Proceso Macro</b> (por ejemplo «Gestión de RR.HH.»). Dentro puedes agregar <b>Procesos</b>, <b>Subprocesos</b> y <b>Funciones</b>, en el orden y la profundidad que necesites. Usa las flechas ▲▼ para reordenar.</div>
+      <div class="pf-paso"><span class="pf-t">2. Asigna el rol</span>Con <b>Asignar rol</b> eliges un <b>rol (cargo)</b> o un <b>agente IA</b> — no una persona: las personas de cada cargo salen de Personal. Si lo haces en un proceso o subproceso, <b>todo lo que tiene adentro</b> queda con ese rol (salvo lo que ya tenga el suyo). Cada función de un rol se agrega sola a su MOF en <b>Cargos - MOF</b>.</div>
+      <div class="pf-paso"><span class="pf-t">3. Los procesos se completan solos</span>Si <b>todas</b> las funciones de un proceso son del mismo rol (o todas de agentes IA), el proceso es de ese rol (o de un agente IA). Si están <b>mezcladas</b>, el sistema te pide asignar el proceso a un <b>rol responsable</b>. Lo mismo sube por subprocesos, procesos y macros.</div>
+    </div>
+    <div class="pf-ejemplo">Proceso Macro: Gestión de RR.HH.                  → rol responsable: Jefe de RR.HH.
+  ├─ Proceso: Planillas                             ⇡ Agente IA (todas sus funciones lo son)
+  │    ├─ Función: Calcular planilla mensual        → Agente IA
+  │    └─ Función: Generar boletas                  → Agente IA
+  └─ Proceso: Atención al personal                  ⇡ Rol: Asistente de RR.HH. (3 personas)
+       └─ Función: Atender consultas                → Rol: Asistente de RR.HH.   (queda en su MOF)</div>
+    <p class="hint">Los roles se pueden compartir entre empresas del holding, y una persona de otra empresa puede sumarse a un rol de esta (por ejemplo, quien paga planillas en DIGETEL también puede hacerlo en INTECNO): en «Headcount» usa «Agregar persona de otra empresa». Por ahora el administrador decide qué se automatiza; más adelante un agente IA podrá sugerirlo.</p>
+  </details>
+</div>
+
+<div class="card">
+  <div class="pf-barra-acciones">
+    <button class="btn" type="button" data-parent="" data-funcion="0" data-ruta="" data-label="Proceso Macro" onclick="pfNuevo(this)">+ Nuevo Proceso Macro</button>
+    <button class="btn secondary" type="button" onclick="pfTodo(true)">Desplegar todo</button>
+    <button class="btn secondary" type="button" onclick="pfTodo(false)">Plegar todo</button>
+    <span class="grow"></span>
+    {% if solo_pendientes %}<span class="pf-chip warn">Mostrando solo lo que falta</span>
+      <a href="/rrhh/parametrizacion/procesos?empresa_id={{ empresa.id }}">Ver todo</a>{% endif %}
+  </div>
+
+  {% if arbol %}
+  <ul class="pf-arbol">{% for r in arbol %}{{ nodo(r) }}{% endfor %}</ul>
+  {% elif solo_pendientes %}
+  <div class="pf-vacio"><h3>No hay nada pendiente</h3><p>Todo tiene rol o agente IA asignado y todos los procesos tienen funciones.</p></div>
+  {% else %}
+  <div class="pf-vacio">
+    <h3>{{ empresa.nombre }} todavía no tiene procesos</h3>
+    <p>Empieza creando el primer <b>Proceso Macro</b> — una gran área de trabajo, por ejemplo «Gestión de RR.HH.», «Ventas» o «Finanzas».<br>Después le agregas procesos y funciones.</p>
+    <button class="btn" type="button" data-parent="" data-funcion="0" data-ruta="" data-label="Proceso Macro" onclick="pfNuevo(this)">+ Crear el primer Proceso Macro</button>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card" id="roles">
+  <h2>Headcount de {{ empresa.nombre }} <span class="pf-q" tabindex="0" data-tip="Resumen automático: los roles (cargos) que usa la estructura, con las personas que hoy los tienen según Personal, y los agentes IA que habría que desarrollar.">?</span></h2>
+
+  <h3>Roles y personas — {{ ind.humanos }} humanos en {{ ind.roles }} roles</h3>
+  <p class="muted">Las personas de cada rol son las que tienen ese cargo en su ficha (Personal). Si alguien de otra empresa del holding también cubre el rol aquí, agrégalo con el botón.</p>
+  {% if roles %}
+  <div style="overflow-x:auto;">
+  <table class="pf-tabla-roles">
+    <tr><th>Rol (cargo)</th><th>Personas</th><th>Funciones</th><th>Responsable de procesos</th><th></th></tr>
+    {% for r in roles %}
+    <tr>
+      <td><b>{{ r.cargo.nombre }}</b>
+        <div><a href="/rrhh/parametrizacion/cargo/{{ r.cargo.id }}" style="font-size:11px;" title="Ver este cargo en Cargos - MOF: sus funciones de aquí aparecen solas">Ver en Cargos - MOF</a></div>
+        {% if otras.roles.get(r.cargo.id) %}<div class="pf-compartido">También en {{ otras.roles[r.cargo.id]|join(', ') }}</div>{% endif %}
+      </td>
+      <td>
+        {% for p in r.personas %}
+          <span class="pf-chip-persona" title="{{ 'Tiene este cargo en Personal' if p.origen == 'personal' else 'Agregada a este rol desde otra empresa' }}">
+            {{ p.emp.nombre_completo }}{% if p.emp.empresa_rel and p.emp.empresa_id != empresa.id %} · de {{ p.emp.empresa_rel.nombre }}{% endif %}
+            {% if p.origen == 'extra' %}
+            <form method="post" action="/rrhh/parametrizacion/procesos/rol/{{ r.cargo.id }}/persona/{{ p.emp.id }}/quitar" style="display:inline;">
+              <input type="hidden" name="empresa_id" value="{{ empresa.id }}"><input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}">
+              <button type="submit" class="pf-x" title="Quitar a esta persona de este rol">&times;</button>
+            </form>
+            {% endif %}
+          </span>
+          {% if otras.personas.get(p.emp.id) %}<span class="pf-compartido">(también en {{ otras.personas[p.emp.id]|join(', ') }})</span>{% endif %}
+        {% else %}
+          <span class="pf-chip warn">Por cubrir — nadie tiene este cargo todavía</span>
+        {% endfor %}
+      </td>
+      <td>
+        <details><summary>{{ r.funciones|length }}</summary>
+          <ul style="margin:6px 0 0 16px; padding:0; font-size:12px;">{% for f in r.funciones %}<li><span class="muted">{{ f.codigo }}</span> {{ f.nombre }}</li>{% endfor %}</ul>
+        </details>
+      </td>
+      <td>
+        {% if r.procesos %}{% for pr in r.procesos %}<div style="font-size:12px;"><span class="muted">{{ pr.codigo }}</span> {{ pr.nombre }}</div>{% endfor %}{% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td><button type="button" class="pf-btn" data-cargo-id="{{ r.cargo.id }}" data-nombre="{{ r.cargo.nombre }}" onclick="pfAgregarPersona(this)">Agregar persona de otra empresa</button></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">Todavía no hay roles en esta estructura. Usa «Asignar rol» en una función o proceso del árbol.</p>
+  {% endif %}
+
+  <h3 style="margin-top:20px;">Agentes IA a desarrollar ({{ ind.agentes }})</h3>
+  {% if agentes %}
+  <div style="overflow-x:auto;">
+  <table class="pf-tabla-roles">
+    <tr><th>#</th><th>Agente</th><th>Funciones que cubre</th><th>Qué haría</th></tr>
+    {% for a in agentes %}
+    <tr>
+      <td class="muted">{{ a.codigo }}</td>
+      <td><b>{{ a.nombre }}</b><div class="muted">{{ a.ruta }}</div></td>
+      <td><details><summary>{{ a.funciones|length }}</summary>
+        <ul style="margin:6px 0 0 16px; padding:0; font-size:12px;">{% for f in a.funciones %}<li><span class="muted">{{ f.codigo }}</span> {{ f.nombre }}</li>{% endfor %}</ul>
+      </details></td>
+      <td>{{ a.nota or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">Todavía no asignaste nada a un agente IA. Con «Asignar rol» en un proceso o función eliges «Agente IA».</p>
+  {% endif %}
+  <p class="hint">Humanos necesarios = personas que hoy tienen cada rol (un rol que nadie tiene cuenta 1). Agentes a desarrollar = un agente por cada proceso o función más alto asignado a un agente IA (el mismo nombre de agente cuenta una sola vez).</p>
+</div>
+
+{# ------------------------------------------------------------------ #}
+{# Diálogos                                                            #}
+{# ------------------------------------------------------------------ #}
+<dialog id="dlg-nodo" class="pf-dlg">
+  <form method="post" id="f-nodo" action="">
+    <input type="hidden" name="empresa_id" value="{{ empresa.id }}">
+    <input type="hidden" name="parent_id" id="nodo-parent">
+    <input type="hidden" name="es_funcion" id="nodo-funcion" value="0">
+    <input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}">
+    <h3 id="nodo-titulo"></h3>
+    <div class="muted" id="nodo-contexto"></div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Nombre</label>
+      <input type="text" name="nombre" id="nodo-nombre" required maxlength="250">
+      <div class="hint" id="nodo-ayuda-nombre"></div>
+    </div>
+    <div class="field">
+      <label>Descripción (opcional)</label>
+      <textarea name="descripcion" id="nodo-desc" rows="2" placeholder="Qué abarca, en una o dos líneas"></textarea>
+    </div>
+    <div class="hint">El rol responsable se asigna después con el botón «Asignar rol».</div>
+    <div class="pf-dlg-acciones">
+      <button class="btn secondary" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button class="btn" type="submit" id="nodo-submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-asignar" class="pf-dlg">
+  <form method="post" id="f-asignar" action="">
+    <input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}">
+    <input type="hidden" name="tipo" id="asig-tipo" value="ninguno">
+    <h3>Asignar rol a «<span id="asig-nombre"></span>»</h3>
+    <p class="muted" id="asig-ayuda"></p>
+    <div id="asig-actual" class="hint" style="color:var(--green);" hidden></div>
+
+    <div class="pf-opciones dos" style="margin-top:10px;">
+      <label class="pf-opcion"><b><input type="radio" name="_t" value="rol" onchange="pfTipo()">Rol (cargo)</b>Lo cubren las personas que tienen ese cargo.</label>
+      <label class="pf-opcion"><b><input type="radio" name="_t" value="agente" onchange="pfTipo()">Agente IA</b>Se automatiza: hay que desarrollarlo.</label>
+    </div>
+
+    <div class="pf-sec" id="asig-rol-sec" hidden>
+      <div class="field" style="margin-bottom:0;">
+        <label>Rol (cargo)</label>
+        <select name="cargo_id" id="asig-cargo">
+          <option value="">— Elige un rol —</option>
+          {% for c in cargos %}<option value="{{ c.id }}">{{ c.nombre }} ({{ c.n }} {{ 'persona' if c.n == 1 else 'personas' }})</option>{% endfor %}
+        </select>
+        <div class="hint">Entre paréntesis, cuántas personas tienen hoy ese cargo en {{ empresa.nombre }} (según Personal). Los roles se administran en <a href="/rrhh/parametrizacion/cargos" target="_blank">Parámetros &rsaquo; Cargos - MOF</a>. Las funciones que asignes a un rol se agregan solas a su MOF.</div>
+      </div>
+    </div>
+
+    <div class="pf-sec" id="asig-agente-sec" hidden>
+      <div class="field">
+        <label>Nombre del agente (opcional)</label>
+        <input type="text" name="agente_nombre" id="asig-agente-nombre" maxlength="150" placeholder="Ej.: Agente de planillas">
+        <div class="hint">Si usas el mismo nombre en varios lugares, cuenta como un solo agente.</div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>¿Qué haría? (opcional)</label>
+        <textarea name="agente_nota" id="asig-agente-nota" rows="2" placeholder="Ej.: calcula la planilla con las marcaciones del mes y genera las boletas"></textarea>
+      </div>
+    </div>
+
+    <div class="pf-dlg-acciones">
+      <button class="btn secondary" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button class="btn secondary" type="button" onclick="pfQuitarAsignacion()">Quitar asignación</button>
+      <button class="btn" type="submit" id="asig-guardar">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-persona" class="pf-dlg">
+  <form method="post" id="f-persona" action="">
+    <input type="hidden" name="empresa_id" value="{{ empresa.id }}">
+    <input type="hidden" name="sp" value="{{ '1' if solo_pendientes else '' }}">
+    <h3>Agregar persona al rol «<span id="per-nombre"></span>»</h3>
+    <p class="muted">Para alguien que no tiene este cargo en su ficha pero también lo cubre en {{ empresa.nombre }} — por ejemplo, una persona de otra empresa del holding.</p>
+    <div class="field" style="margin-top:10px;">
+      <label>Persona</label>
+      <select name="employee_id" id="per-persona" required>
+        <option value="">— Elige una persona —</option>
+        {% for g in personas %}
+        <optgroup label="{{ g.empresa }}{{ ' (esta empresa)' if g.propia else ' — otra empresa del holding' }}">
+          {% for e in g.lista %}<option value="{{ e.id }}">{{ e.nombre }}{% if e.cargo %} — {{ e.cargo }}{% endif %}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+      <div class="hint">Solo aparece personal con estado activo.</div>
+    </div>
+    <div class="pf-dlg-acciones">
+      <button class="btn secondary" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button class="btn" type="submit">Agregar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const PF_BASE = "/rrhh/parametrizacion/procesos";
+const dlgNodo = document.getElementById("dlg-nodo");
+const dlgAsig = document.getElementById("dlg-asignar");
+const dlgPer = document.getElementById("dlg-persona");
+[dlgNodo, dlgAsig, dlgPer].forEach(d => d.addEventListener("click", ev => { if (ev.target === d) d.close(); }));
+
+function pfPlegar(btn) {
+  const li = btn.closest("li");
+  li.classList.toggle("pf-cerrado");
+  btn.innerHTML = li.classList.contains("pf-cerrado") ? "&#9656;" : "&#9662;";
+}
+function pfTodo(abrir) {
+  document.querySelectorAll(".pf-arbol li").forEach(li => {
+    if (!li.querySelector(":scope > ul")) return;
+    li.classList.toggle("pf-cerrado", !abrir);
+    const b = li.querySelector(":scope > .pf-fila .pf-toggle");
+    if (b) b.innerHTML = abrir ? "&#9662;" : "&#9656;";
+  });
+}
+
+function pfNuevo(btn) {
+  const esFuncion = btn.dataset.funcion === "1";
+  const label = btn.dataset.label;
+  document.getElementById("f-nodo").action = PF_BASE + "/nodo";
+  document.getElementById("nodo-parent").value = btn.dataset.parent;
+  document.getElementById("nodo-funcion").value = esFuncion ? "1" : "0";
+  document.getElementById("nodo-titulo").textContent = esFuncion ? "Nueva función" : "Nuevo " + label.toLowerCase();
+  document.getElementById("nodo-contexto").textContent = btn.dataset.ruta ? "Dentro de: " + btn.dataset.ruta : "Primer nivel de la estructura";
+  document.getElementById("nodo-nombre").value = "";
+  document.getElementById("nodo-desc").value = "";
+  document.getElementById("nodo-ayuda-nombre").textContent = esFuncion
+    ? "Una tarea concreta, con verbo. Ej.: «Calcular la planilla mensual»."
+    : (label === "Proceso Macro" ? "Una gran área de trabajo. Ej.: «Gestión de RR.HH.», «Ventas», «Finanzas»." : "Un conjunto de tareas relacionadas. Ej.: «Planillas», «Selección de personal».");
+  document.getElementById("nodo-submit").textContent = "Crear";
+  dlgNodo.showModal();
+  document.getElementById("nodo-nombre").focus();
+}
+
+function pfEditar(btn) {
+  document.getElementById("f-nodo").action = PF_BASE + "/nodo/" + btn.dataset.id + "/editar";
+  document.getElementById("nodo-parent").value = "";
+  document.getElementById("nodo-titulo").textContent = "Editar " + btn.dataset.tipo.toLowerCase();
+  document.getElementById("nodo-contexto").textContent = btn.dataset.ruta;
+  document.getElementById("nodo-nombre").value = btn.dataset.nombre;
+  document.getElementById("nodo-desc").value = btn.dataset.desc;
+  document.getElementById("nodo-ayuda-nombre").textContent = "";
+  document.getElementById("nodo-submit").textContent = "Guardar cambios";
+  dlgNodo.showModal();
+  document.getElementById("nodo-nombre").focus();
+}
+
+function pfTipo() {
+  const r = document.querySelector("#f-asignar input[name=_t]:checked");
+  const v = r ? r.value : "";
+  document.getElementById("asig-tipo").value = v || "ninguno";
+  document.getElementById("asig-rol-sec").hidden = (v !== "rol");
+  document.getElementById("asig-agente-sec").hidden = (v !== "agente");
+  document.getElementById("asig-guardar").disabled = !v;
+}
+function pfAsignar(btn) {
+  document.getElementById("f-asignar").action = PF_BASE + "/nodo/" + btn.dataset.id + "/asignar";
+  document.getElementById("asig-nombre").textContent = btn.dataset.nombre;
+  document.getElementById("asig-ayuda").innerHTML = btn.dataset.funcion === "1"
+    ? "Esta función la hace <b>un rol (cargo)</b> —las personas salen de Personal— o <b>un agente IA</b>."
+    : "Si asignas aquí, <b>todo lo que hay dentro</b> queda con este rol (salvo lo que ya tenga el suyo). " +
+      "Si todas las funciones de este proceso son del mismo rol o de agentes IA, el proceso se completa solo; " +
+      "si están mezcladas, asígnalo al <b>rol responsable</b>.";
+  document.querySelectorAll("#f-asignar input[name=_t]").forEach(r => r.checked = (r.value === btn.dataset.tipo));
+  document.getElementById("asig-cargo").value = btn.dataset.cargo;
+  document.getElementById("asig-agente-nombre").value = btn.dataset.agente;
+  document.getElementById("asig-agente-nota").value = btn.dataset.nota;
+  const h = document.getElementById("asig-actual");
+  h.textContent = btn.dataset.actual;
+  h.hidden = !btn.dataset.actual;
+  pfTipo();
+  dlgAsig.showModal();
+}
+function pfQuitarAsignacion() {
+  document.getElementById("asig-tipo").value = "ninguno";
+  document.getElementById("f-asignar").submit();
+}
+
+function pfAgregarPersona(btn) {
+  document.getElementById("f-persona").action = PF_BASE + "/rol/" + btn.dataset.cargoId + "/persona";
+  document.getElementById("per-nombre").textContent = btn.dataset.nombre;
+  document.getElementById("per-persona").value = "";
+  dlgPer.showModal();
+}
+</script>
+
+{% endif %}
+
+</div>
+</body>
+</html>

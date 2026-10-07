@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Procesos y Funciones — {{ empresa.nombre }}</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size:12px; color:#1F1F1F; margin:0; padding:24px 30px; }
+  header { display:flex; align-items:center; gap:14px; border-bottom:3px solid #1246AB; padding-bottom:10px; margin-bottom:14px; }
+  header img { height:38px; }
+  header h1 { margin:0; font-size:20px; color:#0E3585; }
+  header .sub { color:#666; font-size:12px; }
+  .acciones { margin-bottom:14px; }
+  .acciones button { padding:8px 16px; font-size:13px; background:#1246AB; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+  h2 { font-size:14px; color:#0E3585; border-bottom:1px solid #C9D3E8; padding-bottom:3px; margin:22px 0 8px; }
+  .kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+  .kpi { border:1px solid #C9D3E8; border-radius:6px; padding:8px 10px; }
+  .kpi b { display:block; font-size:20px; color:#0E3585; }
+  .kpi span { font-size:10px; text-transform:uppercase; color:#666; }
+  table { width:100%; border-collapse:collapse; margin-top:6px; }
+  th { text-align:left; background:#EEF2FA; color:#0E3585; font-size:11px; padding:5px 7px; border:1px solid #C9D3E8; }
+  td { padding:4px 7px; border:1px solid #DDE3F0; vertical-align:top; }
+  tr.macro td { background:#1246AB; color:#fff; font-weight:700; }
+  tr.proc td { background:#F3F6FC; font-weight:700; }
+  tr.func td { background:#fff; }
+  .cod { font-family:Consolas,monospace; color:#666; white-space:nowrap; }
+  tr.macro .cod { color:#D5E1FA; }
+  .pend { color:#B26A00; font-weight:700; }
+  tr.macro .pend { color:#FFE08A; }
+  .agente { color:#5B2A9A; font-weight:700; }
+  tr.macro .agente { color:#E4D2FF; }
+  .heredada, .derivada { font-style:italic; }
+  .nota { color:#666; font-size:11px; }
+  @media print {
+    .acciones { display:none; }
+    body { padding:0; }
+    tr { page-break-inside:avoid; }
+    tr.macro td { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    th, tr.proc td, .kpi { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+</style>
+</head>
+<body>
+{% macro filas(n) %}
+<tr class="{{ 'macro' if n.depth == 0 and not n.es_funcion else ('func' if n.es_funcion else 'proc') }}">
+  <td class="cod">{{ n.codigo }}</td>
+  <td style="padding-left:{{ 7 + n.depth * 16 }}px;">{{ n.nombre }}{% if n.descripcion %}<div class="nota">{{ n.descripcion }}</div>{% endif %}</td>
+  <td>{{ n.tipo }}</td>
+  <td>
+    {% set e = n.efectivo %}
+    {% if e %}
+      <span class="{{ e.origen if e.origen != 'propia' else '' }} {{ 'agente' if e.tipo == 'agente' else '' }}">
+        {% if e.tipo == 'rol' %}{{ e.cargo.nombre }}{% if e.n_personas is defined %} ({{ e.n_personas }} {{ 'persona' if e.n_personas == 1 else 'personas' }}{{ '' if e.n_personas else ' — por cubrir' }}){% endif %}
+        {% else %}Agente IA{% if e.nombre %}: {{ e.nombre }}{% endif %}{% endif %}
+        {% if e.origen == 'heredada' %}(heredado){% elif e.origen == 'derivada' %}(por sus funciones){% endif %}
+      </span>
+    {% elif n.es_funcion and n.estado == 'sin_asignar' %}<span class="pend">SIN ASIGNAR</span>{% endif %}
+    {% if n.vacio %}<span class="pend">Sin funciones aún</span>{% endif %}
+    {% if n.falta_responsable %}<span class="pend">FALTA ROL RESPONSABLE (funciones mezcladas)</span>{% endif %}
+    {% if n.conflicto %}<span class="pend">CONFLICTO: agente IA con funciones de un rol</span>{% endif %}
+  </td>
+</tr>
+{% for h in n.hijos %}{{ filas(h) }}{% endfor %}
+{% endmacro %}
+
+<header>
+  <img src="/static/dg_logo.png" alt="DG">
+  <div>
+    <h1>Procesos y Funciones — {{ empresa.nombre }}</h1>
+    <div class="sub">Estructura con asignaciones · Generado el {{ (ahora|lima).strftime("%d/%m/%Y %H:%M") }} por {{ user.nombre_completo }}</div>
+  </div>
+</header>
+
+<div class="acciones"><button onclick="window.print()">Imprimir / Guardar como PDF</button></div>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ ind.macros }}</b><span>Procesos macro</span></div>
+  <div class="kpi"><b>{{ ind.procesos }}</b><span>Procesos y subprocesos</span></div>
+  <div class="kpi"><b>{{ ind.funciones }}</b><span>Funciones</span></div>
+  <div class="kpi"><b>{{ ind.sin_asignar + ind.falta_responsable + ind.conflictos }}</b><span>Faltan por asignar</span></div>
+  <div class="kpi"><b>{{ ind.humanos }}</b><span>Humanos necesarios</span></div>
+  <div class="kpi"><b>{{ ind.agentes }}</b><span>Agentes IA a desarrollar</span></div>
+</div>
+
+<h2>Estructura</h2>
+{% if arbol %}
+<table>
+  <tr><th style="width:56px;">Código</th><th>Elemento</th><th style="width:96px;">Tipo</th><th style="width:300px;">Rol (cargo) o agente IA</th></tr>
+  {% for r in arbol %}{{ filas(r) }}{% endfor %}
+</table>
+{% else %}
+<p>Esta empresa todavía no tiene procesos registrados.</p>
+{% endif %}
+
+<h2>Roles y personas — {{ ind.humanos }} humanos en {{ ind.roles }} roles</h2>
+{% if roles %}
+<table>
+  <tr><th>Rol (cargo)</th><th>Personas</th><th>Funciones</th><th>Responsable de procesos</th><th>Compartido con</th></tr>
+  {% for r in roles %}
+  <tr>
+    <td><b>{{ r.cargo.nombre }}</b></td>
+    <td>
+      {% for p in r.personas %}{{ p.emp.nombre_completo }}{% if p.emp.empresa_rel and p.emp.empresa_id != empresa.id %} · de {{ p.emp.empresa_rel.nombre }}{% endif %}{{ '; ' if not loop.last else '' }}
+      {% else %}<span class="pend">Por cubrir</span>{% endfor %}
+    </td>
+    <td>{% for f in r.funciones %}{{ f.codigo }}{{ ', ' if not loop.last else '' }}{% else %}—{% endfor %}</td>
+    <td>{% for pr in r.procesos %}{{ pr.codigo }} {{ pr.nombre }}{{ '; ' if not loop.last else '' }}{% else %}—{% endfor %}</td>
+    <td>{{ otras.roles[r.cargo.id]|join(', ') if otras.roles.get(r.cargo.id) else '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p>Todavía no hay roles asignados en esta estructura.</p>{% endif %}
+
+<h2>Agentes IA a desarrollar ({{ ind.agentes }})</h2>
+{% if agentes %}
+<table>
+  <tr><th style="width:56px;">Código</th><th>Agente</th><th>Funciones que cubre</th><th>Qué haría</th></tr>
+  {% for a in agentes %}
+  <tr><td class="cod">{{ a.codigo }}</td><td>{{ a.nombre }}<div class="nota">{{ a.ruta }}</div></td>
+      <td>{% for f in a.funciones %}{{ f.codigo }}{{ ', ' if not loop.last else '' }}{% endfor %}</td><td>{{ a.nota or '—' }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p>Ningún proceso o función asignado a un agente IA.</p>{% endif %}
+</body>
+</html>

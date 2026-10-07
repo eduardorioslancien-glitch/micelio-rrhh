@@ -129,7 +129,7 @@
   <div class="card">
     <h2>Entrevista por Competencias</h2>
     {% if not cargo or not cargo.requisitos_competencias %}
-    <p class="muted">Este pedido no tiene un cargo con competencias requeridas definidas en Parámetros &gt; Cargos y Funciones — se puede igual dejar una conclusión general abajo.</p>
+    <p class="muted">Este pedido no tiene un cargo con competencias requeridas definidas en Parámetros &gt; Cargos - MOF — se puede igual dejar una conclusión general abajo.</p>
     {% endif %}
     <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/entrevista">
       {% set ce = (lead.entrevista_data or {}).get('competencias') or {} %}

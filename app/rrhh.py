@@ -264,6 +264,8 @@ def _eliminar_employee_completo(db: Session, emp: Employee) -> None:
     u = db.query(User).filter(User.employee_id == emp.id).first()
     if u:
         u.employee_id = None
+    from .procesos import limpiar_persona
+    limpiar_persona(db, emp.id)
 
     db.query(ConsentimientoAsistencia).filter(ConsentimientoAsistencia.employee_id == emp.id).delete()
     db.query(SolicitudRenovacion).filter(SolicitudRenovacion.employee_id == emp.id).delete()
@@ -465,6 +467,9 @@ def _cargo_en_uso(db: Session, cargo_id: int, cargo_nombre: str) -> bool:
     (o puesto, que reutiliza el mismo catálogo) guardado en su ficha."""
     if db.query(Cargo).filter(Cargo.reporta_a_id == cargo_id).count() > 0:
         return True
+    from .models import ProcesoNodo
+    if db.query(ProcesoNodo).filter(ProcesoNodo.cargo_id == cargo_id).count() > 0:
+        return True
     for e in db.query(Employee).all():
         f = e.ficha_data or {}
         if f.get("cargo") == cargo_nombre or f.get("puesto") == cargo_nombre:
@@ -597,7 +602,7 @@ def _organigrama_de(db: Session, employee: Employee):
     """Punto 11 del pedido: a partir del Cargo de la persona (ficha_data.cargo)
     y su empresa, resuelve quién es su jefe y quiénes son sus subordinados —
     buscando, dentro de la MISMA empresa, a las personas activas cuyo cargo
-    sea el que corresponde según la jerarquía de Cargos y Funciones (MOF).
+    sea el que corresponde según la jerarquía de Cargos - MOF.
     Es un cálculo en vivo (no se guarda), así que nunca queda desincronizado
     si alguien cambia de cargo o de empresa."""
     ficha = employee.ficha_data or {}
@@ -968,6 +973,8 @@ def eliminar_empresa(empresa_id: int, db: Session = Depends(get_db),
         if _empresa_tiene_activos(db, empresa_id):
             return RedirectResponse(_con_error("/rrhh/parametrizacion/empresas",
                 "No se puede eliminar: hay trabajadores activos en esta empresa."), status_code=303)
+        from .procesos import limpiar_empresa
+        limpiar_empresa(db, empresa_id)
         db.delete(e)
         db.commit()
     return RedirectResponse("/rrhh/parametrizacion/empresas", status_code=303)
@@ -1289,7 +1296,7 @@ def eliminar_competencia(item_id: int, db: Session = Depends(get_db),
 
 
 # ---------------------------------------------------------------------------
-# Cargos y Funciones (MOF)
+# Cargos - MOF
 # ---------------------------------------------------------------------------
 def _lista_desde_textarea(texto: str) -> list:
     return [linea.strip() for linea in (texto or "").splitlines() if linea.strip()]
@@ -1433,6 +1440,8 @@ def eliminar_cargo(cargo_id: int, db: Session = Depends(get_db),
         if _cargo_en_uso(db, cargo_id, cargo.nombre):
             return RedirectResponse(_con_error("/rrhh/parametrizacion/cargos",
                 "No se puede eliminar: hay personal o cargos que dependen de este."), status_code=303)
+        from .procesos import limpiar_cargo
+        limpiar_cargo(db, cargo_id)
         db.delete(cargo)
         db.commit()
     return RedirectResponse("/rrhh/parametrizacion/cargos", status_code=303)

@@ -9,7 +9,7 @@
 {% include "_rrhh_topbar.html" %}
 
   <div style="display:flex; align-items:center; gap:10px;">
-    <a class="btn secondary" href="/rrhh/parametrizacion/cargos">&larr; Volver a Cargos y Funciones</a>
+    <a class="btn secondary" href="/rrhh/parametrizacion/cargos">&larr; Volver a Cargos - MOF</a>
     <a class="icon-btn icon-btn-imprimir" href="/rrhh/parametrizacion/cargo/{{ cargo.id }}/informe" target="_blank"
        title="Imprimir informe completo del cargo"></a>
   </div>
@@ -29,6 +29,18 @@
       </div>
       <div class="field"><label>Descripción del puesto</label><textarea name="descripcion" rows="3">{{ cargo.descripcion or '' }}</textarea></div>
       <div class="field"><label>Funciones (una por línea)</label><textarea name="funciones" rows="6">{{ cargo.funciones|join('\n') }}</textarea></div>
+      {% set auto = cargo.funciones_desde_procesos %}
+      <div class="field" style="background:var(--light2); border-radius:8px; padding:12px 14px;">
+        <label>Funciones que vienen de Procesos y Funciones (automáticas)</label>
+        {% if auto %}
+        <ul style="margin:6px 0 4px 18px; padding:0;">
+          {% for f in auto %}<li>{{ f.nombre }} <span class="muted">— {{ f.empresa }} › {{ f.ruta }}</span></li>{% endfor %}
+        </ul>
+        <div class="hint">Cada función que se asigna a este rol en <a href="/rrhh/parametrizacion/procesos">Procesos y Funciones</a> se agrega aquí sola, como una línea más. Para modificarla o eliminarla, hazlo allá: aquí se actualiza automáticamente. Aparecen igual en el informe del cargo y en los documentos que usan las funciones del MOF.</div>
+        {% else %}
+        <div class="muted">Todavía ninguna. Cuando asignes este rol a un proceso o función en <a href="/rrhh/parametrizacion/procesos">Procesos y Funciones</a>, sus funciones aparecerán aquí solas.</div>
+        {% endif %}
+      </div>
       <div class="field"><label>Responsabilidades (una por línea)</label><textarea name="responsabilidades" rows="6">{{ cargo.responsabilidades|join('\n') }}</textarea></div>
 
       <div class="section-title">Requisitos del Puesto</div>

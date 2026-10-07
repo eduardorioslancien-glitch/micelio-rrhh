@@ -193,7 +193,7 @@ RELACIONES_ENCUESTA = ["Autoevaluación", "Jefe", "Par", "Subordinado", "Otro"]
 
 # Principios, Valores y Competencias (Parámetros). Un mismo modelo para los
 # tres, distinguidos por `tipo` — los tres se documentan igual (nombre,
-# descripción, desarrollo de niveles 1 a 4); en Cargos y Funciones (MOF) solo
+# descripción, desarrollo de niveles 1 a 4); en Cargos - MOF solo
 # las de tipo "competencia" se usan como requisito del puesto con un nivel
 # exigido.
 TIPOS_COMPETENCIA = [
@@ -324,6 +324,67 @@ class BaseOperativa(Base):
     empresa = relationship("Empresa")
 
 
+ASIGNACIONES_PROCESO = [("rol", "Rol (cargo)"), ("agente", "Agente IA")]
+ASIGNACION_PROCESO_KEYS = [a[0] for a in ASIGNACIONES_PROCESO]
+
+
+class ProcesoNodo(Base):
+    """Parametrización > Procesos y Funciones (06/10): un nodo del árbol de
+    procesos de UNA empresa. Un mismo modelo cubre los 4 niveles — Proceso
+    Macro (raíz), Proceso, Subproceso (mismo tipo que Proceso, solo que más
+    profundo) y Función (hoja, `es_funcion=True`) — porque la estructura es
+    libre: una Función puede colgar de un Macro, de un Proceso o de un
+    Subproceso, y un Proceso puede tener a la vez Funciones y Subprocesos.
+
+    Cada nodo se asigna a un ROL (`cargo_id`, un Cargo de Cargos - MOF) o a
+    un AGENTE IA — nunca a una persona (precisión del 07/10: varias personas
+    pueden tener el mismo cargo y por lo tanto las mismas funciones; quiénes
+    son sale de Personal). Se hereda hacia abajo, y los procesos se completan
+    hacia arriba (ver procesos.py). Las funciones asignadas a un rol se
+    agregan solas al MOF de ese Cargo (ver Cargo.funciones_desde_procesos)."""
+    __tablename__ = "proceso_nodos"
+
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey("proceso_nodos.id"), nullable=True, index=True)
+    es_funcion = Column(Boolean, default=False)
+    nombre = Column(String(250), nullable=False)
+    descripcion = Column(Text, nullable=True)
+    orden = Column(Integer, default=0)
+    # Asignación directa (opcional): "rol" (cargo_id) o "agente"
+    asignado_tipo = Column(String(10), nullable=True)  # uno de ASIGNACION_PROCESO_KEYS
+    cargo_id = Column(Integer, ForeignKey("cargos.id"), nullable=True, index=True)
+    agente_nombre = Column(String(150), nullable=True)  # mismo nombre = mismo agente
+    agente_nota = Column(Text, nullable=True)  # qué haría el agente
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    empresa = relationship("Empresa")
+    cargo = relationship("Cargo")
+    parent = relationship("ProcesoNodo", remote_side=[id], back_populates="children")
+    children = relationship(
+        "ProcesoNodo", back_populates="parent", cascade="all, delete-orphan",
+        order_by="ProcesoNodo.orden",
+    )
+
+
+class RolPersonaExtra(Base):
+    """Persona que cubre un rol en la estructura de una empresa SIN pertenecer
+    a ella (punto 9 del pedido: Abdias, de DIGETEL, también puede cubrir el
+    rol de pago de planillas en INTECNO). Las personas de la propia empresa
+    que tienen ese cargo en su ficha se toman solas de Personal — no se
+    guardan acá."""
+    __tablename__ = "proceso_rol_personas_extra"
+    __table_args__ = (UniqueConstraint("empresa_id", "cargo_id", "employee_id", name="uq_rol_persona_extra"),)
+
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    cargo_id = Column(Integer, ForeignKey("cargos.id"), nullable=False, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
+
+    employee = relationship("Employee")
+
+
 class Catalogo(Base):
     """Listas parametrizables por el Administrador (áreas, gerencias, cargos,
     sedes, bancos) que alimentan los selects del formulario de ficha, en vez
@@ -362,7 +423,7 @@ class Competencia(Base):
 
 
 class Cargo(Base):
-    """Cargos y Funciones — Manual de Organización y Funciones (MOF) de cada
+    """Cargos - MOF — Manual de Organización y Funciones (MOF) de cada
     puesto: descripción, funciones, responsabilidades, a quién reporta,
     requisitos (académicos/experiencia/conocimientos) y las competencias que
     exige con su nivel requerido (1-4, vía CargoRequisitoCompetencia).
@@ -392,6 +453,32 @@ class Cargo(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     reporta_a = relationship("Cargo", remote_side=[id], backref="subordinados")
+
+    @property
+    def funciones_desde_procesos(self):
+        """Funciones que Procesos y Funciones asignó a este rol (en cualquier
+        empresa) — una línea por función, calculadas al momento: si se
+        modifican o eliminan allá, acá cambian solas (pedido del 07/10).
+        Devuelve [{"nombre", "empresa", "ruta"}]."""
+        from sqlalchemy.orm import object_session
+        db = object_session(self)
+        if db is None or self.id is None:
+            return []
+        from .procesos import funciones_de_cargo
+        return funciones_de_cargo(db, self.id)
+
+    @property
+    def funciones_todas(self):
+        """Las funciones escritas a mano en el MOF + las que vienen de
+        Procesos y Funciones (sin repetir), como lista de textos."""
+        manuales = list(self.funciones or [])
+        vistas = {f.strip().casefold() for f in manuales}
+        for f in self.funciones_desde_procesos:
+            clave = f["nombre"].strip().casefold()
+            if clave not in vistas:
+                vistas.add(clave)
+                manuales.append(f["nombre"])
+        return manuales
     requisitos_competencias = relationship("CargoRequisitoCompetencia", back_populates="cargo",
                                             cascade="all, delete-orphan")
     esquema_pago = relationship("EsquemaPago", back_populates="cargo", uselist=False,
