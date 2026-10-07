@@ -105,13 +105,23 @@ REGIMENES_LABORALES = [
     "Régimen CAS (sector público)",
 ]
 
+# Tipos de usuario (07/10/2026, ver app/permisos.py): el administrador lo ve
+# todo; el gerente lo ve todo pero solo de su(s) empresa(s) (aquellas donde es
+# Representante Legal); el usuario ve su ficha y las opciones del menú que el
+# administrador le marque.
 ROLES = [
-    ("administrador", "Administrador — acceso total"),
-    ("conta", "Contabilidad — planillas de pago (próximamente)"),
-    ("opeoka", "Gerente o Jefe — su ficha + registrar pedidos de personal"),
-    ("usuario", "Usuario — acceso solo a su información"),
+    ("administrador", "Administrador — acceso total a MICELIO"),
+    ("gerente", "Gerente — todo MICELIO, pero solo de su empresa"),
+    ("usuario", "Usuario — su ficha (solo ver) + las opciones que se le asignen"),
 ]
-ROLE_KEYS = [r[0] for r in ROLES]
+# Valores que ya existen en cuentas creadas antes del 07/10: se siguen
+# entendiendo sin tocar la fila (ver permisos.PERMISOS_LEGADO), pero ya no se
+# ofrecen al crear/editar.
+ROLES_ANTERIORES = [
+    ("conta", "Contabilidad (anterior) — equivale a Usuario sin opciones extra"),
+    ("opeoka", "Gerente o Jefe (anterior) — equivale a Usuario con Registro de Pedidos"),
+]
+ROLE_KEYS = [r[0] for r in ROLES] + [r[0] for r in ROLES_ANTERIORES]
 
 TIPOS_BITACORA = ["Observación", "Memorándum", "Reconocimiento", "Incidencia", "Otro"]
 
@@ -471,9 +481,15 @@ class Cargo(Base):
     def funciones_todas(self):
         """Las funciones escritas a mano en el MOF + las que vienen de
         Procesos y Funciones (sin repetir), como lista de textos."""
+        return self.combinar_funciones(self.funciones_desde_procesos)
+
+    def combinar_funciones(self, automaticas):
+        """Manuales + `automaticas` (lista de {"nombre",...}) sin repetir. Se
+        usa con una lista ya filtrada por empresa cuando quien mira es un
+        gerente (no debe ver funciones de procesos de otras empresas)."""
         manuales = list(self.funciones or [])
         vistas = {f.strip().casefold() for f in manuales}
-        for f in self.funciones_desde_procesos:
+        for f in automaticas:
             clave = f["nombre"].strip().casefold()
             if clave not in vistas:
                 vistas.add(clave)
@@ -539,11 +555,29 @@ class User(Base):
     # app/man_academy.py: el token SSO manda role=admin si esto es True,
     # aunque `rol` acá sea básico.
     man_academy_admin = Column(Boolean, default=False)
+    # Acceso por opción del menú (07/10/2026): {"personal": "ver", "leads":
+    # "editar", ...}. NULL = todavía sin personalizar -> rige lo que
+    # corresponde al tipo de usuario (permisos.permisos_base). Ver app/permisos.py.
+    permisos = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
 
     empresa = relationship("Empresa")
     employee = relationship("Employee", foreign_keys=[employee_id])
+
+    def nivel(self, seccion: str) -> int:
+        from .permisos import nivel_de
+        return nivel_de(self, seccion)
+
+    def puede(self, seccion: str, minimo: str = "ver") -> bool:
+        """Para las plantillas y las rutas: ¿tiene acceso `minimo` ('ver' o
+        'editar') a esta opción del menú?"""
+        from .permisos import puede
+        return puede(self, seccion, minimo)
+
+    def puede_alguna(self, *secciones: str) -> bool:
+        from .permisos import puede
+        return any(puede(self, s) for s in secciones)
 
 
 # ---------------------------------------------------------------------------

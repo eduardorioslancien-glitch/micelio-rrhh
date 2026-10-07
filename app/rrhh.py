@@ -24,14 +24,18 @@ from .models import (
     SedeGeocerca, ConsentimientoAsistencia, BaseOperativa, ManAcademyAcceso, ManAcademyCatalogItem,
     SolicitudVacaciones, ESTADOS_SOLICITUD_VACACIONES,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
-    ROLES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
+    ROLES, ROLES_ANTERIORES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
     STATUS_PENDIENTE, STATUS_FIRMADO, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS, lead_incompleto,
 )
 from .auth import (
     get_current_user, require_login, require_role, hash_password, verify_password,
     can_see_planilla, can_see_operativo, is_staff,
+    require_perm, require_admin, require_alguna, require_empleado, require_recurso,
+    alcance_empresas, puede_empresa, exigir_empresa, filtrar_por_empresa, acceso_ficha, exigir_ficha,
+    Forbidden,
 )
+from . import permisos as permisos_module
 from . import kpis as kpis_module
 from . import pdf_signed
 
@@ -65,7 +69,7 @@ def _a_lima(dt):
 templates.env.filters["lima"] = _a_lima
 
 ATTACHMENT_LABELS = dict(ATTACHMENT_TYPES)
-ROLE_LABELS = dict(ROLES)
+ROLE_LABELS = {**dict(ROLES), **dict(ROLES_ANTERIORES)}
 
 
 def _ensure_documents(db: Session, employee: Employee):
@@ -357,8 +361,11 @@ def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depe
     # la semana (con foto y saludo de RR.HH. para el/los de hoy, donde otros
     # pueden dejar su propio saludo) y los anuncios de Clima y Cultura que le
     # correspondan a este usuario según su ámbito.
-    empresa_id = user.employee.empresa_id if (user.rol == "usuario" and user.employee) else None
-    cumple_hoy, cumple_semana = _cumpleanos_de_la_semana(db, empresa_id=empresa_id)
+    # Administrador: todo el personal. Gerente (o usuario con una empresa
+    # asignada): las empresas de su alcance. Usuario común: sus compañeros.
+    alcance = alcance_empresas(user, db)
+    empresa_id = user.employee.empresa_id if (user.rol != "administrador" and alcance is None and user.employee) else None
+    cumple_hoy, cumple_semana = _cumpleanos_de_la_semana(db, empresa_id=empresa_id, empresa_ids=alcance)
     for item in cumple_hoy:
         item["mensaje_rrhh"] = _mensaje_cumple_rrhh(item["employee"])
         item["saludos"] = db.query(SaludoCumpleanos).filter(
@@ -399,7 +406,8 @@ def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depe
     # justo después de los cumpleaños, un aviso de contratos por vencer en
     # los próximos 15 días — ventana más corta que los 30 días del dashboard
     # de KPIs (/rrhh/dashboard), pensada para que no se pase la fecha.
-    contratos_por_vencer_pronto = _contratos_no_indefinidos(db, dias_max=15) if user.rol == "administrador" else []
+    contratos_por_vencer_pronto = (
+        _contratos_no_indefinidos(db, dias_max=15, empresa_ids=alcance) if user.puede("contratos") else [])
 
     return templates.TemplateResponse(request, "rrhh_home.html", _ctx(
         request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios,
@@ -536,7 +544,7 @@ def _fecha_nacimiento(employee: Employee):
         return None
 
 
-def _cumpleanos_de_la_semana(db: Session, empresa_id: int = None):
+def _cumpleanos_de_la_semana(db: Session, empresa_id: int = None, empresa_ids=None):
     """Punto 3 del pedido: cumpleaños de la semana (lunes a domingo actual),
     separando el/los de hoy. Si se pasa empresa_id, se acota a esa empresa
     (para el rol 'usuario', que solo debería ver a sus propios compañeros);
@@ -553,7 +561,9 @@ def _cumpleanos_de_la_semana(db: Session, empresa_id: int = None):
     dias_semana = [lunes + datetime.timedelta(days=i) for i in range(7)]
 
     query = db.query(Employee).filter(Employee.estado == "activo")
-    if empresa_id:
+    if empresa_ids is not None:
+        query = query.filter(Employee.empresa_id.in_(list(empresa_ids) or [-1]))
+    elif empresa_id:
         query = query.filter(Employee.empresa_id == empresa_id)
 
     hoy_lista, semana_lista = [], []
@@ -578,7 +588,7 @@ def _anuncios_visibles(db: Session, user: User, limite: int = 12):
     específico elegido, que se toman como "para todo el grupo")."""
     from .models import Anuncio
     query = db.query(Anuncio).filter(Anuncio.activo == True)  # noqa: E712
-    if is_staff(user):
+    if user.rol == "administrador":
         return query.order_by(Anuncio.created_at.desc()).limit(limite).all()
 
     empresa = user.employee.empresa_rel if user.employee else None
@@ -630,7 +640,7 @@ def _organigrama_de(db: Session, employee: Employee):
     return {"jefe": jefe, "jefe_cargo": jefe_cargo, "subordinados": subordinados}
 
 
-def _contratos_no_indefinidos(db: Session, dias_max: int = None):
+def _contratos_no_indefinidos(db: Session, dias_max: int = None, empresa_ids=None):
     """Puntos 12 y 13 del pedido: trabajadores activos con contrato distinto
     de 'Plazo Indeterminado' y con fecha de vencimiento cargada, ordenados
     del más próximo a vencer al más lejano. Si se pasa dias_max, solo
@@ -640,7 +650,10 @@ def _contratos_no_indefinidos(db: Session, dias_max: int = None):
     _cumpleanos_de_la_semana para el detalle."""
     hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
     resultado = []
-    for e in db.query(Employee).filter(Employee.estado == "activo").all():
+    consulta = db.query(Employee).filter(Employee.estado == "activo")
+    if empresa_ids is not None:
+        consulta = consulta.filter(Employee.empresa_id.in_(list(empresa_ids) or [-1]))
+    for e in consulta.all():
         f = e.ficha_data or {}
         tipo_contrato = (f.get("tipo_contrato") or "").strip()
         fecha_fin_str = (f.get("fecha_fin_contrato") or "").strip()
@@ -679,7 +692,8 @@ def _catalogo_en_uso(db: Session, tipo: str, nombre: str) -> bool:
 
 
 @router.get("/rrhh/parametrizacion", response_class=HTMLResponse)
-def parametrizacion(request: Request, user: User = Depends(require_role("administrador"))):
+def parametrizacion(request: Request, user: User = Depends(require_alguna(
+        "p_holdings", "p_unidades", "p_empresas", "p_lineas", "p_competencias", "p_catalogos", "p_cargos"))):
     return templates.TemplateResponse(request, "rrhh_parametrizacion.html", _ctx(
         request, user, catalogo_tipos=CATALOGO_TIPOS, active="parametrizacion",
     ))
@@ -687,7 +701,7 @@ def parametrizacion(request: Request, user: User = Depends(require_role("adminis
 
 @router.get("/rrhh/parametrizacion/holdings", response_class=HTMLResponse)
 def holdings_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("p_holdings", "ver"))):
     holdings = db.query(Holding).order_by(Holding.nombre).all()
     bloqueados = {h.id: _holding_tiene_unidades(db, h.id) for h in holdings}
     return templates.TemplateResponse(request, "rrhh_holdings.html", _ctx(
@@ -697,7 +711,7 @@ def holdings_list(request: Request, error: str = "", db: Session = Depends(get_d
 
 @router.post("/rrhh/parametrizacion/holding")
 def crear_holding(nombre: str = Form(...), descripcion: str = Form(""),
-                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                   db: Session = Depends(get_db), user: User = Depends(require_perm("p_holdings", "editar"))):
     db.add(Holding(nombre=nombre.strip(), descripcion=descripcion.strip() or None))
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/holdings", status_code=303)
@@ -705,7 +719,7 @@ def crear_holding(nombre: str = Form(...), descripcion: str = Form(""),
 
 @router.post("/rrhh/parametrizacion/holding/{holding_id}/editar")
 def editar_holding(holding_id: int, nombre: str = Form(...), descripcion: str = Form(""),
-                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                    db: Session = Depends(get_db), user: User = Depends(require_perm("p_holdings", "editar"))):
     h = db.query(Holding).get(holding_id)
     if h:
         h.nombre = nombre.strip()
@@ -716,7 +730,7 @@ def editar_holding(holding_id: int, nombre: str = Form(...), descripcion: str = 
 
 @router.post("/rrhh/parametrizacion/holding/{holding_id}/logo")
 async def subir_logo_holding(holding_id: int, logo: UploadFile = File(...), db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador"))):
+                              user: User = Depends(require_perm("p_holdings", "editar"))):
     h = db.query(Holding).get(holding_id)
     if not h:
         raise HTTPException(404)
@@ -739,7 +753,7 @@ def ver_logo_holding(holding_id: int, db: Session = Depends(get_db), user: User 
 
 @router.post("/rrhh/parametrizacion/holding/{holding_id}/toggle")
 def toggle_holding(holding_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_perm("p_holdings", "editar"))):
     h = db.query(Holding).get(holding_id)
     if h:
         if h.activo and _holding_tiene_unidades(db, holding_id):
@@ -752,7 +766,7 @@ def toggle_holding(holding_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/holding/{holding_id}/eliminar")
 def eliminar_holding(holding_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_perm("p_holdings", "editar"))):
     h = db.query(Holding).get(holding_id)
     if h:
         if _holding_tiene_unidades(db, holding_id):
@@ -765,7 +779,7 @@ def eliminar_holding(holding_id: int, db: Session = Depends(get_db),
 
 @router.get("/rrhh/parametrizacion/unidades", response_class=HTMLResponse)
 def unidades_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("p_unidades", "ver"))):
     unidades = db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
     holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     bloqueadas = {u.id: _unidad_tiene_empresas(db, u.id) for u in unidades}
@@ -776,7 +790,7 @@ def unidades_list(request: Request, error: str = "", db: Session = Depends(get_d
 
 @router.post("/rrhh/parametrizacion/unidad")
 def crear_unidad(nombre: str = Form(...), descripcion: str = Form(""), holding_id: str = Form(""),
-                  db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                  db: Session = Depends(get_db), user: User = Depends(require_perm("p_unidades", "editar"))):
     db.add(UnidadNegocio(nombre=nombre.strip(), descripcion=descripcion.strip() or None,
                           holding_id=int(holding_id) if holding_id else None))
     db.commit()
@@ -785,7 +799,7 @@ def crear_unidad(nombre: str = Form(...), descripcion: str = Form(""), holding_i
 
 @router.post("/rrhh/parametrizacion/unidad/{unidad_id}/editar")
 def editar_unidad(unidad_id: int, nombre: str = Form(...), descripcion: str = Form(""), holding_id: str = Form(""),
-                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                   db: Session = Depends(get_db), user: User = Depends(require_perm("p_unidades", "editar"))):
     u = db.query(UnidadNegocio).get(unidad_id)
     if u:
         u.nombre = nombre.strip()
@@ -797,7 +811,7 @@ def editar_unidad(unidad_id: int, nombre: str = Form(...), descripcion: str = Fo
 
 @router.post("/rrhh/parametrizacion/unidad/{unidad_id}/toggle")
 def toggle_unidad(unidad_id: int, db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("p_unidades", "editar"))):
     u = db.query(UnidadNegocio).get(unidad_id)
     if u:
         if u.activo and _unidad_tiene_empresas(db, unidad_id):
@@ -810,7 +824,7 @@ def toggle_unidad(unidad_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/unidad/{unidad_id}/eliminar")
 def eliminar_unidad(unidad_id: int, db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador"))):
+                     user: User = Depends(require_perm("p_unidades", "editar"))):
     u = db.query(UnidadNegocio).get(unidad_id)
     if u:
         if _unidad_tiene_empresas(db, unidad_id):
@@ -823,8 +837,9 @@ def eliminar_unidad(unidad_id: int, db: Session = Depends(get_db),
 
 @router.get("/rrhh/parametrizacion/empresas", response_class=HTMLResponse)
 def empresas_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
-    empresas = db.query(Empresa).order_by(Empresa.nombre).all()
+                   user: User = Depends(require_perm("p_empresas", "ver"))):
+    alcance = alcance_empresas(user, db)
+    empresas = [e for e in db.query(Empresa).order_by(Empresa.nombre).all() if alcance is None or e.id in alcance]
     unidades = db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
     holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     bloqueadas = {e.id: _empresa_tiene_activos(db, e.id) for e in empresas}
@@ -843,7 +858,7 @@ def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: st
                    domicilio_fiscal: str = Form(""), partida_registral: str = Form(""),
                    objeto_social: str = Form(""), representante_tipo_documento: str = Form(""),
                    representante_numero_documento: str = Form(""), representante_nacionalidad: str = Form(""),
-                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                   db: Session = Depends(get_db), user: User = Depends(require_perm("p_empresas", "editar"))):
     db.add(Empresa(
         nombre=nombre.strip(), razon_social=razon_social.strip() or None, ruc=ruc.strip() or None,
         unidad_negocio_id=unidad_negocio_id, regimen_laboral=regimen_laboral or None,
@@ -862,7 +877,7 @@ def crear_empresa(nombre: str = Form(...), razon_social: str = Form(""), ruc: st
 
 @router.get("/rrhh/parametrizacion/empresa/{empresa_id}/editar", response_class=HTMLResponse)
 def editar_empresa_form(request: Request, empresa_id: int, db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador"))):
+                         user: User = Depends(require_recurso("p_empresas", "ver", Empresa, "empresa_id", "id"))):
     e = db.query(Empresa).get(empresa_id)
     if not e:
         raise HTTPException(404)
@@ -883,7 +898,7 @@ def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str =
                     domicilio_fiscal: str = Form(""), partida_registral: str = Form(""),
                     objeto_social: str = Form(""), representante_tipo_documento: str = Form(""),
                     representante_numero_documento: str = Form(""), representante_nacionalidad: str = Form(""),
-                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                    db: Session = Depends(get_db), user: User = Depends(require_recurso("p_empresas", "editar", Empresa, "empresa_id", "id"))):
     e = db.query(Empresa).get(empresa_id)
     if e:
         e.nombre = nombre.strip()
@@ -908,7 +923,7 @@ def editar_empresa(empresa_id: int, nombre: str = Form(...), razon_social: str =
 
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/firma")
 async def subir_firma_empresa(empresa_id: int, firma: UploadFile = File(...), db: Session = Depends(get_db),
-                               user: User = Depends(require_role("administrador"))):
+                               user: User = Depends(require_recurso("p_empresas", "editar", Empresa, "empresa_id", "id"))):
     e = db.query(Empresa).get(empresa_id)
     if not e:
         raise HTTPException(404)
@@ -923,7 +938,7 @@ async def subir_firma_empresa(empresa_id: int, firma: UploadFile = File(...), db
 
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/logo")
 async def subir_logo_empresa(empresa_id: int, logo: UploadFile = File(...), db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador"))):
+                              user: User = Depends(require_recurso("p_empresas", "editar", Empresa, "empresa_id", "id"))):
     e = db.query(Empresa).get(empresa_id)
     if not e:
         raise HTTPException(404)
@@ -945,7 +960,9 @@ def ver_logo_empresa(empresa_id: int, db: Session = Depends(get_db), user: User 
 
 
 @router.get("/rrhh/parametrizacion/empresa/{empresa_id}/firma")
-def ver_firma_empresa(empresa_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
+def ver_firma_empresa(empresa_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(require_recurso("p_empresas", "ver", Empresa, "empresa_id", "id"))):
+    # la firma del representante legal es sensible: solo quien ve esa empresa en Parámetros
     e = db.query(Empresa).get(empresa_id)
     if not e or not e.firma_representante_path or not os.path.exists(e.firma_representante_path):
         raise HTTPException(404)
@@ -954,7 +971,7 @@ def ver_firma_empresa(empresa_id: int, db: Session = Depends(get_db), user: User
 
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/toggle")
 def toggle_empresa(empresa_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_recurso("p_empresas", "editar", Empresa, "empresa_id", "id"))):
     e = db.query(Empresa).get(empresa_id)
     if e:
         if e.activo and _empresa_tiene_activos(db, empresa_id):
@@ -967,7 +984,7 @@ def toggle_empresa(empresa_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/empresa/{empresa_id}/eliminar")
 def eliminar_empresa(empresa_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_recurso("p_empresas", "editar", Empresa, "empresa_id", "id"))):
     e = db.query(Empresa).get(empresa_id)
     if e:
         if _empresa_tiene_activos(db, empresa_id):
@@ -982,9 +999,12 @@ def eliminar_empresa(empresa_id: int, db: Session = Depends(get_db),
 
 @router.get("/rrhh/parametrizacion/lineas-producto", response_class=HTMLResponse)
 def lineas_producto_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
-    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
-    lineas = db.query(LineaProducto).join(Empresa).order_by(Empresa.nombre, LineaProducto.nombre).all()
+                          user: User = Depends(require_perm("p_lineas", "ver"))):
+    alcance = alcance_empresas(user, db)
+    empresas = [e for e in db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+                if alcance is None or e.id in alcance]
+    lineas = filtrar_por_empresa(db.query(LineaProducto).join(Empresa), LineaProducto.empresa_id, user, db) \
+        .order_by(Empresa.nombre, LineaProducto.nombre).all()
     return templates.TemplateResponse(request, "rrhh_lineas_producto.html", _ctx(
         request, user, empresas=empresas, lineas=lineas, error=error, active="lineas_producto",
     ))
@@ -992,7 +1012,8 @@ def lineas_producto_list(request: Request, error: str = "", db: Session = Depend
 
 @router.post("/rrhh/parametrizacion/linea-producto")
 def crear_linea_producto(nombre: str = Form(...), descripcion: str = Form(""), empresa_id: int = Form(...),
-                          db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                          db: Session = Depends(get_db), user: User = Depends(require_perm("p_lineas", "editar"))):
+    exigir_empresa(user, db, empresa_id)
     db.add(LineaProducto(nombre=nombre.strip(), descripcion=descripcion.strip() or None, empresa_id=empresa_id))
     db.commit()
     return RedirectResponse("/rrhh/parametrizacion/lineas-producto", status_code=303)
@@ -1001,7 +1022,7 @@ def crear_linea_producto(nombre: str = Form(...), descripcion: str = Form(""), e
 @router.post("/rrhh/parametrizacion/linea-producto/{linea_id}/editar")
 def editar_linea_producto(linea_id: int, nombre: str = Form(...), descripcion: str = Form(""),
                            empresa_id: int = Form(...), db: Session = Depends(get_db),
-                           user: User = Depends(require_role("administrador"))):
+                           user: User = Depends(require_recurso("p_lineas", "editar", LineaProducto, "linea_id"))):
     lp = db.query(LineaProducto).get(linea_id)
     if lp:
         lp.nombre = nombre.strip()
@@ -1013,7 +1034,7 @@ def editar_linea_producto(linea_id: int, nombre: str = Form(...), descripcion: s
 
 @router.post("/rrhh/parametrizacion/linea-producto/{linea_id}/toggle")
 def toggle_linea_producto(linea_id: int, db: Session = Depends(get_db),
-                           user: User = Depends(require_role("administrador"))):
+                           user: User = Depends(require_recurso("p_lineas", "editar", LineaProducto, "linea_id"))):
     lp = db.query(LineaProducto).get(linea_id)
     if lp:
         lp.activo = not lp.activo
@@ -1023,7 +1044,7 @@ def toggle_linea_producto(linea_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/linea-producto/{linea_id}/eliminar")
 def eliminar_linea_producto(linea_id: int, db: Session = Depends(get_db),
-                             user: User = Depends(require_role("administrador"))):
+                             user: User = Depends(require_recurso("p_lineas", "editar", LineaProducto, "linea_id"))):
     lp = db.query(LineaProducto).get(linea_id)
     if lp:
         db.delete(lp)
@@ -1033,7 +1054,7 @@ def eliminar_linea_producto(linea_id: int, db: Session = Depends(get_db),
 
 @router.get("/rrhh/parametrizacion/catalogo/{tipo}", response_class=HTMLResponse)
 def catalogo_list(request: Request, tipo: str, error: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("p_catalogos", "ver"))):
     if tipo not in CATALOGO_TIPO_KEYS:
         raise HTTPException(404)
     label = dict(CATALOGO_TIPOS)[tipo]
@@ -1046,7 +1067,7 @@ def catalogo_list(request: Request, tipo: str, error: str = "", db: Session = De
 
 @router.post("/rrhh/parametrizacion/catalogo")
 def crear_item_catalogo(tipo: str = Form(...), nombre: str = Form(...), cuenta_contable: str = Form(""),
-                         db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                         db: Session = Depends(get_db), user: User = Depends(require_perm("p_catalogos", "editar"))):
     if tipo not in CATALOGO_TIPO_KEYS:
         raise HTTPException(400, "Tipo de catálogo inválido.")
     db.add(Catalogo(tipo=tipo, nombre=nombre.strip(),
@@ -1058,7 +1079,7 @@ def crear_item_catalogo(tipo: str = Form(...), nombre: str = Form(...), cuenta_c
 @router.post("/rrhh/parametrizacion/catalogo/{item_id}/editar")
 def editar_item_catalogo(item_id: int, nombre: str = Form(...), cuenta_contable: str = Form(""),
                           db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("p_catalogos", "editar"))):
     item = db.query(Catalogo).get(item_id)
     if item:
         item.nombre = nombre.strip()
@@ -1071,7 +1092,7 @@ def editar_item_catalogo(item_id: int, nombre: str = Form(...), cuenta_contable:
 
 @router.post("/rrhh/parametrizacion/catalogo/{item_id}/logo")
 async def subir_logo_catalogo(item_id: int, logo: UploadFile = File(...), db: Session = Depends(get_db),
-                               user: User = Depends(require_role("administrador"))):
+                               user: User = Depends(require_perm("p_catalogos", "editar"))):
     """Punto 5 del pedido: por ahora solo se usa desde Áreas, pero queda
     disponible para cualquier catálogo por si más adelante hace falta."""
     item = db.query(Catalogo).get(item_id)
@@ -1096,7 +1117,7 @@ def ver_logo_catalogo(item_id: int, db: Session = Depends(get_db), user: User = 
 
 @router.post("/rrhh/parametrizacion/catalogo/{item_id}/toggle")
 def toggle_item_catalogo(item_id: int, db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("p_catalogos", "editar"))):
     item = db.query(Catalogo).get(item_id)
     if item:
         if item.activo and _catalogo_en_uso(db, item.tipo, item.nombre):
@@ -1110,7 +1131,7 @@ def toggle_item_catalogo(item_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/catalogo/{item_id}/eliminar")
 def eliminar_item_catalogo(item_id: int, db: Session = Depends(get_db),
-                            user: User = Depends(require_role("administrador"))):
+                            user: User = Depends(require_perm("p_catalogos", "editar"))):
     item = db.query(Catalogo).get(item_id)
     if item:
         if _catalogo_en_uso(db, item.tipo, item.nombre):
@@ -1138,9 +1159,11 @@ def _base_en_uso(db: Session, base: BaseOperativa) -> bool:
 
 @router.get("/rrhh/parametrizacion/bases", response_class=HTMLResponse)
 def bases_list(request: Request, empresa_id: str = "", error: str = "",
-               db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
-    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
-    query = db.query(BaseOperativa)
+               db: Session = Depends(get_db), user: User = Depends(require_perm("p_bases", "ver"))):
+    alcance = alcance_empresas(user, db)
+    empresas = [e for e in db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+                if alcance is None or e.id in alcance]
+    query = filtrar_por_empresa(db.query(BaseOperativa), BaseOperativa.empresa_id, user, db)
     if empresa_id:
         query = query.filter(BaseOperativa.empresa_id == int(empresa_id))
     bases = query.order_by(BaseOperativa.empresa_id, BaseOperativa.nombre).all()
@@ -1154,7 +1177,8 @@ def bases_list(request: Request, empresa_id: str = "", error: str = "",
 @router.post("/rrhh/parametrizacion/bases")
 def crear_base(empresa_id: int = Form(...), nombre: str = Form(...), departamento: str = Form(""),
                 provincia: str = Form(""), distritos: list[str] = Form([]),
-                db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                db: Session = Depends(get_db), user: User = Depends(require_perm("p_bases", "editar"))):
+    exigir_empresa(user, db, empresa_id)
     nombre = nombre.strip()
     existe = db.query(BaseOperativa).filter(
         BaseOperativa.empresa_id == empresa_id, BaseOperativa.nombre == nombre).first()
@@ -1170,7 +1194,7 @@ def crear_base(empresa_id: int = Form(...), nombre: str = Form(...), departament
 @router.post("/rrhh/parametrizacion/bases/{base_id}/editar")
 def editar_base(base_id: int, nombre: str = Form(...), departamento: str = Form(""),
                  provincia: str = Form(""), distritos: list[str] = Form([]),
-                 db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                 db: Session = Depends(get_db), user: User = Depends(require_recurso("p_bases", "editar", BaseOperativa, "base_id"))):
     base = db.query(BaseOperativa).get(base_id)
     if base:
         nombre_viejo = base.nombre
@@ -1193,7 +1217,7 @@ def editar_base(base_id: int, nombre: str = Form(...), departamento: str = Form(
 
 
 @router.post("/rrhh/parametrizacion/bases/{base_id}/toggle")
-def toggle_base(base_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+def toggle_base(base_id: int, db: Session = Depends(get_db), user: User = Depends(require_recurso("p_bases", "editar", BaseOperativa, "base_id"))):
     base = db.query(BaseOperativa).get(base_id)
     if base:
         if base.activo and _base_en_uso(db, base):
@@ -1206,7 +1230,7 @@ def toggle_base(base_id: int, db: Session = Depends(get_db), user: User = Depend
 
 
 @router.post("/rrhh/parametrizacion/bases/{base_id}/eliminar")
-def eliminar_base(base_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+def eliminar_base(base_id: int, db: Session = Depends(get_db), user: User = Depends(require_recurso("p_bases", "editar", BaseOperativa, "base_id"))):
     base = db.query(BaseOperativa).get(base_id)
     if base:
         if _base_en_uso(db, base):
@@ -1224,7 +1248,7 @@ def eliminar_base(base_id: int, db: Session = Depends(get_db), user: User = Depe
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/parametrizacion/competencias", response_class=HTMLResponse)
 def competencias_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("p_competencias", "ver"))):
     items = db.query(Competencia).order_by(Competencia.tipo, Competencia.nombre).all()
     return templates.TemplateResponse(request, "rrhh_competencias.html", _ctx(
         request, user, items=items, tipos=TIPOS_COMPETENCIA, error=error, active="competencias",
@@ -1236,7 +1260,7 @@ def crear_competencia(tipo: str = Form(...), nombre: str = Form(...), descripcio
                        nivel_1: str = Form(""), nivel_2: str = Form(""), nivel_3: str = Form(""),
                        nivel_4: str = Form(""), conductas_no_deseadas: str = Form(""),
                        db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("p_competencias", "editar"))):
     if tipo not in TIPO_COMPETENCIA_KEYS:
         raise HTTPException(400, "Tipo inválido.")
     db.add(Competencia(
@@ -1254,7 +1278,7 @@ def editar_competencia(item_id: int, tipo: str = Form(...), nombre: str = Form(.
                         nivel_1: str = Form(""), nivel_2: str = Form(""), nivel_3: str = Form(""),
                         nivel_4: str = Form(""), conductas_no_deseadas: str = Form(""),
                         db: Session = Depends(get_db),
-                        user: User = Depends(require_role("administrador"))):
+                        user: User = Depends(require_perm("p_competencias", "editar"))):
     item = db.query(Competencia).get(item_id)
     if item and tipo in TIPO_COMPETENCIA_KEYS:
         item.tipo = tipo
@@ -1271,7 +1295,7 @@ def editar_competencia(item_id: int, tipo: str = Form(...), nombre: str = Form(.
 
 @router.post("/rrhh/parametrizacion/competencia/{item_id}/toggle")
 def toggle_competencia(item_id: int, db: Session = Depends(get_db),
-                        user: User = Depends(require_role("administrador"))):
+                        user: User = Depends(require_perm("p_competencias", "editar"))):
     item = db.query(Competencia).get(item_id)
     if item:
         if item.activo and _competencia_en_uso(db, item_id):
@@ -1284,7 +1308,7 @@ def toggle_competencia(item_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/competencia/{item_id}/eliminar")
 def eliminar_competencia(item_id: int, db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("p_competencias", "editar"))):
     item = db.query(Competencia).get(item_id)
     if item:
         if _competencia_en_uso(db, item_id):
@@ -1312,10 +1336,31 @@ def _monto_o_none(texto: str):
         return None
 
 
+def _funciones_auto_visibles(db: Session, user: User, cargo) -> list:
+    """Funciones de Procesos y Funciones que el usuario puede ver en el MOF de
+    este cargo: todas para el administrador; solo las de sus empresas para un
+    gerente (las de otras empresas no se le muestran)."""
+    alcance = alcance_empresas(user, db)
+    auto = cargo.funciones_desde_procesos
+    if alcance is None:
+        return auto
+    permitidas = {e.nombre for e in db.query(Empresa).filter(Empresa.id.in_(list(alcance) or [-1])).all()}
+    return [f for f in auto if f["empresa"] in permitidas]
+
+
+def _exigir_cargo_visible(db: Session, user: User, cargo_id: int) -> None:
+    """Un gerente solo abre los cargos que usa su empresa (ficha de su
+    personal o Procesos y Funciones); el administrador abre todos."""
+    visibles = permisos_module.cargos_visibles_ids(db, alcance_empresas(user, db))
+    if visibles is not None and cargo_id not in visibles:
+        raise Forbidden()
+
+
 @router.get("/rrhh/parametrizacion/cargos", response_class=HTMLResponse)
 def cargos_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                 user: User = Depends(require_role("administrador"))):
-    cargos = db.query(Cargo).order_by(Cargo.nombre).all()
+                 user: User = Depends(require_perm("p_cargos", "ver"))):
+    visibles = permisos_module.cargos_visibles_ids(db, alcance_empresas(user, db))
+    cargos = [c for c in db.query(Cargo).order_by(Cargo.nombre).all() if visibles is None or c.id in visibles]
     bloqueados = {c.id: _cargo_en_uso(db, c.id, c.nombre) for c in cargos}
     return templates.TemplateResponse(request, "rrhh_cargos.html", _ctx(
         request, user, cargos=cargos, bloqueados=bloqueados, error=error, active="cargos",
@@ -1324,7 +1369,7 @@ def cargos_list(request: Request, error: str = "", db: Session = Depends(get_db)
 
 @router.post("/rrhh/parametrizacion/cargo")
 def crear_cargo(nombre: str = Form(...), db: Session = Depends(get_db),
-                 user: User = Depends(require_role("administrador"))):
+                 user: User = Depends(require_perm("p_cargos", "editar"))):
     cargo = Cargo(nombre=nombre.strip().upper())
     db.add(cargo)
     db.commit()
@@ -1334,34 +1379,39 @@ def crear_cargo(nombre: str = Form(...), db: Session = Depends(get_db),
 
 @router.get("/rrhh/parametrizacion/cargo/{cargo_id}", response_class=HTMLResponse)
 def cargo_detalle(request: Request, cargo_id: int, db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("p_cargos", "ver"))):
     cargo = db.query(Cargo).get(cargo_id)
     if not cargo:
         raise HTTPException(404)
+    _exigir_cargo_visible(db, user, cargo_id)
     otros_cargos = db.query(Cargo).filter(Cargo.id != cargo_id).order_by(Cargo.nombre).all()
     competencias = db.query(Competencia).filter(Competencia.tipo == "competencia", Competencia.activo == True).order_by(Competencia.nombre).all()  # noqa: E712
     return templates.TemplateResponse(request, "rrhh_cargo_detalle.html", _ctx(
         request, user, cargo=cargo, otros_cargos=otros_cargos, competencias=competencias, active="cargos",
+        funciones_auto=_funciones_auto_visibles(db, user, cargo),
+        solo_lectura=not user.puede("p_cargos", "editar"),
     ))
 
 
 @router.get("/rrhh/parametrizacion/cargo/{cargo_id}/informe", response_class=HTMLResponse)
 def cargo_informe(request: Request, cargo_id: int, db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("p_cargos", "ver"))):
     """Punto 3 del pedido: informe completo e imprimible de un cargo (MOF +
     jerarquía + competencias requeridas + compensación de referencia +
     quiénes lo ocupan hoy)."""
     cargo = db.query(Cargo).get(cargo_id)
     if not cargo:
         raise HTTPException(404)
+    _exigir_cargo_visible(db, user, cargo_id)
     ocupantes = (
-        db.query(Employee)
+        filtrar_por_empresa(db.query(Employee), Employee.empresa_id, user, db)
         .filter(Employee.estado == "activo")
         .all()
     )
     ocupantes = [e for e in ocupantes if (e.ficha_data or {}).get("cargo") == cargo.nombre]
     return templates.TemplateResponse(request, "rrhh_cargo_informe.html", _ctx(
         request, user, cargo=cargo, ocupantes=ocupantes,
+        funciones_todas=cargo.combinar_funciones(_funciones_auto_visibles(db, user, cargo)),
         generado_en=datetime.datetime.utcnow() - datetime.timedelta(hours=5),
     ))
 
@@ -1371,7 +1421,7 @@ def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form
                   funciones: str = Form(""), responsabilidades: str = Form(""),
                   reporta_a_id: str = Form(""), requisito_academico: str = Form(""),
                   requisito_experiencia: str = Form(""), requisito_conocimientos: str = Form(""),
-                  db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                  db: Session = Depends(get_db), user: User = Depends(require_perm("p_cargos", "editar"))):
     cargo = db.query(Cargo).get(cargo_id)
     if not cargo:
         raise HTTPException(404)
@@ -1393,7 +1443,7 @@ def editar_cargo(cargo_id: int, nombre: str = Form(...), descripcion: str = Form
 @router.post("/rrhh/parametrizacion/cargo/{cargo_id}/competencia")
 def agregar_requisito_competencia(cargo_id: int, competencia_id: int = Form(...), nivel_requerido: int = Form(...),
                                    db: Session = Depends(get_db),
-                                   user: User = Depends(require_role("administrador"))):
+                                   user: User = Depends(require_perm("p_cargos", "editar"))):
     if not db.query(Cargo).get(cargo_id):
         raise HTTPException(404)
     if nivel_requerido not in (1, 2, 3, 4):
@@ -1411,7 +1461,7 @@ def agregar_requisito_competencia(cargo_id: int, competencia_id: int = Form(...)
 
 @router.post("/rrhh/parametrizacion/cargo/{cargo_id}/competencia/{req_id}/eliminar")
 def eliminar_requisito_competencia(cargo_id: int, req_id: int, db: Session = Depends(get_db),
-                                    user: User = Depends(require_role("administrador"))):
+                                    user: User = Depends(require_perm("p_cargos", "editar"))):
     req = db.query(CargoRequisitoCompetencia).get(req_id)
     if req and req.cargo_id == cargo_id:
         db.delete(req)
@@ -1421,7 +1471,7 @@ def eliminar_requisito_competencia(cargo_id: int, req_id: int, db: Session = Dep
 
 @router.post("/rrhh/parametrizacion/cargo/{cargo_id}/toggle")
 def toggle_cargo(cargo_id: int, db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador"))):
+                  user: User = Depends(require_perm("p_cargos", "editar"))):
     cargo = db.query(Cargo).get(cargo_id)
     if cargo:
         if cargo.activo and _cargo_en_uso(db, cargo_id, cargo.nombre):
@@ -1434,7 +1484,7 @@ def toggle_cargo(cargo_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/cargo/{cargo_id}/eliminar")
 def eliminar_cargo(cargo_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_perm("p_cargos", "editar"))):
     cargo = db.query(Cargo).get(cargo_id)
     if cargo:
         if _cargo_en_uso(db, cargo_id, cargo.nombre):
@@ -1454,8 +1504,10 @@ def eliminar_cargo(cargo_id: int, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/parametrizacion/esquemas-pago", response_class=HTMLResponse)
 def esquemas_pago_list(request: Request, db: Session = Depends(get_db),
-                        user: User = Depends(require_role("administrador"))):
-    cargos = db.query(Cargo).filter(Cargo.activo == True).order_by(Cargo.nombre).all()  # noqa: E712
+                        user: User = Depends(require_perm("p_esquemas", "ver"))):
+    visibles = permisos_module.cargos_visibles_ids(db, alcance_empresas(user, db))
+    cargos = [c for c in db.query(Cargo).filter(Cargo.activo == True).order_by(Cargo.nombre).all()  # noqa: E712
+              if visibles is None or c.id in visibles]
     return templates.TemplateResponse(request, "rrhh_esquemas_pago.html", _ctx(
         request, user, cargos=cargos, active="esquemas_pago",
     ))
@@ -1465,7 +1517,7 @@ def esquemas_pago_list(request: Request, db: Session = Depends(get_db),
 def esquema_pago_guardar(cargo_id: int, sueldo_base: str = Form(""), comision_variable: str = Form(""),
                           movilidad: str = Form(""), combustible: str = Form(""), otros_ingresos: str = Form(""),
                           notas: str = Form(""), db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("p_esquemas", "editar"))):
     cargo = db.query(Cargo).get(cargo_id)
     if not cargo:
         raise HTTPException(404)
@@ -1485,38 +1537,88 @@ def esquema_pago_guardar(cargo_id: int, sueldo_base: str = Form(""), comision_va
 # ---------------------------------------------------------------------------
 # Usuarios del sistema (solo administrador)
 # ---------------------------------------------------------------------------
+def _candidatos_gerente(db: Session, empleados) -> set:
+    """Ids de trabajadores que pueden ser Gerente: los que figuran como
+    Representante Legal de alguna empresa (Parámetros > Empresas)."""
+    reps = [e.representante_legal for e in db.query(Empresa).filter(Empresa.activo == True).all()  # noqa: E712
+            if e.representante_legal]
+    return {emp.id for emp in empleados if any(permisos_module.mismo_nombre(r, emp.nombre_completo) for r in reps)}
+
+
+def _roles_ofrecidos(u: User = None):
+    """Tipos que se pueden elegir. Una cuenta anterior al 07/10 (Contabilidad /
+    Gerente o Jefe) conserva su valor hasta que se la reasigne."""
+    roles = list(ROLES)
+    if u is not None and u.rol in dict(ROLES_ANTERIORES):
+        roles.append((u.rol, dict(ROLES_ANTERIORES)[u.rol]))
+    return roles
+
+
 @router.get("/rrhh/usuarios", response_class=HTMLResponse)
 def usuarios_list(request: Request, error: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_admin)):
     usuarios = db.query(User).order_by(User.username).all()
-    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
     empleados = db.query(Employee).order_by(Employee.nombre_completo).all()
     return templates.TemplateResponse(request, "rrhh_usuarios.html", _ctx(
-        request, user, usuarios=usuarios, empresas=empresas, roles=ROLES, empleados=empleados,
+        request, user, usuarios=usuarios, roles=ROLES, empleados=empleados,
+        candidatos_gerente=_candidatos_gerente(db, empleados),
+        alcance_texto={u.id: ", ".join(e.nombre for e in permisos_module.empresas_de_gerente(u, db))
+                       for u in usuarios if u.rol == "gerente"},
         error=error, active="usuarios",
     ))
 
 
+def _validar_gerente(db: Session, employee_id) -> str:
+    """Mensaje de error si esa persona no puede ser Gerente, o "" si sí."""
+    if not employee_id:
+        return "Un Gerente debe estar vinculado a su ficha de Personal."
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        return "El trabajador elegido no existe."
+    if not permisos_module.diagnostico_gerente(db, emp)["empresas"]:
+        return (f"{emp.nombre_completo} no figura como Representante Legal de ninguna empresa. "
+                "Solo pueden ser Gerente las personas que figuran como Representante Legal en "
+                "Parámetros > Empresas (y deben estar en Personal con el cargo Gerente General).")
+    return ""
+
+
 @router.post("/rrhh/usuarios/nuevo")
 def crear_usuario(username: str = Form(...), password: str = Form(...), nombre_completo: str = Form(...),
-                   rol: str = Form(...), empresa_id: str = Form(""), employee_id: str = Form(""),
+                   rol: str = Form(...), employee_id: str = Form(""), empresa_id: str = Form(""),
                    man_academy_admin: str = Form(""),
-                   db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                   db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    """Solo el administrador crea usuarios. Después de crearlo se abre la
+    pantalla de accesos para marcar qué opciones del menú tiene."""
+    if rol not in dict(ROLES):
+        return RedirectResponse(_con_error("/rrhh/usuarios", "Elige un tipo de usuario válido."), status_code=303)
     if db.query(User).filter(User.username == username.strip()).first():
-        raise HTTPException(400, "Ese nombre de usuario ya existe.")
-    db.add(User(
+        return RedirectResponse(_con_error("/rrhh/usuarios", "Ese nombre de usuario ya existe."), status_code=303)
+    emp_id = int(employee_id) if employee_id else None
+    if emp_id and db.query(User).filter(User.employee_id == emp_id).first():
+        return RedirectResponse(_con_error("/rrhh/usuarios", "Ese trabajador ya está vinculado a otro usuario."), status_code=303)
+    if rol == "gerente":
+        error = _validar_gerente(db, emp_id)
+        if error:
+            return RedirectResponse(_con_error("/rrhh/usuarios", error), status_code=303)
+    nuevo = User(
         username=username.strip(), password_hash=hash_password(password), nombre_completo=nombre_completo.strip(),
-        rol=rol, empresa_id=int(empresa_id) if empresa_id else None,
-        employee_id=int(employee_id) if employee_id else None, activo=True,
+        rol=rol, employee_id=emp_id, activo=True,
+        empresa_id=int(empresa_id) if (empresa_id and rol == "usuario") else None,
         man_academy_admin=bool(man_academy_admin),
-    ))
+        # el gerente arranca con lo sugerido para su tipo; el usuario, sin opciones extra
+        permisos=None if rol == "administrador" else {
+            k: ("editar" if v == permisos_module.EDITAR else "ver")
+            for k, v in permisos_module.limitar(permisos_module.permisos_base(rol)).items() if v},
+    )
+    db.add(nuevo)
     db.commit()
-    return RedirectResponse("/rrhh/usuarios", status_code=303)
+    db.refresh(nuevo)
+    return RedirectResponse(f"/rrhh/usuarios/{nuevo.id}/accesos", status_code=303)
 
 
 @router.post("/rrhh/usuarios/{user_id}/toggle")
 def toggle_usuario(user_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_admin)):
     u = db.query(User).get(user_id)
     if u and u.id != user.id:  # no permitir autodesactivarse
         u.activo = not u.activo
@@ -1526,7 +1628,7 @@ def toggle_usuario(user_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/usuarios/{user_id}/reset-password")
 def reset_password(user_id: int, nueva_password: str = Form(...), db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_admin)):
     u = db.query(User).get(user_id)
     if u:
         u.password_hash = hash_password(nueva_password)
@@ -1535,37 +1637,76 @@ def reset_password(user_id: int, nueva_password: str = Form(...), db: Session = 
     return RedirectResponse("/rrhh/usuarios", status_code=303)
 
 
-@router.post("/rrhh/usuarios/{user_id}/editar")
-def editar_usuario(user_id: int, rol: str = Form(...), empresa_id: str = Form(""), employee_id: str = Form(""),
-                    man_academy_admin: str = Form(""),
-                    db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
-    """Punto 1 de Parámetros (pedido 15/09): poder modificar el nivel de
-    acceso de un usuario y a qué persona de Personal está vinculado, sin
-    tener que borrarlo y volver a crearlo.
-
-    man_academy_admin (pedido 2026-09-17): nivel de acceso aparte, para poder
-    hacer a alguien administrador de Man Academy aunque en MICELIO tenga solo
-    acceso básico — ver app/man_academy.py."""
+@router.get("/rrhh/usuarios/{user_id}/accesos", response_class=HTMLResponse)
+def usuario_accesos(request: Request, user_id: int, error: str = "", ok: str = "", db: Session = Depends(get_db),
+                     user: User = Depends(require_admin)):
+    """Tipo de usuario, vínculo con Personal y qué opciones del menú lateral
+    puede usar (ver / editar), una por una."""
     u = db.query(User).get(user_id)
     if not u:
-        return RedirectResponse("/rrhh/usuarios", status_code=303)
-    nuevo_employee_id = int(employee_id) if employee_id else None
-    if nuevo_employee_id:
-        otro = db.query(User).filter(User.employee_id == nuevo_employee_id, User.id != user_id).first()
+        raise HTTPException(404)
+    empleados = db.query(Employee).order_by(Employee.nombre_completo).all()
+    sugerido_gerente = permisos_module.limitar(permisos_module.PERMISOS_GERENTE)
+    return templates.TemplateResponse(request, "rrhh_usuario_accesos.html", _ctx(
+        request, user, u=u, roles=_roles_ofrecidos(u), empleados=empleados,
+        empresas=db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all(),  # noqa: E712
+        candidatos_gerente=_candidatos_gerente(db, empleados),
+        diag=permisos_module.diagnostico_gerente(db, u.employee) if u.employee else None,
+        secciones=permisos_module.SECCIONES, grupos=permisos_module.GRUPOS,
+        actuales=permisos_module.permisos_efectivos(u), sugerido_gerente=sugerido_gerente,
+        NIVEL=permisos_module, error=error, ok=ok, active="usuarios",
+    ))
+
+
+@router.post("/rrhh/usuarios/{user_id}/accesos")
+async def usuario_accesos_guardar(request: Request, user_id: int, db: Session = Depends(get_db),
+                                   user: User = Depends(require_admin)):
+    u = db.query(User).get(user_id)
+    if not u:
+        raise HTTPException(404)
+    form = await request.form()
+    rol = (form.get("rol") or "").strip()
+    permitidos = set(dict(ROLES)) | ({u.rol} if u.rol in dict(ROLES_ANTERIORES) else set())
+    base = f"/rrhh/usuarios/{user_id}/accesos"
+    if rol not in permitidos:
+        return RedirectResponse(_con_error(base, "Elige un tipo de usuario válido."), status_code=303)
+    emp_id = int(form.get("employee_id")) if form.get("employee_id") else None
+    if emp_id:
+        otro = db.query(User).filter(User.employee_id == emp_id, User.id != user_id).first()
         if otro:
-            return RedirectResponse(_con_error("/rrhh/usuarios",
-                f"Ese trabajador ya está vinculado al usuario \"{otro.username}\"."), status_code=303)
+            return RedirectResponse(_con_error(base, f'Ese trabajador ya está vinculado al usuario "{otro.username}".'), status_code=303)
+    if rol == "gerente":
+        error = _validar_gerente(db, emp_id)
+        if error:
+            return RedirectResponse(_con_error(base, error), status_code=303)
+    if u.rol == "administrador" and rol != "administrador":
+        if u.id == user.id:
+            return RedirectResponse(_con_error(base, "No puedes quitarte a ti mismo el rol de administrador."), status_code=303)
+        otros = db.query(User).filter(User.rol == "administrador", User.activo == True, User.id != u.id).count()  # noqa: E712
+        if otros == 0:
+            return RedirectResponse(_con_error(base, "No puedes dejar el sistema sin ningún administrador activo."), status_code=303)
+
     u.rol = rol
-    u.empresa_id = int(empresa_id) if empresa_id else None
-    u.employee_id = nuevo_employee_id
-    u.man_academy_admin = bool(man_academy_admin)
+    u.employee_id = emp_id
+    u.man_academy_admin = bool(form.get("man_academy_admin"))
+    u.empresa_id = int(form.get("empresa_id")) if (form.get("empresa_id") and rol == "usuario") else None
+    if rol == "administrador":
+        u.permisos = None
+    else:
+        guardados = {}
+        for key, _lbl, _grupo, _alcance, tope, _ayuda in permisos_module.SECCIONES:
+            nivel = permisos_module._a_nivel(form.get("perm__" + key, "ninguno"))
+            nivel = min(nivel, tope)
+            if nivel:
+                guardados[key] = "editar" if nivel == permisos_module.EDITAR else "ver"
+        u.permisos = guardados
     db.commit()
-    return RedirectResponse("/rrhh/usuarios", status_code=303)
+    return RedirectResponse(f"{base}?ok=1", status_code=303)
 
 
 @router.post("/rrhh/usuarios/{user_id}/eliminar")
 def eliminar_usuario(user_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_admin)):
     """Eliminación definitiva (no solo desactivar) — para limpiar usuarios
     duplicados o de prueba. No se puede borrar la propia cuenta, ni dejar el
     sistema sin ningún administrador activo."""
@@ -1611,7 +1752,7 @@ def cambiar_mi_password(request: Request, actual: str = Form(...), nueva: str = 
 
 @router.get("/rrhh/remuneraciones/{modulo}", response_class=HTMLResponse)
 def remuneraciones_proximamente(request: Request, modulo: str, db: Session = Depends(get_db),
-                                 user: User = Depends(require_role("administrador"))):
+                                 user: User = Depends(require_perm("remuneraciones", "ver"))):
     titulo = REMUNERACIONES_MODULOS.get(modulo)
     if not titulo:
         raise HTTPException(404)
@@ -1626,8 +1767,8 @@ def remuneraciones_proximamente(request: Request, modulo: str, db: Session = Dep
 @router.get("/rrhh/personal", response_class=HTMLResponse)
 def personal_list(request: Request, empresa_id: str = "", unidad_id: str = "", q: str = "",
                    estado: str = "", db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
-    query = db.query(Employee)
+                   user: User = Depends(require_perm("personal", "ver"))):
+    query = filtrar_por_empresa(db.query(Employee), Employee.empresa_id, user, db)
     if empresa_id:
         query = query.filter(Employee.empresa_id == int(empresa_id))
     if unidad_id:
@@ -1639,8 +1780,11 @@ def personal_list(request: Request, empresa_id: str = "", unidad_id: str = "", q
     # Activos primero, cesados al final, para que se distingan de un vistazo.
     empleados = query.order_by((Employee.estado != "activo"), Employee.nombre_completo).all()
 
+    alcance = alcance_empresas(user, db)
     unidades = db.query(UnidadNegocio).order_by(UnidadNegocio.nombre).all()
-    empresas = db.query(Empresa).order_by(Empresa.nombre).all()
+    empresas = [e for e in db.query(Empresa).order_by(Empresa.nombre).all() if alcance is None or e.id in alcance]
+    if alcance is not None:
+        unidades = [u for u in unidades if any(e.unidad_negocio_id == u.id for e in empresas)]
     return templates.TemplateResponse(request, "rrhh_personal_list.html", _ctx(
         request, user, empleados=empleados, unidades=unidades, empresas=empresas,
         f_empresa=empresa_id, f_unidad=unidad_id, f_q=q, f_estado=estado,
@@ -1651,11 +1795,11 @@ def personal_list(request: Request, empresa_id: str = "", unidad_id: str = "", q
 @router.get("/rrhh/personal/export.xlsx")
 def personal_export(empresa_id: str = "", unidad_id: str = "", q: str = "", estado: str = "",
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador"))):
+                     user: User = Depends(require_perm("personal", "ver"))):
     """Punto 2 del pedido: descargar a Excel según el filtro activo en
     Personal (mismos parámetros que personal_list), o todos si no hay filtro."""
     from .export_xlsx import build_export
-    query = db.query(Employee)
+    query = filtrar_por_empresa(db.query(Employee), Employee.empresa_id, user, db)
     if empresa_id:
         query = query.filter(Employee.empresa_id == int(empresa_id))
     if unidad_id:
@@ -1674,13 +1818,21 @@ def personal_export(empresa_id: str = "", unidad_id: str = "", q: str = "", esta
 
 @router.post("/rrhh/personal/nuevo")
 def personal_nuevo_crear(db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("personal", "editar"))):
     """Punto 9.2 del pedido: "Agregar trabajador" ya no pasa por un mini
     formulario de nombre/correo/empresa — crea el registro en blanco y va
     directo a la ficha completa, donde se llena todo desde cero (el nombre
     se termina de definir ahí, en la Sección I). Es POST (no GET) para que
     un simple link/prefetch del navegador no cree trabajadores fantasma."""
     emp = Employee(nombre_completo="(Nuevo trabajador)", estado="activo", status="completo")
+    # Un gerente (o quien tenga una empresa asignada) solo ve a las personas de
+    # su alcance: la nueva queda en su empresa (si tiene varias, la primera;
+    # luego se puede cambiar a otra de su alcance desde la ficha).
+    alcance = alcance_empresas(user, db)
+    if alcance:
+        propia = db.query(Empresa).filter(Empresa.id.in_(alcance)).order_by(Empresa.nombre).first()
+        if propia:
+            emp.empresa_id, emp.empresa = propia.id, propia.nombre
     db.add(emp)
     db.commit()
     db.refresh(emp)
@@ -1690,12 +1842,17 @@ def personal_nuevo_crear(db: Session = Depends(get_db),
 @router.post("/rrhh/personal/nueva-seleccion")
 def personal_nueva_seleccion(nombre_completo: str = Form(...), email: str = Form(""), empresa_id: str = Form(""),
                               db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador"))):
+                              user: User = Depends(require_perm("personal", "editar"))):
     """Punto 2 del pedido: segunda forma de dar de alta a un trabajador —
     genera el enlace de Selección (/f/{token}) para que la propia persona
     llene su ficha (con menos secciones que la ficha completa; ver
     formulario.html), en vez de que RR.HH. la cargue directo."""
     empresa = db.query(Empresa).get(int(empresa_id)) if empresa_id else None
+    alcance = alcance_empresas(user, db)
+    if alcance is not None:
+        if empresa is None and alcance:
+            empresa = db.query(Empresa).filter(Empresa.id.in_(alcance)).order_by(Empresa.nombre).first()
+        exigir_empresa(user, db, empresa.id if empresa else None)
     emp = Employee(
         nombre_completo=nombre_completo.strip(), email=email.strip() or None,
         empresa_id=empresa.id if empresa else None, empresa=empresa.nombre if empresa else None,
@@ -1708,21 +1865,32 @@ def personal_nueva_seleccion(nombre_completo: str = Form(...), email: str = Form
     return RedirectResponse(f"/rrhh/personal?enlace={emp.token}", status_code=303)
 
 
-def _check_own_or_staff(user: User, employee_id: int):
-    if is_staff(user):
+def _check_own_or_staff(user: User, employee_id: int, db: Session = None, minimo: str = "ver"):
+    """Ficha propia (solo lectura) o la de otra persona si el usuario tiene
+    permiso sobre Personal y esa persona es de una empresa de su alcance."""
+    if user.rol == "administrador":
         return
-    if user.employee_id != employee_id:
-        raise HTTPException(403, "No tienes permiso para ver esta información.")
+    if user.employee_id == employee_id and minimo == "ver":
+        return
+    if db is not None:
+        emp = db.query(Employee).get(employee_id)
+        if emp is not None and acceso_ficha(user, db, emp, minimo):
+            return
+    raise Forbidden()
 
 
 @router.get("/rrhh/personal/{employee_id}", response_class=HTMLResponse)
 def personal_detalle(request: Request, employee_id: int, db: Session = Depends(get_db),
                       user: User = Depends(require_login)):
-    _check_own_or_staff(user, employee_id)
+    _check_own_or_staff(user, employee_id, db)
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
-    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    alcance = alcance_empresas(user, db)
+    empresas = [e for e in db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+                if alcance is None or e.id in alcance]
+    ver_ajena = user.employee_id != employee_id  # ficha de OTRA persona (con permiso de Personal)
+    editable = acceso_ficha(user, db, emp, "editar")
     ultima_marca = emp.asistencia[0] if emp.asistencia else None
     puede_marcar_entrada = not ultima_marca or ultima_marca.tipo == "salida"
 
@@ -1755,8 +1923,10 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
     return templates.TemplateResponse(request, "rrhh_personal_detalle.html", _ctx(
         request, user, e=emp, empresas=empresas, attachment_types=ATTACHMENT_TYPES,
         attachment_labels=ATTACHMENT_LABELS, tipos_bitacora=TIPOS_BITACORA,
-        can_planilla=can_see_planilla(user), can_operativo=can_see_operativo(user),
-        can_edit=is_staff(user), can_mark_own=(user.employee_id == employee_id),
+        can_edit=editable, can_mark_own=(user.employee_id == employee_id),
+        can_ver_listado=user.puede("personal"), es_admin=(user.rol == "administrador"),
+        can_planilla=(user.rol == "administrador" or (ver_ajena and can_see_planilla(user))),
+        can_operativo=(user.rol == "administrador" or (ver_ajena and can_see_operativo(user))),
         asistencia_reciente=emp.asistencia[:10], puede_marcar_entrada=puede_marcar_entrada,
         familia=emp.familia_data or [], educacion=emp.educacion_data or [],
         experiencia=emp.experiencia_data or [], capacitaciones=emp.capacitaciones_data or [],
@@ -1769,7 +1939,7 @@ def personal_detalle(request: Request, employee_id: int, db: Session = Depends(g
         solicitudes_vacaciones=db.query(SolicitudVacaciones).filter(
             SolicitudVacaciones.employee_id == employee_id).order_by(SolicitudVacaciones.created_at.desc()).all(),
         estados_vacaciones=dict(ESTADOS_SOLICITUD_VACACIONES),
-        active="personal",
+        active=("mi_ficha" if (user.employee_id == employee_id and user.rol != "administrador") else "personal"),
     ))
 
 
@@ -1781,7 +1951,7 @@ def solicitar_vacaciones(employee_id: int, fecha_inicio: str = Form(...), fecha_
     pedir vacaciones. Cualquiera puede pedir en su propia ficha; un
     administrador puede además registrar el pedido a nombre de alguien
     desde la ficha de esa persona."""
-    _check_own_or_staff(user, employee_id)
+    _check_own_or_staff(user, employee_id, db, "ver" if user.employee_id == employee_id else "editar")
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1796,7 +1966,7 @@ def solicitar_vacaciones(employee_id: int, fecha_inicio: str = Form(...), fecha_
 @router.post("/rrhh/personal/{employee_id}/vacaciones/{solicitud_id}/resolver")
 def resolver_vacaciones(employee_id: int, solicitud_id: int, estado: str = Form(...),
                          respuesta_admin: str = Form(""), db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador"))):
+                         user: User = Depends(require_empleado("editar"))):
     if estado not in ("aprobada", "rechazada"):
         raise HTTPException(400, "Estado inválido.")
     s = db.query(SolicitudVacaciones).get(solicitud_id)
@@ -1813,7 +1983,7 @@ def resolver_vacaciones(employee_id: int, solicitud_id: int, estado: str = Form(
 def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...),
                       nueva_fecha_fin_contrato: str = Form(""), tipo_contrato: str = Form(""),
                       notas: str = Form(""), db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_empleado("editar"))):
     """Punto 2.5 del pedido: al renovar el contrato, los campos fecha_contrato
     y fecha_fin_contrato de la ficha se actualizan, pero queda un registro
     permanente de cada renovación (fechas anteriores y nuevas, tipo, quién la
@@ -1850,7 +2020,7 @@ def renovar_contrato(employee_id: int, nueva_fecha_contrato: str = Form(...),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/personal/{employee_id}/solicitar-renovacion", response_class=HTMLResponse)
 def solicitar_renovacion_form(request: Request, employee_id: int, db: Session = Depends(get_db),
-                               user: User = Depends(require_role("administrador"))):
+                               user: User = Depends(require_empleado("ver"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -1869,7 +2039,7 @@ def solicitar_renovacion_crear(employee_id: int, meses_renovacion: str = Form(""
                                 aumento_sueldo: str = Form(""), monto_aumento: str = Form(""),
                                 movilidad: str = Form(""), otra_comision: str = Form(""),
                                 notas: str = Form(""), db: Session = Depends(get_db),
-                                user: User = Depends(require_role("administrador"))):
+                                user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2006,17 +2176,18 @@ def renovacion_rechazar(request: Request, token: str, db: Session = Depends(get_
 
 @router.get("/rrhh/solicitudes-renovacion/{solicitud_id}/carta")
 def descargar_carta_no_renovacion(solicitud_id: int, db: Session = Depends(get_db),
-                                   user: User = Depends(require_role("administrador"))):
+                                   user: User = Depends(require_perm("contratos", "ver"))):
     solicitud = db.query(SolicitudRenovacion).get(solicitud_id)
     if not solicitud or not solicitud.carta_no_renovacion_path or not os.path.exists(solicitud.carta_no_renovacion_path):
         raise HTTPException(404, "Carta no disponible.")
+    exigir_ficha(user, db, solicitud.employee_id, "ver")
     fname = f"Aviso de No Renovación - {solicitud.employee.nombre_completo}.pdf"
     return FileResponse(solicitud.carta_no_renovacion_path, filename=fname, media_type="application/pdf")
 
 
 @router.get("/rrhh/personal/{employee_id}/ficha", response_class=HTMLResponse)
 def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depends(get_db),
-                           user: User = Depends(require_role("administrador"))):
+                           user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2032,7 +2203,7 @@ def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depe
     # recién contratados tienen su legajo pendiente — solo aparecía quien ya
     # lo había terminado).
     empleados_activos = [
-        nombre for (nombre,) in db.query(Employee.nombre_completo)
+        nombre for (nombre,) in filtrar_por_empresa(db.query(Employee.nombre_completo), Employee.empresa_id, user, db)
         .filter(Employee.estado == "activo", Employee.id != employee_id)
         .order_by(Employee.nombre_completo).all()
     ]
@@ -2053,7 +2224,7 @@ def personal_ficha_editar(request: Request, employee_id: int, db: Session = Depe
 
 @router.post("/rrhh/personal/{employee_id}/ficha")
 async def personal_ficha_guardar(employee_id: int, request: Request, db: Session = Depends(get_db),
-                                  user: User = Depends(require_role("administrador"))):
+                                  user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2101,7 +2272,7 @@ def mi_perfil(user: User = Depends(require_login)):
 
 @router.get("/rrhh/personal/{employee_id}/foto")
 def personal_foto(employee_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
-    _check_own_or_staff(user, employee_id)
+    _check_own_or_staff(user, employee_id, db)
     emp = db.query(Employee).get(employee_id)
     if not emp or not emp.foto_path or not os.path.exists(emp.foto_path):
         raise HTTPException(404)
@@ -2110,7 +2281,7 @@ def personal_foto(employee_id: int, db: Session = Depends(get_db), user: User = 
 
 @router.post("/rrhh/personal/{employee_id}/foto")
 async def subir_foto(employee_id: int, foto: UploadFile = File(...), db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2127,7 +2298,7 @@ async def subir_foto(employee_id: int, foto: UploadFile = File(...), db: Session
 @router.post("/rrhh/personal/{employee_id}/bitacora")
 def agregar_bitacora(employee_id: int, tipo: str = Form(...), texto: str = Form(...),
                       db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2140,7 +2311,7 @@ def agregar_bitacora(employee_id: int, tipo: str = Form(...), texto: str = Form(
 def agregar_onboarding(employee_id: int, etapa: str = Form(...), estado: str = Form("pendiente"),
                         fecha: str = Form(""), responsable: str = Form(""), notas: str = Form(""),
                         db: Session = Depends(get_db),
-                        user: User = Depends(require_role("administrador"))):
+                        user: User = Depends(require_empleado("editar"))):
     if etapa not in ETAPA_ONBOARDING_KEYS:
         raise HTTPException(400, "Etapa de onboarding inválida.")
     emp = db.query(Employee).get(employee_id)
@@ -2164,7 +2335,7 @@ def agregar_onboarding(employee_id: int, etapa: str = Form(...), estado: str = F
 @router.post("/rrhh/personal/{employee_id}/documentos")
 async def subir_documento_rrhh(employee_id: int, tipo: str = Form(...), archivo: UploadFile = File(...),
                                  db: Session = Depends(get_db),
-                                 user: User = Depends(require_role("administrador"))):
+                                 user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2185,7 +2356,7 @@ async def subir_documento_rrhh(employee_id: int, tipo: str = Form(...), archivo:
 
 @router.post("/rrhh/personal/{employee_id}/documentos/{attachment_id}/eliminar")
 def eliminar_adjunto_rrhh(employee_id: int, attachment_id: int, db: Session = Depends(get_db),
-                           user: User = Depends(require_role("administrador"))):
+                           user: User = Depends(require_empleado("editar"))):
     """Borra un adjunto del legajo (para limpiar duplicados) — también borra
     el archivo del disco si existe."""
     a = db.query(Attachment).get(attachment_id)
@@ -2202,7 +2373,7 @@ def eliminar_adjunto_rrhh(employee_id: int, attachment_id: int, db: Session = De
 
 @router.post("/rrhh/personal/{employee_id}/legajo-doc/{document_id}/eliminar")
 def eliminar_documento_legajo(employee_id: int, document_id: int, db: Session = Depends(get_db),
-                               user: User = Depends(require_role("administrador"))):
+                               user: User = Depends(require_empleado("editar"))):
     """Borra un documento del Legajo de Selección (Declaración Jurada, etc.),
     pensado para quitar duplicados. Borra en cascada su firma y el PDF."""
     from .models import Document
@@ -2220,11 +2391,15 @@ def eliminar_documento_legajo(employee_id: int, document_id: int, db: Session = 
 
 @router.post("/rrhh/personal/{employee_id}/empresa")
 def asignar_empresa(employee_id: int, empresa_id: str = Form(""), db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador"))):
+                     user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
     empresa = db.query(Empresa).get(int(empresa_id)) if empresa_id else None
+    if alcance_empresas(user, db) is not None:
+        # un gerente solo mueve personas entre SUS empresas (nunca "sin empresa"
+        # ni a una ajena: la persona se le escaparía de la vista)
+        exigir_empresa(user, db, empresa.id if empresa else None)
     emp.empresa_id = empresa.id if empresa else None
     emp.empresa = empresa.nombre if empresa else None
     db.commit()
@@ -2233,7 +2408,7 @@ def asignar_empresa(employee_id: int, empresa_id: str = Form(""), db: Session = 
 
 @router.post("/rrhh/personal/{employee_id}/baja")
 def dar_de_baja(employee_id: int, fecha_baja: str = Form(...), motivo_baja: str = Form(...),
-                 db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                 db: Session = Depends(get_db), user: User = Depends(require_admin)):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2245,7 +2420,7 @@ def dar_de_baja(employee_id: int, fecha_baja: str = Form(...), motivo_baja: str 
 
 
 @router.post("/rrhh/personal/{employee_id}/reactivar")
-def reactivar(employee_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+def reactivar(employee_id: int, db: Session = Depends(get_db), user: User = Depends(require_empleado("editar"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -2259,17 +2434,22 @@ def reactivar(employee_id: int, db: Session = Depends(get_db), user: User = Depe
 # ---------------------------------------------------------------------------
 # Control de Asistencia (punto 6 del pedido): marcado de entrada/salida
 # ---------------------------------------------------------------------------
-def _puede_marcar(user: User, employee_id: int):
-    if is_staff(user):
+def _puede_marcar(user: User, employee_id: int, db: Session = None):
+    """Cada quien marca la suya; marcar la de otra persona es del administrador
+    (o de quien tenga 'editar' en Asistencia sobre esa empresa)."""
+    if user.rol == "administrador" or user.employee_id == employee_id:
         return
-    if user.employee_id != employee_id:
-        raise HTTPException(403, "Solo puedes marcar tu propia asistencia.")
+    if db is not None and user.puede("asistencia", "editar"):
+        emp = db.query(Employee).get(employee_id)
+        if emp is not None and puede_empresa(user, db, emp.empresa_id):
+            return
+    raise Forbidden()
 
 
 @router.post("/rrhh/personal/{employee_id}/asistencia/marcar")
 def marcar_asistencia(request: Request, employee_id: int, tipo: str = Form(...),
                        db: Session = Depends(get_db), user: User = Depends(require_login)):
-    _puede_marcar(user, employee_id)
+    _puede_marcar(user, employee_id, db)
     if tipo not in ("entrada", "salida"):
         raise HTTPException(400, "Tipo de marcación inválido.")
     emp = db.query(Employee).get(employee_id)
@@ -2286,7 +2466,7 @@ def marcar_asistencia(request: Request, employee_id: int, tipo: str = Form(...),
 @router.get("/rrhh/asistencia", response_class=HTMLResponse)
 def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador"))):
+                     user: User = Depends(require_perm("asistencia", "ver"))):
     # "Hoy" y el rango del día se calculan en hora de Lima (UTC-5), no en la
     # del servidor (UTC) — si no, entre las 19:00 y medianoche hora Lima las
     # marcaciones (guardadas en UTC) caían en el "día siguiente" y el filtro
@@ -2300,12 +2480,15 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
     inicio = datetime.datetime.combine(dia, datetime.time.min) + datetime.timedelta(hours=5)
     fin = datetime.datetime.combine(dia, datetime.time.max) + datetime.timedelta(hours=5)
 
+    alcance = alcance_empresas(user, db)
     query = db.query(AsistenciaRegistro).filter(
         AsistenciaRegistro.timestamp >= inicio, AsistenciaRegistro.timestamp <= fin,
     )
+    if empresa_id or alcance is not None:
+        query = query.join(Employee, AsistenciaRegistro.employee_id == Employee.id)
+        query = filtrar_por_empresa(query, Employee.empresa_id, user, db)
     if empresa_id:
-        query = query.join(Employee, AsistenciaRegistro.employee_id == Employee.id).filter(
-            Employee.empresa_id == int(empresa_id))
+        query = query.filter(Employee.empresa_id == int(empresa_id))
     registros = query.order_by(AsistenciaRegistro.timestamp.asc()).all()
 
     # Una sola fila por persona: su primera entrada y su última salida del
@@ -2329,15 +2512,17 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
             horas, minutos = divmod(int(segundos // 60), 60)
             fila["horas"] = f"{horas}h {minutos:02d}m"
 
-    empleados_activos = db.query(Employee).filter(Employee.estado == "activo")
+    empleados_activos = filtrar_por_empresa(db.query(Employee), Employee.empresa_id, user, db) \
+        .filter(Employee.estado == "activo")
     if empresa_id:
         empleados_activos = empleados_activos.filter(Employee.empresa_id == int(empresa_id))
     empleados_activos = empleados_activos.order_by(Employee.nombre_completo).all()
     marcaron_ids = {r.employee_id for r in registros if r.tipo == "entrada"}
     sin_marcar = [e for e in empleados_activos if e.id not in marcaron_ids]
 
-    empresas = db.query(Empresa).order_by(Empresa.nombre).all()
-    todos_activos = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
+    empresas = [e for e in db.query(Empresa).order_by(Empresa.nombre).all() if alcance is None or e.id in alcance]
+    todos_activos = filtrar_por_empresa(db.query(Employee), Employee.empresa_id, user, db) \
+        .filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
     return templates.TemplateResponse(request, "rrhh_asistencia.html", _ctx(
         request, user, filas_asistencia=filas_asistencia, dia=dia, empresas=empresas, f_empresa=empresa_id,
         sin_marcar=sin_marcar, total_activos=len(empleados_activos), active="asistencia",
@@ -2348,9 +2533,10 @@ def asistencia_list(request: Request, fecha: str = "", empresa_id: str = "",
 @router.post("/rrhh/asistencia/manual")
 def asistencia_manual(employee_id: int = Form(...), tipo: str = Form(...), fecha: str = Form(...),
                        hora: str = Form(...), nota: str = Form(""), db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("asistencia", "editar"))):
     if tipo not in ("entrada", "salida"):
         raise HTTPException(400, "Tipo de marcación inválido.")
+    exigir_ficha(user, db, employee_id, "editar")  # solo personas de su alcance
     # RR.HH. escribe la hora en hora de Lima (lo que vio/le dijeron) — se
     # convierte a UTC antes de guardar, igual que todas las demás marcaciones
     # (datetime.utcnow), para que no queden desalineadas entre sí.
@@ -2545,7 +2731,7 @@ async def marcar_asistencia_geo(request: Request, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/parametrizacion/sedes-geocercas", response_class=HTMLResponse)
 def sedes_geocercas_list(request: Request, db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("p_sedes", "ver"))):
     geocercas = db.query(SedeGeocerca).order_by(SedeGeocerca.nombre).all()
     return templates.TemplateResponse(request, "rrhh_sedes_geocercas.html", _ctx(
         request, user, geocercas=geocercas, active="sedes_geocercas",
@@ -2556,7 +2742,7 @@ def sedes_geocercas_list(request: Request, db: Session = Depends(get_db),
 def sedes_geocercas_crear(nombre: str = Form(...), direccion: str = Form(""),
                            latitud: float = Form(...), longitud: float = Form(...),
                            radio_metros: int = Form(100), db: Session = Depends(get_db),
-                           user: User = Depends(require_role("administrador"))):
+                           user: User = Depends(require_perm("p_sedes", "editar"))):
     db.add(SedeGeocerca(
         nombre=nombre.strip(), direccion=direccion.strip() or None,
         latitud=latitud, longitud=longitud, radio_metros=max(radio_metros, 10),
@@ -2569,7 +2755,7 @@ def sedes_geocercas_crear(nombre: str = Form(...), direccion: str = Form(""),
 def sedes_geocercas_editar(geocerca_id: int, nombre: str = Form(...), direccion: str = Form(""),
                             latitud: float = Form(...), longitud: float = Form(...),
                             radio_metros: int = Form(100), db: Session = Depends(get_db),
-                            user: User = Depends(require_role("administrador"))):
+                            user: User = Depends(require_perm("p_sedes", "editar"))):
     g = db.query(SedeGeocerca).get(geocerca_id)
     if not g:
         raise HTTPException(404)
@@ -2584,7 +2770,7 @@ def sedes_geocercas_editar(geocerca_id: int, nombre: str = Form(...), direccion:
 
 @router.post("/rrhh/parametrizacion/sedes-geocercas/{geocerca_id}/toggle")
 def sedes_geocercas_toggle(geocerca_id: int, db: Session = Depends(get_db),
-                            user: User = Depends(require_role("administrador"))):
+                            user: User = Depends(require_perm("p_sedes", "editar"))):
     g = db.query(SedeGeocerca).get(geocerca_id)
     if g:
         g.activo = not g.activo
@@ -2594,7 +2780,7 @@ def sedes_geocercas_toggle(geocerca_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/parametrizacion/sedes-geocercas/{geocerca_id}/eliminar")
 def sedes_geocercas_eliminar(geocerca_id: int, db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador"))):
+                              user: User = Depends(require_perm("p_sedes", "editar"))):
     g = db.query(SedeGeocerca).get(geocerca_id)
     if g:
         db.delete(g)
@@ -2607,13 +2793,14 @@ def sedes_geocercas_eliminar(geocerca_id: int, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, dias: int = 30, db: Session = Depends(get_db),
-              user: User = Depends(require_role("administrador"))):
-    data = kpis_module.resumen_dashboard(db, dias=dias)
+              user: User = Depends(require_perm("dashboard", "ver"))):
+    alcance = alcance_empresas(user, db)
+    data = kpis_module.resumen_dashboard(db, dias=dias, empresa_ids=alcance)
     max_empresa = max([c for _, c in data["headcount_empresa"]], default=0) or 1
     max_unidad = max([c for _, c in data["headcount_unidad"]], default=0) or 1
     return templates.TemplateResponse(request, "rrhh_dashboard.html", _ctx(
         request, user, data=data, max_empresa=max_empresa, max_unidad=max_unidad,
-        contratos_por_vencer=_contratos_no_indefinidos(db, dias_max=30), active="dashboard",
+        contratos_por_vencer=_contratos_no_indefinidos(db, dias_max=30, empresa_ids=alcance), active="dashboard",
     ))
 
 
@@ -2622,7 +2809,7 @@ def dashboard(request: Request, dias: int = 30, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/contratos", response_class=HTMLResponse)
 def contratos_list(request: Request, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_perm("contratos", "ver"))):
     return templates.TemplateResponse(request, "rrhh_contratos.html", _ctx(
-        request, user, contratos=_contratos_no_indefinidos(db), active="contratos",
+        request, user, contratos=_contratos_no_indefinidos(db, empresa_ids=alcance_empresas(user, db)), active="contratos",
     ))

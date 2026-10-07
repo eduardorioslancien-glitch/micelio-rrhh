@@ -12,20 +12,32 @@
 
   <div class="card">
     <h2>Usuarios del sistema ({{ usuarios|length }})</h2>
+    <p class="muted" style="margin-top:-4px;">Solo el administrador crea usuarios y decide a qué opciones del menú entra cada uno (botón <strong>Accesos</strong>).</p>
     <table>
-      <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Vinculado a</th><th>Último ingreso</th><th>Estado</th><th></th></tr>
+      <tr><th>Usuario</th><th>Nombre</th><th>Tipo</th><th>Alcance</th><th>Vinculado a</th><th>Último ingreso</th><th>Estado</th><th></th></tr>
       {% for u in usuarios %}
       <tr>
         <td><strong>{{ u.username }}</strong></td>
         <td>{{ u.nombre_completo }}</td>
         <td>
-          <span class="role-badge">{{ role_labels.get(u.rol, u.rol) }}</span>
-          {% if u.man_academy_admin and u.rol != 'administrador' %}<span class="role-badge" title="Además de su rol en MICELIO, es administrador de Man Academy">+ Admin Man Academy</span>{% endif %}
+          <span class="role-badge">{{ role_labels.get(u.rol, u.rol).split(' — ')[0].split(' (')[0] }}</span>
+          {% if u.rol in ('conta', 'opeoka') %}<div class="muted" style="font-size:11px;">cuenta anterior: reasígnala en Accesos</div>{% endif %}
+          {% if u.man_academy_admin and u.rol != 'administrador' %}<span class="role-badge" title="Además de su tipo en MICELIO, es administrador de Man Academy">+ Admin Man Academy</span>{% endif %}
+        </td>
+        <td class="muted" style="font-size:12px;">
+          {% if u.rol == 'administrador' %}Todo MICELIO
+          {% elif u.rol == 'gerente' %}
+            {% if alcance_texto.get(u.id) %}Solo: {{ alcance_texto[u.id] }}{% else %}<span style="color:var(--red);">Sin empresa (ya no es Representante Legal)</span>{% endif %}
+          {% else %}
+            {% set n = u.permisos|length if u.permisos is not none else (1 if u.rol == 'opeoka' else 0) %}
+            Su ficha{% if n %} + {{ n }} opción(es){% endif %}{% if u.empresa %} · {{ u.empresa.nombre }}{% endif %}
+          {% endif %}
         </td>
         <td>{% if u.employee %}<a href="/rrhh/personal/{{ u.employee.id }}">{{ u.employee.nombre_completo }}</a>{% else %}—{% endif %}</td>
         <td class="muted">{{ (u.last_login_at|lima).strftime('%d/%m/%Y %H:%M') if u.last_login_at else 'nunca' }}</td>
         <td><span class="badge {{ 'firmado' if u.activo else 'pendiente' }}">{{ 'activo' if u.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
+          <a class="btn small secondary" href="/rrhh/usuarios/{{ u.id }}/accesos" title="Tipo de usuario y opciones del menú">Accesos</a>
           <form method="post" action="/rrhh/usuarios/{{ u.id }}/toggle" style="display:inline;">
             <button class="icon-btn {{ 'icon-btn-desactivar' if u.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if u.activo else 'Activar' }}" {{ 'disabled' if u.id == user.id else '' }}></button>
           </form>
@@ -34,35 +46,6 @@
             <div class="edit-popover">
               <form method="post" action="/rrhh/usuarios/{{ u.id }}/reset-password">
                 <input type="password" name="nueva_password" placeholder="Nueva contraseña" required>
-                <button class="btn small" type="submit" style="margin-top:8px;">Guardar</button>
-              </form>
-            </div>
-          </details>
-          <details style="display:inline-block;">
-            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar acceso y vínculo"></summary>
-            <div class="edit-popover">
-              <form method="post" action="/rrhh/usuarios/{{ u.id }}/editar">
-                <div class="field"><label>Rol</label>
-                  <select name="rol" required>
-                    {% for k, lbl in roles %}<option value="{{ k }}" {{ 'selected' if u.rol == k else '' }}>{{ lbl }}</option>{% endfor %}
-                  </select>
-                </div>
-                <div class="field"><label>Empresa (alcance opcional)</label>
-                  <select name="empresa_id">
-                    <option value="">— Todas —</option>
-                    {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if u.empresa_id == e.id else '' }}>{{ e.nombre }}</option>{% endfor %}
-                  </select>
-                </div>
-                <div class="field"><label>Vincular a trabajador</label>
-                  <select name="employee_id">
-                    <option value="">— Ninguno —</option>
-                    {% for emp in empleados %}<option value="{{ emp.id }}" {{ 'selected' if u.employee_id == emp.id else '' }}>{{ emp.nombre_completo }}</option>{% endfor %}
-                  </select>
-                </div>
-                <div class="field-check">
-                  <input type="checkbox" name="man_academy_admin" value="1" style="width:auto;" {{ 'checked' if u.man_academy_admin else '' }}>
-                  <label>Administrador de Man Academy (independiente del Rol de acá arriba)</label>
-                </div>
                 <button class="btn small" type="submit" style="margin-top:8px;">Guardar</button>
               </form>
             </div>
@@ -79,39 +62,54 @@
 
   <div class="card">
     <h2>Crear usuario</h2>
-    <form method="post" action="/rrhh/usuarios/nuevo">
+    <form method="post" action="/rrhh/usuarios/nuevo" id="form-nuevo-usuario">
       <div class="grid3">
         <div class="field"><label>Usuario (login)</label><input type="text" name="username" required></div>
         <div class="field"><label>Contraseña inicial</label><input type="password" name="password" required></div>
         <div class="field"><label>Nombre completo</label><input type="text" name="nombre_completo" required></div>
         <div class="field">
-          <label>Rol</label>
-          <select name="rol" required>
-            {% for k, lbl in roles %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+          <label>Tipo de usuario</label>
+          <select name="rol" id="nuevo-rol" required>
+            {% for k, lbl in roles %}<option value="{{ k }}" {{ 'selected' if k == 'usuario' else '' }}>{{ lbl }}</option>{% endfor %}
           </select>
         </div>
         <div class="field">
-          <label>Empresa (alcance opcional)</label>
-          <select name="empresa_id">
-            <option value="">— Todas —</option>
-            {% for e in empresas %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="field">
-          <label>Vincular a trabajador (solo rol "Usuario")</label>
-          <select name="employee_id">
+          <label>Vincular a su ficha de Personal</label>
+          <select name="employee_id" id="nuevo-employee">
             <option value="">— Ninguno —</option>
-            {% for emp in empleados %}<option value="{{ emp.id }}">{{ emp.nombre_completo }}</option>{% endfor %}
+            {% for emp in empleados %}<option value="{{ emp.id }}" data-gerente="{{ 1 if emp.id in candidatos_gerente else 0 }}">{{ emp.nombre_completo }}</option>{% endfor %}
           </select>
+          <div class="hint" id="nuevo-hint-gerente" style="display:none;">Un Gerente solo puede ser quien figura como <strong>Representante Legal</strong> en Parámetros › Empresas. Aquí aparecen solo esas personas.</div>
         </div>
       </div>
       <div class="field-check">
         <input type="checkbox" name="man_academy_admin" value="1" style="width:auto;">
-        <label>Administrador de Man Academy (independiente del Rol de arriba)</label>
+        <label>Administrador de Man Academy (independiente del tipo de arriba)</label>
       </div>
+      <p class="hint">Al crearlo se abre la pantalla de <strong>Accesos</strong> para marcar qué opciones del menú puede usar. Un <em>Usuario</em> arranca viendo solo su ficha; un <em>Gerente</em> arranca con todo lo de su empresa.</p>
       <button class="btn" type="submit">Crear usuario</button>
     </form>
   </div>
+
+<script>
+(function () {
+  var rol = document.getElementById('nuevo-rol');
+  var sel = document.getElementById('nuevo-employee');
+  var hint = document.getElementById('nuevo-hint-gerente');
+  function aplicar() {
+    var esGerente = rol.value === 'gerente';
+    hint.style.display = esGerente ? 'block' : 'none';
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (!o.value) return;
+      var ok = !esGerente || o.getAttribute('data-gerente') === '1';
+      o.hidden = !ok; o.disabled = !ok;
+    });
+    if (sel.selectedOptions.length && sel.selectedOptions[0].disabled) sel.value = '';
+  }
+  rol.addEventListener('change', aplicar);
+  aplicar();
+})();
+</script>
 
 </div>
 </body>

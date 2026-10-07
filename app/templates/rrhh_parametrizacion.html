@@ -13,15 +13,15 @@
     <p class="muted">Cada catálogo tiene su propia página (también accesibles desde el menú lateral, dentro de Administración &gt; Parámetros).</p>
     <table>
       <tr><th>Catálogo</th><th></th></tr>
-      <tr><td>Holdings</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/holdings">Abrir</a></td></tr>
-      <tr><td>Unidades de Negocio</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/unidades">Abrir</a></td></tr>
-      <tr><td>Empresas</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/empresas">Abrir</a></td></tr>
-      <tr><td>Líneas de Producto</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/lineas-producto">Abrir</a></td></tr>
-      <tr><td>Principios, Valores y Competencias</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/competencias">Abrir</a></td></tr>
-      {% for tipo, label in catalogo_tipos %}
+      {% if user.puede('p_holdings') %}<tr><td>Holdings</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/holdings">Abrir</a></td></tr>{% endif %}
+      {% if user.puede('p_unidades') %}<tr><td>Unidades de Negocio</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/unidades">Abrir</a></td></tr>{% endif %}
+      {% if user.puede('p_empresas') %}<tr><td>Empresas</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/empresas">Abrir</a></td></tr>{% endif %}
+      {% if user.puede('p_lineas') %}<tr><td>Líneas de Producto</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/lineas-producto">Abrir</a></td></tr>{% endif %}
+      {% if user.puede('p_competencias') %}<tr><td>Principios, Valores y Competencias</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/competencias">Abrir</a></td></tr>{% endif %}
+      {% if user.puede('p_catalogos') %}{% for tipo, label in catalogo_tipos %}
       <tr><td>{{ label }}s</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/catalogo/{{ tipo }}">Abrir</a></td></tr>
-      {% endfor %}
-      <tr><td>Cargos - MOF</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/cargos">Abrir</a></td></tr>
+      {% endfor %}{% endif %}
+      {% if user.puede('p_cargos') %}<tr><td>Cargos - MOF</td><td><a class="btn small secondary" href="/rrhh/parametrizacion/cargos">Abrir</a></td></tr>{% endif %}
     </table>
   </div>
 

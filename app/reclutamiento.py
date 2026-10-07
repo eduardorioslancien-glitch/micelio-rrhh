@@ -23,7 +23,7 @@ from .models import (
     CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE, LEAD_NOMBRE_PENDIENTE, lead_incompleto,
     lead_semaforo,
 )
-from .auth import require_role, require_jefe_o_gerente, es_jefe_o_gerente
+from .auth import require_role, require_perm, require_jefe_o_gerente, es_jefe_o_gerente
 from .rrhh import (
     _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead,
     _pedido_cubre_vacante, _a_lima, _eliminar_employee_completo, _notificar_lead_incompleto_n8n,
@@ -122,7 +122,7 @@ def _generar_codigo_pedido(db: Session) -> str:
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/reclutamiento/pedidos", response_class=HTMLResponse)
 def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador", "opeoka"))):
+                  user: User = Depends(require_perm("pedidos", "ver"))):
     # Punto pedido (28/09): al entrar sin filtro elegido, se ven solo los
     # pedidos ABIERTO (lo que RR.HH. necesita mirar primero). "Todos" y cada
     # estado puntual son opciones explícitas del selector, no el default.
@@ -192,7 +192,7 @@ def pedidos_crear(cargo_solicitado: str = Form(...), cantidad: int = Form(1),
 
 @router.get("/rrhh/reclutamiento/pedidos/{pedido_id}", response_class=HTMLResponse)
 def pedido_detalle(request: Request, pedido_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador", "opeoka"))):
+                    user: User = Depends(require_perm("pedidos", "ver"))):
     """Punto 2 del pedido (16/09): aunque un pedido ya se haya cerrado (por
     cubierto o cancelado), tiene que poder revisarse quiénes postularon y
     todo lo que pasó — Leads activos, personal que llegó a Selección/
@@ -221,7 +221,9 @@ def pedido_detalle(request: Request, pedido_id: int, db: Session = Depends(get_d
 
 @router.post("/rrhh/reclutamiento/pedidos/{pedido_id}/estado")
 def pedidos_cambiar_estado(pedido_id: int, estado: str = Form(...), db: Session = Depends(get_db),
-                            user: User = Depends(require_role("administrador"))):
+                            user: User = Depends(require_perm("leads", "editar"))):
+    # Cerrar/cancelar/reabrir un pedido es de quien gestiona la captación (Leads), no de
+    # quien solo genera pedidos (el antiguo "Gerente o Jefe" nunca pudo cambiar el estado).
     if estado not in ESTADO_PEDIDO_KEYS:
         raise HTTPException(400, "Estado inválido.")
     pedido = db.query(PedidoPersonal).get(pedido_id)
@@ -245,7 +247,7 @@ def _orden_leads(lead: LeadCandidato):
 
 @router.get("/rrhh/reclutamiento/leads", response_class=HTMLResponse)
 def leads_list(request: Request, etapa: str = "", pedido_id: str = "", db: Session = Depends(get_db),
-                user: User = Depends(require_role("administrador"))):
+                user: User = Depends(require_perm("leads", "ver"))):
     # Punto pedido (28/09): "últimos 10 Pedidos con scroll" — se traen todos
     # los abiertos (más reciente primero, igual que antes) y el límite a 10
     # visibles es en la plantilla (contenedor con scroll), no acá, para no
@@ -297,7 +299,7 @@ async def leads_crear(background_tasks: BackgroundTasks,
                        origen: str = Form(""), pedido_id: str = Form(""), notas: str = Form(""),
                        cv: UploadFile = File(None),
                        db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("leads", "editar"))):
     lead = LeadCandidato(
         nombre_completo=nombre_completo.strip(), email=email.strip() or None, celular=celular.strip() or None,
         origen=origen or None, pedido_id=int(pedido_id) if pedido_id else None, notas=notas.strip() or None,
@@ -336,7 +338,7 @@ async def leads_crear(background_tasks: BackgroundTasks,
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/etapa")
 def leads_cambiar_etapa(lead_id: int, etapa: str = Form(...), db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador"))):
+                         user: User = Depends(require_perm("leads", "editar"))):
     if etapa not in ETAPA_LEAD_KEYS:
         raise HTTPException(400, "Etapa inválida.")
     lead = db.query(LeadCandidato).get(lead_id)
@@ -349,7 +351,7 @@ def leads_cambiar_etapa(lead_id: int, etapa: str = Form(...), db: Session = Depe
 
 @router.get("/rrhh/reclutamiento/leads/{lead_id}/cv")
 def lead_cv(lead_id: int, db: Session = Depends(get_db),
-            user: User = Depends(require_role("administrador"))):
+            user: User = Depends(require_perm("leads", "ver"))):
     from fastapi.responses import FileResponse
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
@@ -359,7 +361,7 @@ def lead_cv(lead_id: int, db: Session = Depends(get_db),
 
 @router.get("/rrhh/reclutamiento/leads/{lead_id}", response_class=HTMLResponse)
 def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador"))):
+                  user: User = Depends(require_perm("leads", "ver"))):
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404)
@@ -441,7 +443,7 @@ def _correo_descarte(lead: LeadCandidato) -> bool:
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/coordinar-meet")
 def lead_coordinar_meet(lead_id: int, db: Session = Depends(get_db),
-                         user: User = Depends(require_role("administrador"))):
+                         user: User = Depends(require_perm("leads", "editar"))):
     """"Entrevistar" en Gestión de Leads — punto 3.3 del pedido de
     automatización RyS (21/09). Intenta agendar de verdad vía n8n (25 min,
     Google Calendar de trabajaconnosotros@digetelgroup.com, invitado =
@@ -500,7 +502,7 @@ def _archivar_descarte(db: Session, *, nombre_completo: str, email: str, celular
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/descartar")
 def lead_descartar(lead_id: int, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_perm("leads", "editar"))):
     """Descartar desde Gestión de Leads (el CV no calza, o no se aprobó en
     la Entrevista 1) — punto 1 del pedido (16/09): se archiva su historial
     completo y se borra de la lista de Leads activos, en vez de quedar ahí
@@ -572,7 +574,7 @@ def lead_descartar(lead_id: int, db: Session = Depends(get_db),
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/entrevista")
 async def lead_guardar_entrevista(request: Request, lead_id: int, db: Session = Depends(get_db),
-                                   user: User = Depends(require_role("administrador"))):
+                                   user: User = Depends(require_perm("leads", "editar"))):
     """Guarda la Entrevista por Competencias (una fila por competencia del
     cargo, campos dinámicos comp_{id}_nivel / comp_{id}_notas) y la
     Evaluación DISC (una fila por DISC_PREGUNTAS, disc_{id})."""
@@ -720,7 +722,7 @@ def _notificar_entrevistador(emp: Employee, entrevistador: Employee):
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/aprobar")
 def lead_aprobar(lead_id: int, entrevistador_id: str = Form(""), db: Session = Depends(get_db),
-                  user: User = Depends(require_role("administrador"))):
+                  user: User = Depends(require_perm("leads", "editar"))):
     """Aprobado -> pasa a Selección: crea el legajo (Employee pendiente con
     token) y notifica a quien se eligió para la segunda entrevista. El
     enlace de autoservicio de la ficha ya NO se manda acá al candidato —
@@ -807,7 +809,7 @@ def _ya_lleno_ficha(emp: Employee) -> bool:
 
 @router.get("/rrhh/reclutamiento/seleccion", response_class=HTMLResponse)
 def seleccion_list(request: Request, db: Session = Depends(get_db),
-                    user: User = Depends(require_role("administrador"))):
+                    user: User = Depends(require_perm("seleccion", "ver"))):
     # Punto 7 del pedido (15/09): antes solo entraban acá los que ya tenían
     # clasificacion_entrevista en EXCELENTE/MUY BUENO/BUENO — pero esa
     # clasificación no siempre queda cargada al momento de aprobar el lead
@@ -829,7 +831,7 @@ def seleccion_list(request: Request, db: Session = Depends(get_db),
 
 @router.get("/rrhh/reclutamiento/seleccion/{employee_id}", response_class=HTMLResponse)
 def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("seleccion", "ver"))):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -853,7 +855,7 @@ def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(
 @router.post("/rrhh/reclutamiento/seleccion/{employee_id}/asignar")
 def seleccion_asignar(employee_id: int, entrevistador_id: int = Form(...),
                        db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("seleccion", "editar"))):
     """Asigna (o reasigna) a quién le toca la segunda entrevista — mismo
     aviso por correo/WhatsApp que al aprobar el lead con un entrevistador
     elegido (ver _notificar_entrevistador), por si hay que cambiarlo o
@@ -884,7 +886,7 @@ def seleccion_asignar(employee_id: int, entrevistador_id: int = Form(...),
 
 @router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-aprobado")
 def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db),
-                                  user: User = Depends(require_role("administrador"))):
+                                  user: User = Depends(require_perm("seleccion", "editar"))):
     """RR.HH. confirma el veredicto APROBADO del entrevistador — punto 1 del
     pedido (16/09): recién acá se le manda al candidato el enlace de
     autoservicio para llenar su ficha (antes se mandaba al aprobar el lead,
@@ -938,7 +940,7 @@ def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db)
 
 @router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-descartado")
 def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_db),
-                                    user: User = Depends(require_role("administrador"))):
+                                    user: User = Depends(require_perm("seleccion", "editar"))):
     """RR.HH. confirma el veredicto DESCARTADO del entrevistador (o descarta
     directamente un REVISAR) — punto 1 del pedido (16/09): a quien se
     descarta NO le queda un registro en Personal, pero sí un historial
@@ -1087,7 +1089,7 @@ def entrevista2_guardar(token: str, veredicto: str = Form(...), comentario: str 
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/reclutamiento/onboarding", response_class=HTMLResponse)
 def onboarding_overview(request: Request, db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("onboarding", "ver"))):
     empleados = (
         db.query(Employee)
         .filter(Employee.estado == "activo")
@@ -1111,7 +1113,7 @@ def onboarding_overview(request: Request, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/reclutamiento/descartados", response_class=HTMLResponse)
 def descartados_list(request: Request, etapa: str = "", db: Session = Depends(get_db),
-                      user: User = Depends(require_role("administrador"))):
+                      user: User = Depends(require_perm("descartados", "ver"))):
     query = db.query(HistorialDescarte)
     if etapa:
         query = query.filter(HistorialDescarte.etapa_descarte == etapa)

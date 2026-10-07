@@ -23,7 +23,7 @@ from .models import (
     Anuncio, Holding, UnidadNegocio, Empresa, AnuncioVista, AnuncioLike,
     ESTADOS_ENCUESTA, RELACIONES_ENCUESTA, AMBITOS_ANUNCIO, AMBITO_ANUNCIO_KEYS,
 )
-from .auth import require_role, require_login, Forbidden
+from .auth import require_role, require_login, require_perm, Forbidden, alcance_empresas
 from .rrhh import _ctx, _a_lima
 
 
@@ -33,7 +33,7 @@ def require_encuesta_acceso(campana_id: int, request: Request, db: Session = Dep
     rol) puede entrar a responderla — no solo RR.HH. Una vez cerrada, vuelve
     a ser administrador-only (revisión de resultados)."""
     user = require_login(request, db)
-    if user.rol == "administrador":
+    if user.rol == "administrador" or user.puede("encuestas"):
         return user
     campana = db.query(EncuestaCampana).get(campana_id)
     if campana and campana.estado == "abierta":
@@ -71,7 +71,7 @@ def encuestas_list(request: Request, db: Session = Depends(get_db),
     # abierta, cualquier rol puede entrar a responderla. Administrador ve la
     # gestión completa (todas las campañas, crear/cerrar); el resto solo ve
     # las que están abiertas ahora, para responder.
-    if user.rol == "administrador":
+    if user.puede("encuestas"):
         campanas = db.query(EncuestaCampana).order_by(EncuestaCampana.created_at.desc()).all()
     else:
         campanas = db.query(EncuestaCampana).filter(EncuestaCampana.estado == "abierta") \
@@ -84,7 +84,7 @@ def encuestas_list(request: Request, db: Session = Depends(get_db),
 @router.post("/rrhh/clima/encuestas/nueva")
 def encuestas_crear(nombre: str = Form(...), descripcion: str = Form(""), preguntas: str = Form(...),
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador"))):
+                     user: User = Depends(require_perm("encuestas", "editar"))):
     lista_preguntas = [p.strip() for p in preguntas.splitlines() if p.strip()]
     if not lista_preguntas:
         raise HTTPException(400, "Agrega al menos una pregunta.")
@@ -98,7 +98,7 @@ def encuestas_crear(nombre: str = Form(...), descripcion: str = Form(""), pregun
 
 @router.post("/rrhh/clima/encuestas/{campana_id}/estado")
 def encuestas_cambiar_estado(campana_id: int, estado: str = Form(...), db: Session = Depends(get_db),
-                              user: User = Depends(require_role("administrador"))):
+                              user: User = Depends(require_perm("encuestas", "editar"))):
     if estado not in dict(ESTADOS_ENCUESTA):
         raise HTTPException(400, "Estado inválido.")
     campana = db.query(EncuestaCampana).get(campana_id)
@@ -158,7 +158,7 @@ async def encuesta_agregar_respuesta(campana_id: int, request: Request, db: Sess
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/clima/anuncios", response_class=HTMLResponse)
 def anuncios_list(request: Request, db: Session = Depends(get_db),
-                   user: User = Depends(require_role("administrador"))):
+                   user: User = Depends(require_perm("anuncios", "ver"))):
     anuncios = db.query(Anuncio).order_by(Anuncio.created_at.desc()).all()
     holdings = db.query(Holding).filter(Holding.activo == True).order_by(Holding.nombre).all()  # noqa: E712
     unidades = db.query(UnidadNegocio).filter(UnidadNegocio.activo == True).order_by(UnidadNegocio.nombre).all()  # noqa: E712
@@ -182,7 +182,7 @@ async def anuncios_crear(titulo: str = Form(...), cuerpo: str = Form(...), ambit
                           holding_id: str = Form(""), unidad_negocio_id: str = Form(""), empresa_id: str = Form(""),
                           imagen: UploadFile = File(None),
                           db: Session = Depends(get_db),
-                          user: User = Depends(require_role("administrador"))):
+                          user: User = Depends(require_perm("anuncios", "editar"))):
     if ambito not in AMBITO_ANUNCIO_KEYS:
         raise HTTPException(400, "Ámbito inválido.")
     if ambito == "unidad" and not unidad_negocio_id:
@@ -214,7 +214,8 @@ async def anuncios_crear(titulo: str = Form(...), cuerpo: str = Form(...), ambit
 
 
 @router.get("/rrhh/clima/anuncios/{anuncio_id}/imagen")
-def anuncio_imagen(anuncio_id: int, db: Session = Depends(get_db), user: User = Depends(require_role("administrador", "conta", "opeoka", "usuario"))):
+def anuncio_imagen(anuncio_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)):
+    # la imagen se muestra en la pantalla de inicio de cualquier usuario
     from fastapi.responses import FileResponse
     a = db.query(Anuncio).get(anuncio_id)
     if not a or not a.imagen_path or not os.path.exists(a.imagen_path):
@@ -224,7 +225,7 @@ def anuncio_imagen(anuncio_id: int, db: Session = Depends(get_db), user: User = 
 
 @router.post("/rrhh/clima/anuncios/{anuncio_id}/toggle")
 def anuncios_toggle(anuncio_id: int, db: Session = Depends(get_db),
-                     user: User = Depends(require_role("administrador"))):
+                     user: User = Depends(require_perm("anuncios", "editar"))):
     a = db.query(Anuncio).get(anuncio_id)
     if a:
         a.activo = not a.activo
@@ -250,7 +251,7 @@ def anuncios_like_toggle(anuncio_id: int, db: Session = Depends(get_db), user: U
 
 @router.post("/rrhh/clima/anuncios/{anuncio_id}/eliminar")
 def anuncios_eliminar(anuncio_id: int, db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("anuncios", "editar"))):
     a = db.query(Anuncio).get(anuncio_id)
     if a:
         db.delete(a)
@@ -263,8 +264,8 @@ def anuncios_eliminar(anuncio_id: int, db: Session = Depends(get_db),
 # ---------------------------------------------------------------------------
 @router.get("/rrhh/clima/indicadores", response_class=HTMLResponse)
 def indicadores(request: Request, dias: int = 30, db: Session = Depends(get_db),
-                 user: User = Depends(require_role("administrador"))):
-    data = kpis_module.resumen_dashboard(db, dias=dias)
+                 user: User = Depends(require_perm("indicadores", "ver"))):
+    data = kpis_module.resumen_dashboard(db, dias=dias, empresa_ids=alcance_empresas(user, db))
 
     total_activos = data["headcount"]
     campanas_resumen = []

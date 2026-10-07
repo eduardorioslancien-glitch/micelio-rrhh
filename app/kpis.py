@@ -49,49 +49,63 @@ def _parse_monto(valor) -> float:
         return 0.0
 
 
-def headcount_activo(db: Session) -> int:
-    return db.query(Employee).filter(Employee.estado == "activo").count()
+def _emps(db: Session, empresa_ids=None):
+    """Consulta base de trabajadores. `empresa_ids` (set) la acota a esas
+    empresas: así el gerente de una empresa solo ve los indicadores de la
+    suya; None = todo el holding."""
+    q = db.query(Employee)
+    if empresa_ids is not None:
+        q = q.filter(Employee.empresa_id.in_(list(empresa_ids) or [-1]))
+    return q
 
 
-def headcount_por_empresa(db: Session):
+def headcount_activo(db: Session, empresa_ids=None) -> int:
+    return _emps(db, empresa_ids).filter(Employee.estado == "activo").count()
+
+
+def headcount_por_empresa(db: Session, empresa_ids=None):
     empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+    if empresa_ids is not None:
+        empresas = [e for e in empresas if e.id in empresa_ids]
     return [(e.nombre, db.query(Employee).filter(Employee.empresa_id == e.id, Employee.estado == "activo").count())
             for e in empresas]
 
 
-def headcount_por_unidad(db: Session):
+def headcount_por_unidad(db: Session, empresa_ids=None):
     unidades = db.query(UnidadNegocio).filter(UnidadNegocio.activo == True).order_by(UnidadNegocio.nombre).all()  # noqa: E712
     resultado = []
     for u in unidades:
-        empresa_ids = [e.id for e in u.empresas]
-        count = db.query(Employee).filter(Employee.empresa_id.in_(empresa_ids), Employee.estado == "activo").count() if empresa_ids else 0
+        ids = [e.id for e in u.empresas if empresa_ids is None or e.id in empresa_ids]
+        if empresa_ids is not None and not ids:
+            continue  # unidad sin ninguna empresa de su alcance: ni siquiera se nombra
+        count = db.query(Employee).filter(Employee.empresa_id.in_(ids), Employee.estado == "activo").count() if ids else 0
         resultado.append((u.nombre, count))
     return resultado
 
 
-def altas_periodo(db: Session, dias: int) -> int:
+def altas_periodo(db: Session, dias: int, empresa_ids=None) -> int:
     """Incorporaciones: trabajadores creados en la BD maestra dentro del periodo."""
     desde = datetime.datetime.utcnow() - datetime.timedelta(days=dias)
-    return db.query(Employee).filter(Employee.created_at >= desde).count()
+    return _emps(db, empresa_ids).filter(Employee.created_at >= desde).count()
 
 
-def bajas_periodo(db: Session, dias: int) -> int:
+def bajas_periodo(db: Session, dias: int, empresa_ids=None) -> int:
     desde = datetime.datetime.utcnow() - datetime.timedelta(days=dias)
-    return db.query(Employee).filter(Employee.fecha_baja.isnot(None), Employee.fecha_baja >= desde).count()
+    return _emps(db, empresa_ids).filter(Employee.fecha_baja.isnot(None), Employee.fecha_baja >= desde).count()
 
 
-def rotacion_pct(db: Session, dias: int) -> float:
+def rotacion_pct(db: Session, dias: int, empresa_ids=None) -> float:
     """Rotación simplificada = bajas del periodo / headcount activo actual × 100.
     (Aproximación de prototipo; la fórmula clásica usa el promedio de activos
     al inicio y al fin del periodo — se puede afinar cuando haya más historia.)"""
-    activos = headcount_activo(db)
-    bajas = bajas_periodo(db, dias)
+    activos = headcount_activo(db, empresa_ids)
+    bajas = bajas_periodo(db, dias, empresa_ids)
     if activos == 0:
         return 0.0
     return round(bajas / activos * 100, 1)
 
 
-def ausentismo_pct(db: Session, dias: int):
+def ausentismo_pct(db: Session, dias: int, empresa_ids=None):
     """% de días-trabajador hábiles del periodo en que un trabajador activo
     NO marcó su entrada. Devuelve (pct, dias_esperados, dias_sin_marcar)."""
     hoy = _hoy_lima()
@@ -100,13 +114,15 @@ def ausentismo_pct(db: Session, dias: int):
     if not dias_habiles:
         return 0.0, 0, 0
 
-    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    activos = _emps(db, empresa_ids).filter(Employee.estado == "activo").all()
     if not activos:
         return 0.0, 0, 0
 
     desde_dt = datetime.datetime.combine(desde, datetime.time.min)
+    ids_activos = [e.id for e in activos]
     registros = db.query(AsistenciaRegistro).filter(
         AsistenciaRegistro.tipo == "entrada", AsistenciaRegistro.timestamp >= desde_dt,
+        AsistenciaRegistro.employee_id.in_(ids_activos),
     ).all()
     marcados = {(r.employee_id, r.timestamp.date()) for r in registros}
 
@@ -116,24 +132,24 @@ def ausentismo_pct(db: Session, dias: int):
     return pct, esperados, sin_marcar
 
 
-def pct_activos(db: Session) -> float:
+def pct_activos(db: Session, empresa_ids=None) -> float:
     """% de activos sobre el total de trabajadores que ha pasado alguna vez
     por la planilla (activos + cesados), como en el reporte de referencia."""
-    total = db.query(Employee).count()
+    total = _emps(db, empresa_ids).count()
     if total == 0:
         return 0.0
-    return round(headcount_activo(db) / total * 100, 1)
+    return round(headcount_activo(db, empresa_ids) / total * 100, 1)
 
 
-def planilla_activa_soles(db: Session) -> float:
+def planilla_activa_soles(db: Session, empresa_ids=None) -> float:
     """Suma de la remuneración (ficha_data.remuneracion) de los trabajadores activos."""
-    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    activos = _emps(db, empresa_ids).filter(Employee.estado == "activo").all()
     return round(sum(_parse_monto((e.ficha_data or {}).get("remuneracion")) for e in activos), 2)
 
 
-def edad_promedio(db: Session):
+def edad_promedio(db: Session, empresa_ids=None):
     """Edad promedio de los trabajadores activos con fecha de nacimiento registrada."""
-    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    activos = _emps(db, empresa_ids).filter(Employee.estado == "activo").all()
     hoy = _hoy_lima()
     edades = []
     for e in activos:
@@ -145,10 +161,10 @@ def edad_promedio(db: Session):
     return round(sum(edades) / len(edades), 1)
 
 
-def _conteo_por_campo(db: Session, campo: str, solo_activos: bool = True, top: int = None):
+def _conteo_por_campo(db: Session, campo: str, solo_activos: bool = True, top: int = None, empresa_ids=None):
     """Cuenta trabajadores agrupados por un campo de ficha_data (p.ej. 'area',
     'sexo', 'afp'), ordenado de mayor a menor. Ignora vacíos."""
-    query = db.query(Employee)
+    query = _emps(db, empresa_ids)
     if solo_activos:
         query = query.filter(Employee.estado == "activo")
     conteo = {}
@@ -161,26 +177,26 @@ def _conteo_por_campo(db: Session, campo: str, solo_activos: bool = True, top: i
     return resultado[:top] if top else resultado
 
 
-def por_area(db: Session):
-    return _conteo_por_campo(db, "area")
+def por_area(db: Session, empresa_ids=None):
+    return _conteo_por_campo(db, "area", empresa_ids=empresa_ids)
 
 
-def por_sexo(db: Session):
-    return _conteo_por_campo(db, "sexo")
+def por_sexo(db: Session, empresa_ids=None):
+    return _conteo_por_campo(db, "sexo", empresa_ids=empresa_ids)
 
 
-def por_nacionalidad(db: Session):
+def por_nacionalidad(db: Session, empresa_ids=None):
     total_con_dato = 0
-    conteo = _conteo_por_campo(db, "nacionalidad")
+    conteo = _conteo_por_campo(db, "nacionalidad", empresa_ids=empresa_ids)
     total_con_dato = sum(c for _, c in conteo)
     if not total_con_dato:
         return []
     return [(pais, c, round(c / total_con_dato * 100, 1)) for pais, c in conteo]
 
 
-def por_sistema_pension(db: Session):
+def por_sistema_pension(db: Session, empresa_ids=None):
     """(AFP, ONP, Sin dato) entre los trabajadores activos."""
-    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    activos = _emps(db, empresa_ids).filter(Employee.estado == "activo").all()
     afp = onp = sin_dato = 0
     for e in activos:
         sistema = (e.ficha_data or {}).get("sistema_pension")
@@ -193,9 +209,9 @@ def por_sistema_pension(db: Session):
     return [("AFP", afp), ("ONP", onp), ("Sin dato", sin_dato)]
 
 
-def por_afp(db: Session):
+def por_afp(db: Session, empresa_ids=None):
     """Personas por administradora de AFP (solo entre quienes tienen sistema AFP)."""
-    activos = db.query(Employee).filter(Employee.estado == "activo").all()
+    activos = _emps(db, empresa_ids).filter(Employee.estado == "activo").all()
     conteo = {}
     for e in activos:
         f = e.ficha_data or {}
@@ -208,7 +224,7 @@ def por_afp(db: Session):
     return sorted(conteo.items(), key=lambda kv: kv[1], reverse=True)
 
 
-def incorporaciones_por_mes(db: Session, meses: int = 24):
+def incorporaciones_por_mes(db: Session, meses: int = 24, empresa_ids=None):
     """Incorporaciones (altas) por mes calendario, últimos N meses, según
     ficha_data.fecha_ingreso. Devuelve lista de (etiqueta 'ene 2025', cantidad)
     en orden cronológico, incluyendo meses en cero."""
@@ -224,7 +240,7 @@ def incorporaciones_por_mes(db: Session, meses: int = 24):
     periodos.reverse()
     conteo = {p: 0 for p in periodos}
 
-    for e in db.query(Employee).all():
+    for e in _emps(db, empresa_ids).all():
         ingreso = _parse_fecha((e.ficha_data or {}).get("fecha_ingreso"))
         if ingreso and (ingreso.year, ingreso.month) in conteo:
             conteo[(ingreso.year, ingreso.month)] += 1
@@ -232,26 +248,28 @@ def incorporaciones_por_mes(db: Session, meses: int = 24):
     return [(f"{MESES_ES[m - 1]} {y}", conteo[(y, m)]) for y, m in periodos]
 
 
-def resumen_dashboard(db: Session, dias: int = 30):
-    aus_pct, aus_esp, aus_sin = ausentismo_pct(db, dias)
+def resumen_dashboard(db: Session, dias: int = 30, empresa_ids=None):
+    """`empresa_ids` (set) acota todos los indicadores a esas empresas (alcance
+    del gerente); None = todo el holding."""
+    aus_pct, aus_esp, aus_sin = ausentismo_pct(db, dias, empresa_ids)
     return {
         "dias": dias,
-        "headcount": headcount_activo(db),
-        "headcount_empresa": headcount_por_empresa(db),
-        "headcount_unidad": headcount_por_unidad(db),
-        "altas": altas_periodo(db, dias),
-        "bajas": bajas_periodo(db, dias),
-        "rotacion_pct": rotacion_pct(db, dias),
+        "headcount": headcount_activo(db, empresa_ids),
+        "headcount_empresa": headcount_por_empresa(db, empresa_ids),
+        "headcount_unidad": headcount_por_unidad(db, empresa_ids),
+        "altas": altas_periodo(db, dias, empresa_ids),
+        "bajas": bajas_periodo(db, dias, empresa_ids),
+        "rotacion_pct": rotacion_pct(db, dias, empresa_ids),
         "ausentismo_pct": aus_pct,
         "ausentismo_esperados": aus_esp,
         "ausentismo_sin_marcar": aus_sin,
-        "pct_activos": pct_activos(db),
-        "planilla_activa": planilla_activa_soles(db),
-        "edad_promedio": edad_promedio(db),
-        "por_area": por_area(db),
-        "por_sexo": por_sexo(db),
-        "por_nacionalidad": por_nacionalidad(db),
-        "por_sistema_pension": por_sistema_pension(db),
-        "por_afp": por_afp(db),
-        "incorporaciones_por_mes": incorporaciones_por_mes(db, 24),
+        "pct_activos": pct_activos(db, empresa_ids),
+        "planilla_activa": planilla_activa_soles(db, empresa_ids),
+        "edad_promedio": edad_promedio(db, empresa_ids),
+        "por_area": por_area(db, empresa_ids),
+        "por_sexo": por_sexo(db, empresa_ids),
+        "por_nacionalidad": por_nacionalidad(db, empresa_ids),
+        "por_sistema_pension": por_sistema_pension(db, empresa_ids),
+        "por_afp": por_afp(db, empresa_ids),
+        "incorporaciones_por_mes": incorporaciones_por_mes(db, 24, empresa_ids),
     }

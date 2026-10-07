@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Accesos de {{ u.username }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=16">
+<style>
+  .acc-grupo { margin-top: 18px; }
+  .acc-grupo h3 { margin: 0 0 6px; font-size: 14px; color: var(--green-dark, #0b4a2e); text-transform: uppercase; letter-spacing: .04em; }
+  .acc-tabla { width: 100%; border-collapse: collapse; }
+  .acc-tabla td { padding: 7px 8px; border-top: 1px solid var(--border); vertical-align: middle; }
+  .acc-tabla td.acc-nombre { width: 46%; }
+  .acc-tabla .acc-ayuda { font-size: 11.5px; color: var(--muted, #6b7a72); margin-top: 2px; }
+  .acc-tabla .acc-alcance { font-size: 11px; white-space: nowrap; color: var(--muted, #6b7a72); }
+  .acc-radios { display: flex; gap: 14px; flex-wrap: wrap; }
+  .acc-radios label { display: inline-flex; gap: 5px; align-items: center; font-weight: 400; margin: 0; cursor: pointer; }
+  .acc-radios input { width: auto; margin: 0; }
+  .acc-radios label.off { opacity: .4; cursor: not-allowed; }
+  .acc-rapido { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+  .acc-check { display: flex; gap: 8px; align-items: baseline; font-size: 13px; margin: 3px 0; }
+  .acc-check .ok { color: #1a7f4b; font-weight: 700; }
+  .acc-check .mal { color: var(--red, #b3261e); font-weight: 700; }
+  .acc-check .aviso { color: #9a6700; font-weight: 700; }
+  #bloque-permisos[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/usuarios">&larr; Volver a Usuarios del Sistema</a>
+
+  {% if error %}<div class="alert-error" style="margin-top:16px;">{{ error }}</div>{% endif %}
+  {% if ok %}<div class="alert-ok" style="margin-top:16px;">Accesos guardados.</div>{% endif %}
+
+  <form method="post" action="/rrhh/usuarios/{{ u.id }}/accesos" id="form-accesos">
+  <div class="card" style="margin-top:16px;">
+    <h2>Accesos de {{ u.nombre_completo }} <span class="muted" style="font-size:14px; font-weight:400;">({{ u.username }})</span></h2>
+
+    <div class="grid3">
+      <div class="field">
+        <label>Tipo de usuario</label>
+        <select name="rol" id="acc-rol" required>
+          {% for k, lbl in roles %}<option value="{{ k }}" {{ 'selected' if u.rol == k else '' }}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Vinculado a su ficha de Personal</label>
+        <select name="employee_id" id="acc-employee">
+          <option value="">— Ninguno —</option>
+          {% for emp in empleados %}<option value="{{ emp.id }}" data-gerente="{{ 1 if emp.id in candidatos_gerente else 0 }}" {{ 'selected' if u.employee_id == emp.id else '' }}>{{ emp.nombre_completo }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" id="acc-empresa-campo">
+        <label>Limitar a una empresa (opcional)</label>
+        <select name="empresa_id">
+          <option value="">— Todas las empresas —</option>
+          {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if u.empresa_id == e.id else '' }}>{{ e.nombre }}</option>{% endfor %}
+        </select>
+        <div class="hint">Si le das acceso a Personal, Asistencia, etc., solo verá a las personas de esa empresa.</div>
+      </div>
+    </div>
+
+    <div class="field-check">
+      <input type="checkbox" name="man_academy_admin" value="1" style="width:auto;" {{ 'checked' if u.man_academy_admin else '' }}>
+      <label>Administrador de Man Academy (independiente del tipo de usuario)</label>
+    </div>
+
+    <div id="acc-ayuda-tipo" style="margin-top:12px; padding:12px 14px; background:var(--light2); border-radius:8px; font-size:13px;">
+      <div data-tipo="administrador"><strong>Administrador:</strong> acceso total a todo MICELIO y a todas las empresas. Es el único que crea usuarios y puede eliminar personal o darlo de baja.</div>
+      <div data-tipo="gerente"><strong>Gerente:</strong> accede a las opciones que marques abajo, pero <u>solo con los datos de su empresa</u> — las empresas de las que es Representante Legal en Parámetros › Empresas. Reclutamiento y Selección es común a todas las empresas. Reporta al Director General.</div>
+      <div data-tipo="usuario"><strong>Usuario:</strong> ve su propia ficha (solo lectura: no puede modificarla, darse de baja ni cambiarse de empresa), la pantalla de Inicio y Capacitación. Marca abajo qué otras opciones del menú puede usar.</div>
+      <div data-tipo="conta"><strong>Cuenta anterior (Contabilidad):</strong> se comporta como Usuario sin opciones extra. Elige "Usuario" y guarda para pasarla al modelo nuevo.</div>
+      <div data-tipo="opeoka"><strong>Cuenta anterior (Gerente o Jefe):</strong> se comporta como Usuario con Registro de Pedidos. Elige "Usuario" y guarda para pasarla al modelo nuevo (se conserva Registro de Pedidos).</div>
+    </div>
+
+    {% if diag %}
+    <div id="acc-diag" style="margin-top:12px;">
+      <div class="hint" style="margin-bottom:4px;">Verificación de la ficha vinculada ({{ u.employee.nombre_completo }}) para el tipo <em>Gerente</em>:</div>
+      <div class="acc-check">
+        {% if diag.empresas %}<span class="ok">✓</span><span>Es Representante Legal de: <strong>{{ diag.empresas|map(attribute='nombre')|join(', ') }}</strong> (ese es su alcance).</span>
+        {% else %}<span class="mal">✗</span><span>No figura como Representante Legal de ninguna empresa (Parámetros › Empresas) — no puede ser Gerente.</span>{% endif %}
+      </div>
+      <div class="acc-check">
+        {% if diag.es_gerente_general %}<span class="ok">✓</span><span>Su cargo en Personal es <strong>{{ diag.cargo }}</strong>.</span>
+        {% else %}<span class="aviso">!</span><span>Su cargo en Personal es «{{ diag.cargo or 'sin cargo' }}»; debería ser GERENTE GENERAL.</span>{% endif %}
+      </div>
+      <div class="acc-check">
+        {% if diag.reporta_a_director %}<span class="ok">✓</span><span>Ese cargo reporta al Director General.</span>
+        {% else %}<span class="aviso">!</span><span>Ese cargo no figura reportando al DIRECTOR GENERAL en Parámetros › Cargos - MOF.</span>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card" id="bloque-permisos">
+    <h2>Opciones del menú que puede usar</h2>
+    <p class="muted" style="margin-top:-4px;">
+      <strong>Solo ver</strong>: entra y consulta, sin poder crear, modificar ni eliminar. <strong>Ver y editar</strong>: además puede modificar.
+      Estas casillas se validan en el servidor: si alguien pega la dirección de una pantalla sin permiso, no entra.
+    </p>
+    <div class="acc-rapido">
+      <button type="button" class="btn small secondary" id="acc-todo-ver">Todo en «Solo ver»</button>
+      <button type="button" class="btn small secondary" id="acc-nada">Quitar todo</button>
+      <button type="button" class="btn small secondary" id="acc-sugerido-gerente">Aplicar lo sugerido para Gerente</button>
+    </div>
+
+    {% for g in grupos %}
+    <div class="acc-grupo">
+      <h3>{{ g }}</h3>
+      <table class="acc-tabla">
+        {% for key, label, grupo, alcance, tope, ayuda in secciones if grupo == g %}
+        <tr data-key="{{ key }}">
+          <td class="acc-nombre">
+            {{ label }}
+            {% if ayuda %}<div class="acc-ayuda">{{ ayuda }}</div>{% endif %}
+          </td>
+          <td class="acc-alcance">
+            {% if alcance == 'empresa' %}Datos de su empresa{% elif alcance == 'comun' %}Común a todas las empresas{% else %}Compartido: máximo «Solo ver»{% endif %}
+          </td>
+          <td>
+            <div class="acc-radios">
+              <label><input type="radio" name="perm__{{ key }}" value="ninguno" {{ 'checked' if actuales.get(key, 0) == 0 else '' }}> Sin acceso</label>
+              <label><input type="radio" name="perm__{{ key }}" value="ver" {{ 'checked' if actuales.get(key, 0) == 1 else '' }}> Solo ver</label>
+              <label class="{{ 'off' if tope < 2 else '' }}" {% if tope < 2 %}title="Esta opción es compartida por todas las empresas: solo se puede dar en «Solo ver»."{% endif %}>
+                <input type="radio" name="perm__{{ key }}" value="editar" {{ 'checked' if actuales.get(key, 0) == 2 else '' }} {{ 'disabled' if tope < 2 else '' }}> Ver y editar
+              </label>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endfor %}
+
+    <p class="hint" style="margin-top:14px;">
+      Siempre reservado al administrador (ninguna casilla lo cambia): <strong>Usuarios del Sistema</strong>, <strong>dar de baja o eliminar personal</strong>
+      y <strong>editar</strong> los catálogos compartidos (Holdings, Competencias, Áreas, Bancos...).
+    </p>
+  </div>
+
+  <div class="card">
+    <button class="btn" type="submit">Guardar accesos</button>
+    <span class="muted" style="margin-left:10px;">Los cambios rigen desde el próximo clic de esa persona.</span>
+  </div>
+  </form>
+
+<script>
+(function () {
+  var rol = document.getElementById('acc-rol');
+  var emp = document.getElementById('acc-employee');
+  var bloque = document.getElementById('bloque-permisos');
+  var campoEmpresa = document.getElementById('acc-empresa-campo');
+  var diag = document.getElementById('acc-diag');
+  var sugerido = {{ sugerido_gerente|tojson }};
+
+  function aplicar() {
+    var r = rol.value;
+    bloque.hidden = (r === 'administrador');
+    campoEmpresa.style.display = (r === 'usuario') ? '' : 'none';
+    if (diag) diag.style.display = (r === 'gerente') ? '' : 'none';
+    document.querySelectorAll('#acc-ayuda-tipo [data-tipo]').forEach(function (d) {
+      d.style.display = (d.getAttribute('data-tipo') === r) ? '' : 'none';
+    });
+    Array.prototype.forEach.call(emp.options, function (o) {
+      if (!o.value) return;
+      var ok = r !== 'gerente' || o.getAttribute('data-gerente') === '1';
+      o.hidden = !ok; o.disabled = !ok;
+    });
+  }
+  function poner(key, valor) {
+    var radio = document.querySelector('input[name="perm__' + key + '"][value="' + valor + '"]');
+    if (radio && !radio.disabled) radio.checked = true;
+    else {
+      var ver = document.querySelector('input[name="perm__' + key + '"][value="ver"]');
+      if (valor === 'editar' && ver) ver.checked = true;
+    }
+  }
+  function todas(fn) {
+    document.querySelectorAll('#bloque-permisos tr[data-key]').forEach(function (tr) { fn(tr.getAttribute('data-key')); });
+  }
+  document.getElementById('acc-todo-ver').addEventListener('click', function () { todas(function (k) { poner(k, 'ver'); }); });
+  document.getElementById('acc-nada').addEventListener('click', function () { todas(function (k) { poner(k, 'ninguno'); }); });
+  document.getElementById('acc-sugerido-gerente').addEventListener('click', function () {
+    var nombres = ['ninguno', 'ver', 'editar'];
+    todas(function (k) { poner(k, nombres[sugerido[k] || 0]); });
+  });
+  rol.addEventListener('change', aplicar);
+  aplicar();
+})();
+</script>
+
+</div>
+</body>
+</html>

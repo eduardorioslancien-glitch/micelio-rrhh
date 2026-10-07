@@ -37,7 +37,7 @@ from .models import (
     DOC_TYPES, DOC_TYPE_KEYS, STATUS_PENDIENTE, STATUS_ABIERTO, STATUS_FIRMADO,
     ATTACHMENT_TYPES, ATTACHMENT_TYPE_KEYS, CATALOGO_TIPO_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
 )
-from .auth import NotAuthenticated, Forbidden, MustChangePassword, require_role
+from .auth import NotAuthenticated, Forbidden, MustChangePassword, require_role, require_admin, require_login, acceso_ficha
 from . import rrhh as rrhh_module
 from . import reclutamiento as reclutamiento_module
 from . import clima as clima_module
@@ -203,7 +203,7 @@ def root():
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db),
-                     user=Depends(require_role("administrador"))):
+                     user=Depends(require_admin)):
     employees = db.query(Employee).order_by(Employee.created_at.desc()).all()
     rows = []
     for e in employees:
@@ -224,7 +224,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db),
 @app.post("/admin/nuevo")
 def admin_nuevo(request: Request, nombre_completo: str = Form(...), email: str = Form(""),
                  empresa: str = Form("Digetel"), db: Session = Depends(get_db),
-                 user=Depends(require_role("administrador"))):
+                 user=Depends(require_admin)):
     emp = Employee(nombre_completo=nombre_completo.strip(), email=email.strip() or None, empresa=empresa)
     db.add(emp)
     db.commit()
@@ -236,7 +236,7 @@ def admin_nuevo(request: Request, nombre_completo: str = Form(...), email: str =
 
 @app.get("/admin/empleado/{employee_id}", response_class=HTMLResponse)
 def admin_detalle(request: Request, employee_id: int, db: Session = Depends(get_db),
-                   user=Depends(require_role("administrador"))):
+                   user=Depends(require_admin)):
     emp = db.query(Employee).get(employee_id)
     if not emp:
         raise HTTPException(404)
@@ -253,7 +253,7 @@ def admin_detalle(request: Request, employee_id: int, db: Session = Depends(get_
 
 
 @app.get("/admin/export.xlsx")
-def admin_export(db: Session = Depends(get_db), user=Depends(require_role("administrador"))):
+def admin_export(db: Session = Depends(get_db), user=Depends(require_admin)):
     from .export_xlsx import build_export
     path = build_export(db)
     return FileResponse(
@@ -265,20 +265,24 @@ def admin_export(db: Session = Depends(get_db), user=Depends(require_role("admin
 
 @app.get("/descargas/{document_id}")
 def descargar_pdf(document_id: int, db: Session = Depends(get_db),
-                   user=Depends(require_role("administrador"))):
+                   user=Depends(require_login)):
     doc = db.query(Document).get(document_id)
     if not doc or not doc.pdf_path or not os.path.exists(doc.pdf_path):
         raise HTTPException(404, "Documento no disponible todavía.")
+    if not acceso_ficha(user, db, doc.employee, "ver"):
+        raise Forbidden()  # permiso de Personal + empresa del alcance (o su propio documento)
     fname = f"{DOC_LABELS.get(doc.doc_type, doc.doc_type)} - {doc.employee.nombre_completo}.pdf"
     return FileResponse(doc.pdf_path, filename=fname, media_type="application/pdf")
 
 
 @app.get("/adjuntos/{attachment_id}")
 def descargar_adjunto(attachment_id: int, db: Session = Depends(get_db),
-                       user=Depends(require_role("administrador"))):
+                       user=Depends(require_login)):
     att = db.query(Attachment).get(attachment_id)
     if not att or not os.path.exists(att.file_path):
         raise HTTPException(404, "Archivo no disponible.")
+    if not acceso_ficha(user, db, att.employee, "ver"):
+        raise Forbidden()
     return FileResponse(att.file_path, filename=att.filename, media_type=att.content_type or "application/octet-stream")
 
 
@@ -289,7 +293,7 @@ def descargar_adjunto(attachment_id: int, db: Session = Depends(get_db),
 @app.get("/admin/empleado/{employee_id}/exportar-sunafil")
 def exportar_sunafil(employee_id: int, docs: list[str] = Query(default=[]),
                       adjuntos: bool = Query(default=False), db: Session = Depends(get_db),
-                      user=Depends(require_role("administrador"))):
+                      user=Depends(require_admin)):
     from .sunafil_export import build_sunafil_pdf
     emp = db.query(Employee).get(employee_id)
     if not emp:

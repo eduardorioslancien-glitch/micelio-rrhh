@@ -9,7 +9,7 @@
 {% include "_rrhh_topbar.html" %}
 
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    {% if user.rol != 'usuario' %}<a class="btn secondary" href="/rrhh/personal">&larr; Volver al listado</a>{% else %}<span></span>{% endif %}
+    {% if can_ver_listado %}<a class="btn secondary" href="/rrhh/personal">&larr; Volver al listado</a>{% else %}<span></span>{% endif %}
     <div style="display:flex; gap:8px; align-items:center;">
       {% if user.rol == 'administrador' and e.estado == 'activo' %}
       <details class="details-inline">
@@ -22,12 +22,12 @@
           </form>
         </div>
       </details>
-      {% elif user.rol == 'administrador' %}
+      {% elif can_edit and e.estado != 'activo' %}
       <form method="post" action="/rrhh/personal/{{ e.id }}/reactivar">
         <button class="btn small secondary" type="submit">Reactivar</button>
       </form>
       {% endif %}
-      {% if user.rol == 'administrador' %}
+      {% if can_edit %}
       <a class="btn" href="/rrhh/personal/{{ e.id }}/ficha">{{ 'Editar Ficha' if e.ficha_data else 'Completar Ficha' }}</a>
       {% endif %}
     </div>
@@ -63,7 +63,7 @@
       </div>
     </div>
 
-    {% if user.rol == 'administrador' %}
+    {% if can_edit %}
     <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
       <form method="post" action="/rrhh/personal/{{ e.id }}/empresa" class="inline-form">
         <div class="field">
@@ -177,10 +177,10 @@
     <a href="#datos" class="active">Datos generales</a>
     {% if can_operativo %}<a href="#laboral">Laboral</a>{% endif %}
     {% if can_planilla %}<a href="#planilla">Planilla</a>{% endif %}
-    {% if can_mark_own and user.rol == 'usuario' %}<a href="#asistencia">Asistencia</a>{% endif %}
+    {% if can_mark_own and user.rol != 'administrador' %}<a href="#asistencia">Asistencia</a>{% endif %}
     {% if can_mark_own or can_edit %}<a href="#vacaciones">Vacaciones</a>{% endif %}
     {% if can_edit %}<a href="#onboarding">Onboarding</a>{% endif %}
-    {% if can_edit %}<a href="#man-academy">Man Academy</a>{% endif %}
+    {% if can_edit and es_admin %}<a href="#man-academy">Man Academy</a>{% endif %}
     {% if can_edit %}<a href="#bitacora">Bitácora</a>{% endif %}
     {% if can_edit %}<a href="#documentos">Documentos</a>{% endif %}
   </div>
@@ -308,7 +308,7 @@
   </div>
   {% endif %}
 
-  {% if can_mark_own and user.rol == 'usuario' %}
+  {% if can_mark_own and user.rol != 'administrador' %}
   <div class="card" id="asistencia">
     <h2>Asistencia</h2>
     <p class="muted">El detalle y la gestión completa de asistencia de todo el personal vive en Administración &gt; Control de Asistencia; acá solo marcas la tuya.</p>
@@ -415,7 +415,8 @@
     </table>
   </div>
 
-  <div class="card" id="man-academy">
+  {# los accesos a cursos de Man Academy los asigna solo el administrador #}
+  <div class="card" id="man-academy" {% if not es_admin %}style="display:none;"{% endif %}>
     <h2>Man Academy</h2>
     <p class="muted">Cursos y rutas de aprendizaje a los que {{ e.nombre_completo }} puede entrar cuando ingresa a Man Academy
       desde el botón "Capacitación &gt; Man Academy" (entra sin volver a loguearse, solo ve lo que marques acá).</p>

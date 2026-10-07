@@ -10,7 +10,7 @@
 
   <a class="btn secondary" href="/rrhh/clima/encuestas">&larr; Volver a campañas</a>
 
-  {% if user.rol == 'administrador' %}
+  {% if user.puede('encuestas') %}
   <div class="card" style="margin-top:16px;">
     <h2>{{ campana.nombre }}</h2>
     {% if campana.descripcion %}<p class="muted">{{ campana.descripcion }}</p>{% endif %}

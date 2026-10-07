@@ -14,7 +14,7 @@
       elegido (todo el Holding, una Unidad de Negocio, o una Empresa puntual). Solo Administrador puede
       publicar, desactivar o eliminar anuncios.</p>
     <table>
-      <tr><th></th><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Vistas</th><th>Me gusta</th><th>Estado</th>{% if user.rol == 'administrador' %}<th></th>{% endif %}</tr>
+      <tr><th></th><th>Título</th><th>Ámbito</th><th>Autor</th><th>Fecha</th><th>Vistas</th><th>Me gusta</th><th>Estado</th>{% if user.puede('anuncios', 'editar') %}<th></th>{% endif %}</tr>
       {% for a in anuncios %}
       <tr>
         <td>
@@ -54,7 +54,7 @@
           </details>
         </td>
         <td><span class="badge {{ 'firmado' if a.activo else 'pendiente' }}">{{ 'activo' if a.activo else 'inactivo' }}</span></td>
-        {% if user.rol == 'administrador' %}
+        {% if user.puede('anuncios', 'editar') %}
         <td class="icon-btn-row">
           <form method="post" action="/rrhh/clima/anuncios/{{ a.id }}/toggle" style="display:inline;">
             <button class="icon-btn {{ 'icon-btn-desactivar' if a.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if a.activo else 'Activar' }}"></button>
@@ -71,7 +71,7 @@
       {% endfor %}
     </table>
 
-    {% if user.rol == 'administrador' %}
+    {% if user.puede('anuncios', 'editar') %}
     <h3 style="margin-top:22px;">Publicar anuncio</h3>
     <form method="post" action="/rrhh/clima/anuncios/nuevo" id="form-anuncio" enctype="multipart/form-data">
       <div class="grid2">

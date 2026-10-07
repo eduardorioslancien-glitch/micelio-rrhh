@@ -6,11 +6,11 @@ sesión firmada en una cookie (Starlette SessionMiddleware). Las contraseñas
 se guardan con PBKDF2-SHA256 (librería estándar de Python, sin necesitar
 compilar bcrypt en la computadora del usuario).
 
-Niveles de acceso (Employee.rol / User.rol):
-  administrador  -> acceso total (bypassa cualquier require_role).
-  conta          -> planillas (datos bancarios/previsionales/remuneración).
-  opeoka         -> parte operativa (datos laborales, sin ver banco/sueldo).
-  usuario        -> solo su propia información (autoservicio).
+Tipos de usuario (User.rol): administrador / gerente / usuario — y qué opciones
+del menú tiene cada uno (nivel ver / editar) lo define app/permisos.py. Las
+rutas se protegen con `require_perm("<seccion>", "ver"|"editar")`,
+`require_admin` o `require_empleado(...)`; `require_role` queda para los casos
+fijos por tipo de usuario.
 """
 import hashlib
 import hmac
@@ -21,8 +21,9 @@ from fastapi import Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from . import permisos
 from .database import get_db
-from .models import User
+from .models import User, Employee
 
 PBKDF2_ITERATIONS = 260_000
 
@@ -95,43 +96,136 @@ def require_role(*roles: str):
     return dependency
 
 
-def es_jefe_o_gerente(user: User, db: Session) -> bool:
-    """Registro de Pedidos de Personal: administrador, o un usuario con rol
-    "opeoka" (== "Gerente o Jefe" en la matriz de accesos de Eduardo del
-    2026-09-08 — ver [[feedback-niveles-de-acceso]]). Ya no se infiere por
-    el texto del Cargo: el rol "opeoka" pasó a significar directamente
-    "Gerente o Jefe", nada más lo necesita."""
-    return user.rol in ("administrador", "opeoka")
-
-
-def require_jefe_o_gerente(request: Request, db: Session = Depends(get_db)) -> User:
-    """Dependencia para el POST que crea un Pedido de Personal: administrador
-    o un Jefe/Gerente (ver es_jefe_o_gerente)."""
-    user = require_login(request, db)
-    if es_jefe_o_gerente(user, db):
+def require_admin(user: User = Depends(require_login)) -> User:
+    """Solo el administrador (Usuarios del Sistema, eliminar personal, dar de
+    baja...): ninguna casilla de permisos lo puede dar."""
+    if user.rol == "administrador":
         return user
     raise Forbidden()
 
 
+def require_perm(seccion: str, minimo: str = "ver"):
+    """Dependencia: exige acceso `minimo` ('ver' | 'editar') a una opción del
+    menú (ver app/permisos.py). El administrador siempre pasa. Esto es lo que
+    protege de verdad: ocultar el menú no alcanza si alguien pega la URL."""
+    if seccion not in permisos.SECCION_POR_KEY:
+        raise ValueError(f"Sección de permisos desconocida: {seccion}")
+
+    def dependency(user: User = Depends(require_login)) -> User:
+        if permisos.puede(user, seccion, minimo):
+            return user
+        raise Forbidden()
+    return dependency
+
+
+def require_alguna(*secciones: str):
+    """Dependencia: basta con tener 'ver' en alguna de estas opciones (p. ej.
+    la pantalla índice de Parámetros)."""
+    def dependency(user: User = Depends(require_login)) -> User:
+        if any(permisos.puede(user, s, "ver") for s in secciones):
+            return user
+        raise Forbidden()
+    return dependency
+
+
+def alcance_empresas(user: User, db: Session):
+    """None = sin restricción; set de ids de Empresa = solo esas."""
+    return permisos.alcance_empresas(user, db)
+
+
+def puede_empresa(user: User, db: Session, empresa_id) -> bool:
+    return permisos.puede_empresa(user, db, empresa_id)
+
+
+def exigir_empresa(user: User, db: Session, empresa_id) -> None:
+    """Corta con 403 si la empresa está fuera del alcance del usuario (un
+    gerente de Intecno no toca nada de Digetel aunque pegue la URL)."""
+    if not permisos.puede_empresa(user, db, empresa_id):
+        raise Forbidden()
+
+
+def filtrar_por_empresa(query, columna, user: User, db: Session):
+    """Aplica el alcance de empresa del usuario a una consulta SQLAlchemy."""
+    alcance = permisos.alcance_empresas(user, db)
+    if alcance is None:
+        return query
+    if not alcance:
+        return query.filter(columna == -1)
+    return query.filter(columna.in_(alcance))
+
+
+def require_recurso(seccion: str, minimo: str, modelo, parametro: str, campo_empresa: str = "empresa_id"):
+    """Como require_perm, pero además el registro que viene en la URL
+    (p. ej. {linea_id}) tiene que pertenecer a una empresa del alcance del
+    usuario. `campo_empresa="id"` cuando el recurso ES la empresa."""
+    base = require_perm(seccion, minimo)
+
+    def dependency(request: Request, db: Session = Depends(get_db), user: User = Depends(base)) -> User:
+        valor = request.path_params.get(parametro)
+        obj = db.query(modelo).get(int(valor)) if valor is not None else None
+        if obj is None:
+            raise HTTPException(404)
+        if not permisos.puede_empresa(user, db, getattr(obj, campo_empresa)):
+            raise Forbidden()
+        return user
+    return dependency
+
+
+def acceso_ficha(user: User, db: Session, employee, minimo: str = "ver") -> bool:
+    """¿Puede este usuario ver ('ver') o modificar ('editar') la ficha de
+    `employee`? Cualquiera ve la PROPIA (solo lectura, nunca editar); para la
+    de otra persona hace falta el permiso de Personal Y que la persona
+    pertenezca a una empresa de su alcance."""
+    if user.rol == "administrador":
+        return True
+    if user.employee_id and employee.id == user.employee_id and minimo == "ver":
+        return True
+    return permisos.puede(user, "personal", minimo) and permisos.puede_empresa(user, db, employee.empresa_id)
+
+
+def exigir_ficha(user: User, db: Session, employee_id: int, minimo: str = "ver"):
+    """Carga al trabajador y corta con 404/403. Devuelve el Employee."""
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    if not acceso_ficha(user, db, emp, minimo):
+        raise Forbidden()
+    return emp
+
+
+def require_empleado(minimo: str = "ver"):
+    """Dependencia para rutas con `{employee_id}` en el path: permiso de
+    Personal + empresa dentro del alcance (+ ficha propia en solo lectura)."""
+    def dependency(employee_id: int, db: Session = Depends(get_db), user: User = Depends(require_login)) -> User:
+        exigir_ficha(user, db, employee_id, minimo)
+        return user
+    return dependency
+
+
+def puede_generar_pedidos(user: User) -> bool:
+    """Registro de Pedidos de Personal: quien tenga 'editar' en esa opción."""
+    return permisos.puede(user, "pedidos", "editar")
+
+
+# Compatibilidad con código anterior al 07/10 -------------------------------
+def es_jefe_o_gerente(user: User, db: Session = None) -> bool:
+    return puede_generar_pedidos(user)
+
+
+def require_jefe_o_gerente(user: User = Depends(require_perm("pedidos", "editar"))) -> User:
+    return user
+
+
 def can_see_planilla(user: User) -> bool:
-    """Secciones bancarias/previsionales/remuneración: solo administrador.
-    "conta" (Contabilidad) ya no gestiona la ficha de Personal — queda
-    reservado exclusivamente para cuando exista el módulo de Planillas (ver
-    matriz de accesos de Eduardo, 2026-09-08)."""
-    return user.rol == "administrador"
+    """Datos bancarios/previsionales/remuneración de OTRAS personas: quien
+    tenga acceso a Personal (el filtro de empresa lo aplica la ruta)."""
+    return permisos.puede(user, "personal", "ver")
 
 
 def can_see_operativo(user: User) -> bool:
-    """Secciones operativas de la ficha de OTRA persona: solo administrador.
-    "opeoka" (Gerente o Jefe) ya no tiene acceso operativo general — solo
-    ve su propia ficha (como 'usuario') y puede registrar pedidos de
-    personal (ver es_jefe_o_gerente)."""
-    return user.rol == "administrador"
+    return permisos.puede(user, "personal", "ver")
 
 
 def is_staff(user: User) -> bool:
-    """Acceso de RR.HH. a la ficha de CUALQUIER trabajador: solo
-    administrador. "conta" y "opeoka" quedaron con el mismo alcance que
-    'usuario' (solo su propia información) más su capacidad puntual
-    (Planillas a futuro / Registro de Pedidos, respectivamente)."""
-    return user.rol == "administrador"
+    """¿Gestiona Personal (ve fichas ajenas)? Antes: solo administrador."""
+    return permisos.puede(user, "personal", "ver")

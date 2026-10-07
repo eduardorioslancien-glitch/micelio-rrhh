@@ -46,6 +46,7 @@
         <td>{{ p.fecha_requerida.strftime("%d/%m/%Y") if p.fecha_requerida else "—" }}</td>
         {% if f_estado != 'abierto' %}<td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) }}</span></td>{% endif %}
         <td>
+          {% if user.puede('leads', 'editar') %}
           <form method="post" action="/rrhh/reclutamiento/pedidos/{{ p.id }}/estado" class="inline-form" style="margin:0;">
             <select name="estado" onchange="this.form.submit()">
               {% for key, label in estados %}
@@ -53,6 +54,9 @@
               {% endfor %}
             </select>
           </form>
+          {% else %}
+          <span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) }}</span>
+          {% endif %}
           <a class="btn small" style="margin-top:6px;" href="/rrhh/reclutamiento/pedidos/{{ p.id }}">Ver detalle</a>
         </td>
       </tr>

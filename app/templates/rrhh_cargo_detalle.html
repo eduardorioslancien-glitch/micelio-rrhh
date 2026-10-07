@@ -29,7 +29,7 @@
       </div>
       <div class="field"><label>Descripción del puesto</label><textarea name="descripcion" rows="3">{{ cargo.descripcion or '' }}</textarea></div>
       <div class="field"><label>Funciones (una por línea)</label><textarea name="funciones" rows="6">{{ cargo.funciones|join('\n') }}</textarea></div>
-      {% set auto = cargo.funciones_desde_procesos %}
+      {% set auto = funciones_auto %}
       <div class="field" style="background:var(--light2); border-radius:8px; padding:12px 14px;">
         <label>Funciones que vienen de Procesos y Funciones (automáticas)</label>
         {% if auto %}

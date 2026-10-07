@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import ProcesoNodo, RolPersonaExtra, Empresa, Employee, Cargo, User
-from .auth import require_role
+from .auth import require_role, require_perm, alcance_empresas, exigir_empresa
 from .rrhh import _ctx, _a_lima
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -313,23 +313,29 @@ def funciones_de_cargo(db: Session, cargo_id: int) -> list:
 # ---------------------------------------------------------------------------
 # Datos para los selectores y "compartido entre empresas"
 # ---------------------------------------------------------------------------
-def _otras_empresas(db: Session, empresa_id: int) -> dict:
-    """Dónde más se usa cada rol y dónde más cubre cada persona (extras)."""
+def _otras_empresas(db: Session, empresa_id: int, alcance=None) -> dict:
+    """Dónde más se usa cada rol y dónde más cubre cada persona (extras).
+    `alcance` (set de ids) acota a las empresas que el usuario puede ver."""
     roles = defaultdict(set)
     filas = (
         db.query(ProcesoNodo.cargo_id, Empresa.nombre)
         .join(Empresa, Empresa.id == ProcesoNodo.empresa_id)
         .filter(ProcesoNodo.empresa_id != empresa_id, ProcesoNodo.cargo_id.isnot(None))
-        .distinct().all()
     )
+    if alcance is not None:
+        filas = filas.filter(ProcesoNodo.empresa_id.in_(list(alcance) or [-1]))
+    filas = filas.distinct().all()
     for cid, nombre in filas:
         roles[cid].add(nombre)
     personas = defaultdict(set)
     filas = (
         db.query(RolPersonaExtra.employee_id, Empresa.nombre)
         .join(Empresa, Empresa.id == RolPersonaExtra.empresa_id)
-        .filter(RolPersonaExtra.empresa_id != empresa_id).distinct().all()
+        .filter(RolPersonaExtra.empresa_id != empresa_id)
     )
+    if alcance is not None:
+        filas = filas.filter(RolPersonaExtra.empresa_id.in_(list(alcance) or [-1]))
+    filas = filas.distinct().all()
     for eid, nombre in filas:
         personas[eid].add(nombre)
     return {"roles": {k: sorted(v) for k, v in roles.items()},
@@ -345,10 +351,13 @@ def _selector_cargos(db: Session, empresa_id: int):
     ]
 
 
-def _selector_personas(db: Session, empresa: Empresa):
+def _selector_personas(db: Session, empresa: Empresa, alcance=None):
     """Personas activas de TODAS las empresas (para sumar a un rol a alguien
-    de otra empresa del holding), la propia empresa primero."""
+    de otra empresa del holding), la propia empresa primero. Un gerente solo
+    ve las de las empresas de su alcance."""
     activos = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
+    if alcance is not None:
+        activos = [e for e in activos if e.empresa_id in alcance]
     grupos = defaultdict(list)
     for e in activos:
         grupos[e.empresa_id].append({"id": e.id, "nombre": e.nombre_completo,
@@ -398,8 +407,10 @@ def limpiar_cargo(db: Session, cargo_id: int) -> None:
 @router.get(RUTA, response_class=HTMLResponse)
 def procesos_pantalla(request: Request, empresa_id: str = "", solo_pendientes: str = "", error: str = "",
                        db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
-    empresas = db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+                       user: User = Depends(require_perm("p_procesos", "ver"))):
+    alcance = alcance_empresas(user, db)
+    empresas = [e for e in db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all()  # noqa: E712
+                if alcance is None or e.id in alcance]
     if not empresas:
         return templates.TemplateResponse(request, "rrhh_procesos.html", _ctx(
             request, user, empresas=[], empresa=None, error=error, active="procesos",
@@ -417,22 +428,24 @@ def procesos_pantalla(request: Request, empresa_id: str = "", solo_pendientes: s
 
     return templates.TemplateResponse(request, "rrhh_procesos.html", _ctx(
         request, user, empresas=empresas, empresa=empresa, arbol=arbol, ind=est["ind"], roles=est["roles"],
-        agentes=est["agentes"], otras=_otras_empresas(db, empresa.id), resumen_empresas=resumen_empresas,
-        cargos=_selector_cargos(db, empresa.id), personas=_selector_personas(db, empresa),
+        agentes=est["agentes"], otras=_otras_empresas(db, empresa.id, alcance), resumen_empresas=resumen_empresas,
+        cargos=_selector_cargos(db, empresa.id), personas=_selector_personas(db, empresa, alcance),
+        puede_editar=user.puede("p_procesos", "editar"),
         solo_pendientes=bool(solo_pendientes), error=error, active="procesos",
     ))
 
 
 @router.get(RUTA + "/imprimir", response_class=HTMLResponse)
 def procesos_imprimir(request: Request, empresa_id: int, db: Session = Depends(get_db),
-                       user: User = Depends(require_role("administrador"))):
+                       user: User = Depends(require_perm("p_procesos", "ver"))):
     empresa = db.query(Empresa).get(empresa_id)
     if not empresa:
         return RedirectResponse(RUTA, status_code=303)
+    exigir_empresa(user, db, empresa.id)
     est = construir_estructura(db, empresa.id)
     return templates.TemplateResponse(request, "rrhh_procesos_imprimir.html", {
         "empresa": empresa, "arbol": est["arbol"], "ind": est["ind"], "roles": est["roles"],
-        "agentes": est["agentes"], "otras": _otras_empresas(db, empresa.id),
+        "agentes": est["agentes"], "otras": _otras_empresas(db, empresa.id, alcance_empresas(user, db)),
         "ahora": datetime.datetime.utcnow(), "user": user,
     })
 
@@ -444,7 +457,8 @@ def procesos_imprimir(request: Request, empresa_id: int, db: Session = Depends(g
 @router.post(RUTA + "/nodo")
 def nodo_crear(empresa_id: int = Form(...), parent_id: str = Form(""), es_funcion: str = Form("0"),
                nombre: str = Form(...), descripcion: str = Form(""), sp: str = Form(""),
-               db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+               db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
+    exigir_empresa(user, db, empresa_id)
     nombre = nombre.strip()
     if not nombre or not db.query(Empresa).get(empresa_id):
         return _volver(empresa_id, sp, error="Falta el nombre.")
@@ -471,10 +485,11 @@ def nodo_crear(empresa_id: int = Form(...), parent_id: str = Form(""), es_funcio
 
 @router.post(RUTA + "/nodo/{nodo_id}/editar")
 def nodo_editar(nodo_id: int, nombre: str = Form(...), descripcion: str = Form(""), sp: str = Form(""),
-                db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
     nodo = db.query(ProcesoNodo).get(nodo_id)
     if not nodo:
         return RedirectResponse(RUTA, status_code=303)
+    exigir_empresa(user, db, nodo.empresa_id)
     if not nombre.strip():
         return _volver(nodo.empresa_id, sp, foco=nodo.id, error="Falta el nombre.")
     nodo.nombre = nombre.strip()
@@ -501,12 +516,13 @@ def _descendientes_con_rol(db: Session, nodo: ProcesoNodo) -> bool:
 @router.post(RUTA + "/nodo/{nodo_id}/asignar")
 def nodo_asignar(nodo_id: int, tipo: str = Form("ninguno"), cargo_id: str = Form(""),
                  agente_nombre: str = Form(""), agente_nota: str = Form(""), sp: str = Form(""),
-                 db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                 db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
     """Asigna el nodo a un ROL (cargo) o a un AGENTE IA — o quita la
     asignación (tipo = "ninguno")."""
     nodo = db.query(ProcesoNodo).get(nodo_id)
     if not nodo:
         return RedirectResponse(RUTA, status_code=303)
+    exigir_empresa(user, db, nodo.empresa_id)
     if tipo == "rol":
         cargo = db.query(Cargo).get(int(cargo_id)) if cargo_id else None
         if not cargo:
@@ -530,9 +546,13 @@ def nodo_asignar(nodo_id: int, tipo: str = Form("ninguno"), cargo_id: str = Form
 
 @router.post(RUTA + "/rol/{cargo_id}/persona")
 def rol_persona_agregar(cargo_id: int, empresa_id: int = Form(...), employee_id: int = Form(...), sp: str = Form(""),
-                        db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                        db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
     """Suma a un rol, en esta empresa, a una persona que no lo tiene por
     cargo (p. ej. alguien de otra empresa del holding)."""
+    exigir_empresa(user, db, empresa_id)
+    _persona = db.query(Employee).get(employee_id)
+    if _persona is not None and alcance_empresas(user, db) is not None:
+        exigir_empresa(user, db, _persona.empresa_id)  # un gerente solo suma gente de sus empresas
     if db.query(Cargo).get(cargo_id) and db.query(Empresa).get(empresa_id) and db.query(Employee).get(employee_id):
         existe = db.query(RolPersonaExtra).filter_by(
             empresa_id=empresa_id, cargo_id=cargo_id, employee_id=employee_id).first()
@@ -544,7 +564,8 @@ def rol_persona_agregar(cargo_id: int, empresa_id: int = Form(...), employee_id:
 
 @router.post(RUTA + "/rol/{cargo_id}/persona/{employee_id}/quitar")
 def rol_persona_quitar(cargo_id: int, employee_id: int, empresa_id: int = Form(...), sp: str = Form(""),
-                       db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                       db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
+    exigir_empresa(user, db, empresa_id)
     db.query(RolPersonaExtra).filter_by(
         empresa_id=empresa_id, cargo_id=cargo_id, employee_id=employee_id).delete()
     db.commit()
@@ -553,10 +574,11 @@ def rol_persona_quitar(cargo_id: int, employee_id: int, empresa_id: int = Form(.
 
 @router.post(RUTA + "/nodo/{nodo_id}/mover")
 def nodo_mover(nodo_id: int, direccion: str = Form(...), sp: str = Form(""),
-               db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+               db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
     nodo = db.query(ProcesoNodo).get(nodo_id)
     if not nodo:
         return RedirectResponse(RUTA, status_code=303)
+    exigir_empresa(user, db, nodo.empresa_id)
     q = db.query(ProcesoNodo).filter(ProcesoNodo.empresa_id == nodo.empresa_id)
     q = q.filter(ProcesoNodo.parent_id == nodo.parent_id) if nodo.parent_id else q.filter(ProcesoNodo.parent_id.is_(None))
     hermanos = sorted(q.all(), key=lambda h: ((h.orden or 0), h.id))
@@ -572,10 +594,11 @@ def nodo_mover(nodo_id: int, direccion: str = Form(...), sp: str = Form(""),
 
 @router.post(RUTA + "/nodo/{nodo_id}/eliminar")
 def nodo_eliminar(nodo_id: int, sp: str = Form(""),
-                  db: Session = Depends(get_db), user: User = Depends(require_role("administrador"))):
+                  db: Session = Depends(get_db), user: User = Depends(require_perm("p_procesos", "editar"))):
     nodo = db.query(ProcesoNodo).get(nodo_id)
     if not nodo:
         return RedirectResponse(RUTA, status_code=303)
+    exigir_empresa(user, db, nodo.empresa_id)
     empresa_id, padre_id = nodo.empresa_id, nodo.parent_id
     db.delete(nodo)  # cascade: se lleva todo lo que cuelga de él
     db.commit()

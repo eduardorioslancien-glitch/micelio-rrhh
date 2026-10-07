@@ -78,7 +78,7 @@
   </div>
   {% endif %}
 
-  {% if user.rol == 'administrador' %}
+  {% if user.puede('asistencia', 'editar') %}
   <div class="card">
     <h2>Registrar marcación manual (corrección)</h2>
     <p class="muted">Úsalo si alguien olvidó marcar o todavía no tiene cuenta propia en el sistema.</p>
