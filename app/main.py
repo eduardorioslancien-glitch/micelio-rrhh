@@ -43,6 +43,7 @@ from . import reclutamiento as reclutamiento_module
 from . import clima as clima_module
 from . import procesos as procesos_module
 from . import horarios as horarios_module
+from . import conceptos as conceptos_module
 from . import public_landing as public_landing_module
 from . import api_leads as api_leads_module
 from . import man_academy as man_academy_module
@@ -100,6 +101,8 @@ init_db()
 with SessionLocal() as _db:
     seed_initial_data(_db)
 
+# conceptos va ANTES que rrhh: /rrhh/remuneraciones/conceptos no debe caer en la ruta genérica /rrhh/remuneraciones/{modulo}
+app.include_router(conceptos_module.router)
 app.include_router(rrhh_module.router)
 app.include_router(reclutamiento_module.router)
 app.include_router(clima_module.router)

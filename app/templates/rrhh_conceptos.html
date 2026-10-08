@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Conceptos — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=17">
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if error %}<div class="alert-error" style="margin-bottom:14px;">{{ error }}</div>{% endif %}
+  {% if ok %}<div class="alert-ok" style="margin-bottom:14px;">{{ ok }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Conceptos de remuneración ({{ conceptos|length }})</h2>
+    <p class="muted" style="margin-top:-4px;">Los conceptos que se pueden elegir en <a href="/rrhh/reclutamiento/pedidos">Registro de Pedidos</a> para las condiciones económicas de una vacante (Movilidad, Alimentación, Gasolina, bonos...).
+      <strong>Remunerativo</strong> o <strong>No Remunerativo</strong>; <strong>Fijo</strong> (importe pactado) o <strong>Calculado</strong> (se obtiene con una fórmula en la planilla); y el <strong>Código PLAME</strong> del concepto.</p>
+    <table>
+      <tr><th>Nombre</th><th>Tipo de concepto</th><th>Código PLAME</th><th>Tipo de dato</th><th>Estado</th><th></th></tr>
+      {% for c in conceptos %}
+      <tr>
+        <td><strong>{{ c.nombre }}</strong></td>
+        <td>{{ 'Remunerativo' if c.tipo == 'remunerativo' else 'No Remunerativo' }}</td>
+        <td>{% if c.codigo_plame %}{{ c.codigo_plame }}{% else %}<span class="muted">sin código</span>{% endif %}</td>
+        <td>{{ 'Fijo' if c.tipo_dato == 'fijo' else 'Calculado' }}</td>
+        <td><span class="badge {{ 'firmado' if c.activo else 'pendiente' }}">{{ 'activo' if c.activo else 'inactivo' }}</span>
+          {% if en_uso.get(c.id) %}<div class="muted" style="font-size:11px;">usado en {{ en_uso[c.id] }} pedido(s)</div>{% endif %}</td>
+        <td class="icon-btn-row">
+          {% if user.puede('conceptos', 'editar') %}
+          <details style="display:inline-block;">
+            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
+            <div class="edit-popover">
+              <form method="post" action="/rrhh/remuneraciones/conceptos/{{ c.id }}/editar">
+                <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ c.nombre }}" required></div>
+                <div class="field"><label>Tipo de concepto</label>
+                  <select name="tipo" required>{% for k, lbl in tipos %}<option value="{{ k }}" {{ 'selected' if c.tipo == k else '' }}>{{ lbl }}</option>{% endfor %}</select></div>
+                <div class="field"><label>Código PLAME</label><input type="text" name="codigo_plame" value="{{ c.codigo_plame or '' }}" maxlength="4" placeholder="0121"></div>
+                <div class="field"><label>Tipo de dato</label>
+                  <select name="tipo_dato" required>{% for k, lbl in tipos_dato %}<option value="{{ k }}" {{ 'selected' if c.tipo_dato == k else '' }}>{{ lbl }}</option>{% endfor %}</select></div>
+                <button class="btn small" type="submit">Guardar</button>
+              </form>
+            </div>
+          </details>
+          <form method="post" action="/rrhh/remuneraciones/conceptos/{{ c.id }}/toggle" style="display:inline;">
+            <button class="icon-btn {{ 'icon-btn-desactivar' if c.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if c.activo else 'Activar' }}"></button>
+          </form>
+          <form method="post" action="/rrhh/remuneraciones/conceptos/{{ c.id }}/eliminar" style="display:inline;" onsubmit="return confirm('¿Eliminar el concepto {{ c.nombre }}?');">
+            <button class="icon-btn icon-btn-eliminar" type="submit" title="Eliminar" {{ 'disabled' if en_uso.get(c.id) else '' }}></button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Todavía no hay conceptos. Crea el primero abajo.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% if user.puede('conceptos', 'editar') %}
+  <div class="card">
+    <h2>Nuevo concepto</h2>
+    <form method="post" action="/rrhh/remuneraciones/conceptos">
+      <div class="grid4">
+        <div class="field"><label>Nombre</label><input type="text" name="nombre" required placeholder="Ej.: Bono por producción"></div>
+        <div class="field"><label>Tipo de concepto</label>
+          <select name="tipo" required><option value="">Seleccionar…</option>{% for k, lbl in tipos %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Código PLAME</label><input type="text" name="codigo_plame" maxlength="4" placeholder="Ej.: 0121"></div>
+        <div class="field"><label>Tipo de dato</label>
+          <select name="tipo_dato" required><option value="">Seleccionar…</option>{% for k, lbl in tipos_dato %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select></div>
+      </div>
+      <p class="hint">El código PLAME es el de 4 dígitos del concepto en la planilla electrónica de SUNAT. Puedes dejarlo vacío y completarlo después.</p>
+      <button class="btn" type="submit">Crear concepto</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

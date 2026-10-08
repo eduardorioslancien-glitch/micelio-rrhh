@@ -17,8 +17,28 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 def init_db():
     from .models import Base
+    from sqlalchemy import inspect
+    conceptos_existian = inspect(engine).has_table("conceptos_remunerativos")
     Base.metadata.create_all(engine)
     _run_migraciones_livianas()
+    if not conceptos_existian:
+        _sembrar_conceptos_iniciales()
+
+
+def _sembrar_conceptos_iniciales():
+    """Solo la PRIMERA vez que existe la tabla de Conceptos (08/10): los
+    conceptos que ya se usaban en Esquemas de Pago (movilidad, combustible,
+    otros ingresos), para que Registro de Pedidos no arranque vacío. Sin
+    código PLAME: RR.HH. lo completa en Remuneraciones > Conceptos."""
+    from sqlalchemy.orm import Session
+    from .models import ConceptoRemunerativo
+    with Session(engine) as db:
+        if db.query(ConceptoRemunerativo).count():
+            return
+        for nombre, tipo in (("Movilidad", "no_remunerativo"), ("Alimentación", "no_remunerativo"),
+                             ("Gasolina / Combustible", "no_remunerativo"), ("Otros ingresos", "remunerativo")):
+            db.add(ConceptoRemunerativo(nombre=nombre, tipo=tipo, tipo_dato="fijo", activo=True))
+        db.commit()
 
 
 # Columnas agregadas a tablas que ya existían en instalaciones previas.

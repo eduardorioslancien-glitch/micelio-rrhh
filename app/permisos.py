@@ -74,6 +74,8 @@ SECCIONES = [
     ("onboarding", "Reclutamiento › Onboarding (ver avance)", "Reclutamiento y Selección", "comun", VER, ""),
     ("remuneraciones", "Remuneraciones", "Remuneraciones", "empresa", VER,
      "Planilla, RHE, APE, vacaciones, gratificaciones, CTS y liquidaciones (próximamente)."),
+    ("conceptos", "Remuneraciones › Conceptos", "Remuneraciones", "comun", EDITAR,
+     "Catálogo de conceptos (remunerativo / no remunerativo, código PLAME). Alimenta Registro de Pedidos."),
     ("anuncios", "Clima y Cultura › Anuncios", "Clima y Cultura", "comun", EDITAR, ""),
     ("encuestas", "Clima y Cultura › Encuesta 360 (administrar campañas)", "Clima y Cultura", "comun", EDITAR,
      "Responder una campaña abierta lo puede hacer cualquier usuario sin esta casilla."),
@@ -88,7 +90,7 @@ for _s in SECCIONES:
 # Lo que recibe un gerente mientras el administrador no le personalice los
 # accesos (el administrador puede cambiarlo opción por opción).
 PERMISOS_GERENTE = {
-    "dashboard": VER, "personal": EDITAR, "asistencia": EDITAR, "horarios": VER, "contratos": EDITAR,
+    "dashboard": VER, "personal": EDITAR, "asistencia": EDITAR, "horarios": VER, "contratos": EDITAR, "conceptos": VER,
     "p_empresas": VER, "p_procesos": EDITAR, "p_lineas": EDITAR, "p_cargos": VER, "p_esquemas": VER,
     "p_bases": EDITAR, "p_competencias": VER, "p_catalogos": VER, "p_sedes": VER,
     "pedidos": EDITAR, "leads": EDITAR, "seleccion": EDITAR, "descartados": VER, "onboarding": VER,

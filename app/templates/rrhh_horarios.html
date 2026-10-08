@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Horarios — MICELIO</title>
-<link rel="stylesheet" href="/static/style.css?v=16">
+<link rel="stylesheet" href="/static/style.css?v=17">
 <style>
   .hor-tabla { width: 100%; border-collapse: collapse; margin: 8px 0; }
   .hor-tabla th, .hor-tabla td { padding: 6px 8px; border-top: 1px solid var(--border); text-align: left; }
@@ -29,7 +29,7 @@
       <input type="text" name="nombre" value="{{ h.nombre if h else '' }}" required placeholder="Ej.: Oficina L-V, Técnicos L-S, Turno noche">
     </div>
     <table class="hor-tabla">
-      <tr><th style="width:36px;"></th><th>Día</th><th>Inicia</th><th>Termina</th><th>Horas (sin refrigerio)</th></tr>
+      <tr><th style="width:36px;"></th><th>Día</th><th>Inicia</th><th>Termina</th><th>Horas efectivas</th></tr>
       {% for i in range(7) %}
       {% set d = (h.dias or {}).get(i|string) if h else None %}
       {% set marcado = (d is not none) if h else (i < 5) %}
@@ -42,7 +42,7 @@
       </tr>
       {% endfor %}
     </table>
-    <div class="hor-total">Total semanal: <span class="hor-suma">0</span> h <span class="muted" style="font-weight:400;">(máximo {{ '%g'|format(max_semanal) }} h; a cada día se le resta {{ '%g'|format(refrigerio) }} h de refrigerio)</span>
+    <div class="hor-total">Total semanal: <span class="hor-suma">0</span> h <span class="muted" style="font-weight:400;">(máximo {{ '%g'|format(max_semanal) }} h; se descuenta {{ '%g'|format(refrigerio) }} h de refrigerio por día, salvo jornadas de {{ '%g'|format(sin_refrigerio) }} h o menos)</span>
       <span class="hor-aviso" style="margin-left:8px;"></span></div>
     <button class="btn" type="submit">{{ boton }}</button>
   </form>
@@ -50,7 +50,7 @@
 
   <div class="card">
     <h2>Horarios de trabajo ({{ horarios|length }})</h2>
-    <p class="muted" style="margin-top:-4px;">Define a qué hora entra y sale el personal cada día. A la jornada se le resta <strong>1 hora de refrigerio</strong> y la semana no puede pasar de <strong>48 horas</strong>. Estos horarios aparecen en la lista desplegable de Registro de Pedidos y se publican en Trabaja con Nosotros.</p>
+    <p class="muted" style="margin-top:-4px;">Define a qué hora entra y sale el personal cada día. A la jornada de cada día se le resta <strong>1 hora de refrigerio</strong> (si el día es de <strong>5 horas o menos</strong>, no se resta) y la semana no puede pasar de <strong>48 horas</strong>. Estos horarios aparecen en la lista desplegable de Registro de Pedidos y se publican en Trabaja con Nosotros.</p>
 
     {% for h in horarios %}
     <div class="hor-lista-item">
@@ -93,7 +93,7 @@
 
 <script>
 (function () {
-  var REFRIGERIO = {{ refrigerio }}, MAXIMO = {{ max_semanal }};
+  var REFRIGERIO = {{ refrigerio }}, MAXIMO = {{ max_semanal }}, SIN_REFRIGERIO = {{ sin_refrigerio }};
   function minutos(v) { if (!v) return null; var p = v.split(':'); return (+p[0]) * 60 + (+p[1]); }
   function recalcular(form) {
     var total = 0, mal = false;
@@ -105,9 +105,10 @@
       tr.classList.toggle('hor-off', !on);
       if (!on) { celda.textContent = '—'; return; }
       if (ini === null || fin === null || fin <= ini) { celda.textContent = 'revisa las horas'; mal = true; return; }
-      var h = (fin - ini) / 60 - REFRIGERIO;
-      if (h <= 0) { celda.textContent = 'muy corta'; mal = true; return; }
-      celda.textContent = (Math.round(h * 100) / 100) + ' h';
+      var h = (fin - ini) / 60;
+      var sinRef = h <= SIN_REFRIGERIO;
+      if (!sinRef) h -= REFRIGERIO;
+      celda.textContent = (Math.round(h * 100) / 100) + ' h' + (sinRef ? ' (sin refrigerio)' : '');
       total += h;
     });
     total = Math.round(total * 100) / 100;

@@ -105,10 +105,11 @@
   </details>
   {% endif %}
 
-  {% if user.puede('remuneraciones') %}
-  <details class="nav-group" {{ 'open' if active == 'remuneraciones' else '' }}>
+  {% if user.puede_alguna('remuneraciones', 'conceptos') %}
+  <details class="nav-group" {{ 'open' if active in ('remuneraciones', 'conceptos') else '' }}>
     <summary>Remuneraciones</summary>
     <div class="nav-children">
+      {% if user.puede('remuneraciones') %}
       <a href="/rrhh/remuneraciones/planilla">Planilla</a>
       <a href="/rrhh/remuneraciones/rhe">RHE — Locador de Servicios</a>
       <a href="/rrhh/remuneraciones/ape">APE</a>
@@ -116,6 +117,8 @@
       <a href="/rrhh/remuneraciones/gratificaciones">Gratificaciones</a>
       <a href="/rrhh/remuneraciones/cts">CTS</a>
       <a href="/rrhh/remuneraciones/liquidaciones">Liquidaciones</a>
+      {% endif %}
+      {% if user.puede('conceptos') %}<a href="/rrhh/remuneraciones/conceptos" class="{{ 'active' if active == 'conceptos' else '' }}">Conceptos</a>{% endif %}
     </div>
   </details>
   {% endif %}
@@ -150,7 +153,7 @@
 {% set _sec_por_pantalla = {'holdings': 'p_holdings', 'unidades': 'p_unidades', 'empresas': 'p_empresas', 'procesos': 'p_procesos',
    'lineas_producto': 'p_lineas', 'competencias': 'p_competencias', 'area': 'p_catalogos', 'gerencia': 'p_catalogos',
    'banco': 'p_catalogos', 'centro_costo': 'p_catalogos', 'cargos': 'p_cargos', 'esquemas_pago': 'p_esquemas',
-   'sede': 'p_bases', 'sedes_geocercas': 'p_sedes', 'horarios': 'horarios', 'pedidos': 'pedidos', 'leads': 'leads', 'seleccion': 'seleccion',
+   'sede': 'p_bases', 'sedes_geocercas': 'p_sedes', 'horarios': 'horarios', 'conceptos': 'conceptos', 'pedidos': 'pedidos', 'leads': 'leads', 'seleccion': 'seleccion',
    'anuncios': 'anuncios', 'personal': 'personal', 'asistencia': 'asistencia', 'contratos': 'contratos'} %}
 {% set _sec = _sec_por_pantalla.get(active) %}
 {% if _sec and user.rol != 'administrador' and not user.puede(_sec, 'editar') %}

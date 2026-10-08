@@ -20,7 +20,7 @@ from .models import (
     PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
     MODALIDADES_PEDIDO, MODALIDAD_PEDIDO_KEYS, TIPOS_CONTRATO_PEDIDO, TIPOS_CONCEPTO_PEDIDO, Horario,
-    MODALIDAD_A_REGIMEN_FICHA,
+    MODALIDAD_A_REGIMEN_FICHA, ConceptoRemunerativo,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
     CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE, LEAD_NOMBRE_PENDIENTE, lead_incompleto,
     lead_semaforo,
@@ -176,6 +176,11 @@ def pedidos_list(request: Request, estado: str = "", error: str = "", db: Sessio
     bases = db.query(BaseOperativa).filter(BaseOperativa.activo == True).order_by(  # noqa: E712
         BaseOperativa.empresa_id, BaseOperativa.nombre).all()
     horarios = db.query(Horario).filter(Horario.activo == True).order_by(Horario.nombre).all()  # noqa: E712
+    conceptos_catalogo = [
+        {"id": c.id, "nombre": c.nombre, "tipo": c.tipo, "codigo": c.codigo_plame, "tipo_dato": c.tipo_dato}
+        for c in db.query(ConceptoRemunerativo).filter(ConceptoRemunerativo.activo == True)  # noqa: E712
+        .order_by(ConceptoRemunerativo.nombre).all()
+    ]
     puede_generar = es_jefe_o_gerente(user, db)
     compensacion_por_cargo = {
         c.nombre: {
@@ -190,7 +195,7 @@ def pedidos_list(request: Request, estado: str = "", error: str = "", db: Sessio
         request, user, pedidos=pedidos, empresas=empresas, estados=ESTADOS_PEDIDO,
         estado_labels=ESTADO_LABELS, motivos=MOTIVOS_PEDIDO,
         cargos=cargos, areas=areas, empleados=empleados, bases=bases, horarios=horarios,
-        modalidades=MODALIDADES_PEDIDO, tipos_contrato=TIPOS_CONTRATO_PEDIDO, tipos_concepto=TIPOS_CONCEPTO_PEDIDO,
+        modalidades=MODALIDADES_PEDIDO, tipos_contrato=TIPOS_CONTRATO_PEDIDO, conceptos_catalogo=conceptos_catalogo,
         compensacion_por_cargo=compensacion_por_cargo, puede_generar=puede_generar,
         cargos_requieren_base=CARGOS_REQUIEREN_BASE, error=error,
         f_estado=f_estado, active="pedidos",
@@ -208,8 +213,7 @@ async def pedidos_crear(cargo_solicitado: str = Form(""), cantidad: str = Form("
                    fecha_requerida: str = Form(""), observaciones: str = Form(""),
                    horario_id: str = Form(""), modalidad: str = Form(""), tipo_contrato: str = Form(""),
                    sueldo_base_ofrecido: str = Form(""), comision_ofrecida: str = Form(""),
-                   concepto_nombre: list[str] = Form([]), concepto_importe: list[str] = Form([]),
-                   concepto_tipo: list[str] = Form([]),
+                   concepto_id: list[str] = Form([]), concepto_importe: list[str] = Form([]),
                    comision_pdf: UploadFile = File(None),
                    db: Session = Depends(get_db),
                    user: User = Depends(require_jefe_o_gerente)):
@@ -262,19 +266,26 @@ async def pedidos_crear(cargo_solicitado: str = Form(""), cantidad: str = Form("
     comision_importe = None
     pdf_path = pdf_nombre = None
     if modalidad != "RHE":
-        tipos_validos = {k for k, _ in TIPOS_CONCEPTO_PEDIDO}
-        for i, nombre in enumerate(concepto_nombre):
-            nombre = (nombre or "").strip()
+        # Cada concepto se ELIGE del catálogo (Remuneraciones › Conceptos) y solo se
+        # le pone el importe: el tipo (remunerativo / no) lo trae el propio concepto.
+        usados = set()
+        for i, cid in enumerate(concepto_id):
             importe_txt = concepto_importe[i] if i < len(concepto_importe) else ""
-            tipo = concepto_tipo[i] if i < len(concepto_tipo) else ""
-            if not nombre and not (importe_txt or "").strip():
+            if not (cid or "").strip() and not (importe_txt or "").strip():
                 continue
+            concepto = db.query(ConceptoRemunerativo).get(int(cid)) if (cid or "").isdigit() else None
+            if not concepto or not concepto.activo:
+                return _error_pedido("Elige el concepto de la lista (se crean en Remuneraciones › Conceptos), o quita la fila.")
             importe = _monto_o_none(importe_txt)
-            if not nombre or importe is None or importe < 0:
-                return _error_pedido("Cada concepto necesita un nombre y un importe válido (o quítalo).")
-            if tipo not in tipos_validos:
-                return _error_pedido(f"Indica si «{nombre}» es remunerativo o no remunerativo.")
-            conceptos.append({"concepto": nombre, "importe": importe, "tipo": tipo})
+            if importe is None or importe < 0:
+                return _error_pedido(f"Indica el importe de «{concepto.nombre}» (o quita la fila).")
+            if concepto.id in usados:
+                return _error_pedido(f"El concepto «{concepto.nombre}» está repetido: súmalo en un solo importe.")
+            usados.add(concepto.id)
+            conceptos.append({
+                "concepto_id": concepto.id, "concepto": concepto.nombre, "importe": importe,
+                "tipo": concepto.tipo, "codigo_plame": concepto.codigo_plame, "tipo_dato": concepto.tipo_dato,
+            })
 
         comision_importe = _monto_o_none(comision_ofrecida)
         if comision_pdf is not None and (comision_pdf.filename or ""):

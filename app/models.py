@@ -192,6 +192,11 @@ TIPOS_CONCEPTO_PEDIDO = [("remunerativo", "Remunerativo"), ("no_remunerativo", "
 DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 HORAS_REFRIGERIO = 1.0
 MAX_HORAS_SEMANALES = 48.0
+# Si la jornada de ese día es de 5 horas o menos, NO se descuenta refrigerio.
+HORAS_SIN_REFRIGERIO_HASTA = 5.0
+
+# Conceptos de remuneración (Remuneraciones > Conceptos, 08/10)
+TIPOS_DATO_CONCEPTO = [("fijo", "Fijo"), ("calculado", "Calculado")]
 
 # Control de Leads (candidatos) — Reclutamiento y Selección, Fase 3.
 ETAPAS_LEAD = [
@@ -1037,12 +1042,24 @@ class Horario(Base):
         return int(h) * 60 + int(m)
 
     def horas_dia(self, dia) -> float:
-        """Horas efectivas de ese día (jornada menos el refrigerio); 0 si no se trabaja."""
+        """Horas efectivas de ese día: la jornada menos el refrigerio (1 h) —
+        salvo que la jornada sea de 5 horas o menos, que no lleva refrigerio;
+        0 si no se trabaja."""
         d = (self.dias or {}).get(str(dia))
         if not d:
             return 0.0
         bruto = (self._minutos(d["fin"]) - self._minutos(d["inicio"])) / 60.0
-        return max(0.0, round(bruto - HORAS_REFRIGERIO, 2))
+        if bruto > HORAS_SIN_REFRIGERIO_HASTA:
+            bruto -= HORAS_REFRIGERIO
+        return max(0.0, round(bruto, 2))
+
+    @property
+    def lleva_refrigerio(self) -> bool:
+        """¿Algún día tiene una jornada de más de 5 horas (y por tanto refrigerio)?"""
+        for d in (self.dias or {}).values():
+            if (self._minutos(d["fin"]) - self._minutos(d["inicio"])) / 60.0 > HORAS_SIN_REFRIGERIO_HASTA:
+                return True
+        return False
 
     @property
     def total_semanal(self) -> float:
@@ -1065,7 +1082,24 @@ class Horario(Base):
         for dias, ini, fin in grupos:
             rango = abrev[dias[0]] if len(dias) == 1 else f"{abrev[dias[0]]}-{abrev[dias[-1]]}"
             partes.append(f"{rango} {ini}-{fin}")
-        return " · ".join(partes) + (f" (refrigerio {int(HORAS_REFRIGERIO)} h)" if partes else "")
+        return " · ".join(partes) + (f" (refrigerio {int(HORAS_REFRIGERIO)} h)" if partes and self.lleva_refrigerio else "")
+
+
+class ConceptoRemunerativo(Base):
+    """Catálogo de conceptos de remuneración (Remuneraciones > Conceptos): lo
+    que se puede elegir al armar las condiciones económicas de un Pedido de
+    Personal (Movilidad, Alimentación, Gasolina, bonos...). `tipo_dato` dice si
+    el importe es fijo o se calcula. `codigo_plame` es el código del concepto
+    en el PLAME (planilla electrónica de SUNAT)."""
+    __tablename__ = "conceptos_remunerativos"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(120), unique=True, nullable=False)
+    tipo = Column(String(20), nullable=False, default="remunerativo")  # remunerativo | no_remunerativo
+    codigo_plame = Column(String(10), nullable=True)
+    tipo_dato = Column(String(12), nullable=False, default="fijo")  # fijo | calculado
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class AvisoVisto(Base):

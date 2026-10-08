@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Control de Asistencia > Horarios (07/10/2026).
+"""Control de Asistencia > Horarios (07/10/2026; refrigerio ajustado el 08/10).
 
 Un horario tiene un nombre y, para cada día de la semana que se trabaja, la
 hora de inicio y la de fin de la jornada. A la jornada de cada día se le resta
-1 hora de refrigerio, y el total de horas de la semana no puede pasar de 48.
+1 hora de refrigerio — salvo que ese día sea de 5 horas o menos, que no lleva
+refrigerio —, y el total de horas de la semana no puede pasar de 48.
 Los horarios alimentan la lista desplegable "Horario" de Registro de Pedidos
 y se publican en Trabaja con Nosotros."""
 import os
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import (
-    Horario, PedidoPersonal, User, DIAS_SEMANA, HORAS_REFRIGERIO, MAX_HORAS_SEMANALES,
+    Horario, PedidoPersonal, User, DIAS_SEMANA, HORAS_REFRIGERIO, MAX_HORAS_SEMANALES, HORAS_SIN_REFRIGERIO_HASTA,
 )
 from .auth import require_perm
 from .rrhh import _ctx, _a_lima
@@ -62,8 +63,7 @@ def _validar(nombre: str, dias: dict, excluir_id=None, db: Session = None) -> st
     h = Horario(nombre=nombre, dias=dias)
     for i in range(7):
         if str(i) in dias and h.horas_dia(i) <= 0:
-            return (f"{DIAS_SEMANA[i]}: la jornada tiene que ser mayor a {int(HORAS_REFRIGERIO)} hora "
-                    "(a cada día se le resta 1 hora de refrigerio).")
+            return f"{DIAS_SEMANA[i]}: la jornada no puede quedar en cero horas."
     if h.total_semanal > MAX_HORAS_SEMANALES:
         return (f"El horario suma {h.total_semanal:g} horas a la semana (ya descontado el refrigerio): "
                 f"no puede pasar de {MAX_HORAS_SEMANALES:g}.")
@@ -83,7 +83,8 @@ def horarios_list(request: Request, error: str = "", ok: str = "", db: Session =
     en_uso = {h.id: db.query(PedidoPersonal).filter(PedidoPersonal.horario_id == h.id).count() for h in horarios}
     return templates.TemplateResponse(request, "rrhh_horarios.html", _ctx(
         request, user, horarios=horarios, en_uso=en_uso, dias_semana=DIAS_SEMANA,
-        refrigerio=HORAS_REFRIGERIO, max_semanal=MAX_HORAS_SEMANALES, error=error, ok=ok, active="horarios",
+        refrigerio=HORAS_REFRIGERIO, max_semanal=MAX_HORAS_SEMANALES, sin_refrigerio=HORAS_SIN_REFRIGERIO_HASTA,
+        error=error, ok=ok, active="horarios",
     ))
 
 
