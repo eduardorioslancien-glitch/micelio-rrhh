@@ -8,6 +8,8 @@
 <body>
 {% include "_rrhh_topbar.html" %}
 
+  {% if error %}<div class="alert-error" style="margin-bottom:14px;">{{ error }}</div>{% endif %}
+
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h2 style="margin:0;">Registro de Pedidos de Personal</h2>
@@ -26,7 +28,7 @@
     <div class="scroll-5">
     <table>
       <tr>
-        <th>Código</th><th>Cargo solicitado</th><th>Empresa</th><th>Área</th><th>Base</th><th>Cant.</th><th>Urgencia</th>
+        <th>Código</th><th>Cargo solicitado</th><th>Empresa</th><th>Área</th><th>Base</th><th>Cant.</th><th>Horario</th>
         <th>Solicitante</th><th>Fecha tope</th>{% if f_estado != 'abierto' %}<th>Estado</th>{% endif %}<th></th>
       </tr>
       {% for p in pedidos %}
@@ -35,13 +37,14 @@
         <td>
           <strong>{{ p.cargo_solicitado }}</strong>
           {% if p.motivo %}<br><span class="muted">{{ p.motivo }}</span>{% endif %}
-          {% if p.sueldo_base_ofrecido is not none %}<br><span class="muted">Sueldo ofrecido: S/ {{ "%.2f"|format(p.sueldo_base_ofrecido) }}</span>{% endif %}
+          {% if p.modalidad %}<br><span class="badge abierto">{{ p.modalidad }}{% if p.tipo_contrato %} · {{ p.tipo_contrato }}{% endif %}</span>{% endif %}
+          {% if p.sueldo_base_ofrecido is not none %}<br><span class="muted">{{ 'Honorarios' if p.modalidad == 'RHE' else 'Sueldo ofrecido' }}: S/ {{ "%.2f"|format(p.sueldo_base_ofrecido) }}</span>{% endif %}
         </td>
         <td>{{ p.empresa.nombre if p.empresa else "—" }}</td>
         <td>{{ p.area or "—" }}</td>
         <td class="muted">{{ p.base.nombre if p.base else "—" }}</td>
         <td>{{ p.cantidad }}</td>
-        <td>{{ p.urgencia or "—" }}</td>
+        <td class="muted" style="font-size:12px;">{{ p.horario.nombre if p.horario else "—" }}</td>
         <td>{{ p.solicitante or "—" }}</td>
         <td>{{ p.fecha_requerida.strftime("%d/%m/%Y") if p.fecha_requerida else "—" }}</td>
         {% if f_estado != 'abierto' %}<td><span class="badge {{ p.estado }}">{{ estado_labels.get(p.estado, p.estado) }}</span></td>{% endif %}
@@ -68,27 +71,28 @@
 
     {% if puede_generar %}
     <h3 style="margin-top:22px;">Registrar nuevo pedido</h3>
-    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo" id="form-pedido" onsubmit="return validarBaseObligatoria()">
+    <form method="post" action="/rrhh/reclutamiento/pedidos/nuevo" id="form-pedido" enctype="multipart/form-data" onsubmit="return validarPedido()">
+      <div class="section-title">Datos del pedido</div>
       <div class="grid3">
         <div class="field">
-          <label>Cargo Solicitado</label>
+          <label>Cargo (de Parámetros › Cargos - MOF)</label>
           <select name="cargo_solicitado" id="cargo_solicitado" required onchange="sugerirCompensacion()">
             <option value="">Seleccionar…</option>
             {% for c in cargos %}<option value="{{ c.nombre }}">{{ c.nombre }}</option>{% endfor %}
           </select>
           {% if not cargos %}<p class="hint">Todavía no hay cargos en Parámetros &gt; Cargos - MOF.</p>{% endif %}
         </div>
-        <div class="field"><label>Cantidad</label><input type="text" name="cantidad" value="1"></div>
+        <div class="field"><label>Cantidad de vacantes</label><input type="number" min="1" name="cantidad" value="1" required></div>
         <div class="field">
-          <label>Empresa</label>
-          <select name="empresa_id">
+          <label>Para qué empresa</label>
+          <select name="empresa_id" required>
             <option value="">Seleccionar…</option>
             {% for e in empresas %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}
           </select>
         </div>
         <div class="field">
           <label>Área</label>
-          <select name="area">
+          <select name="area" required>
             <option value="">Seleccionar…</option>
             {% for a in areas %}<option>{{ a.nombre }}</option>{% endfor %}
           </select>
@@ -118,39 +122,79 @@
         {% endif %}
         <div class="field">
           <label>Motivo</label>
-          <select name="motivo">
+          <select name="motivo" required>
             <option value="">Seleccionar…</option>
             {% for m in motivos %}<option>{{ m }}</option>{% endfor %}
           </select>
         </div>
         <div class="field">
-          <label>Urgencia</label>
-          <select name="urgencia">
-            <option value="">Seleccionar…</option>
-            {% for u in urgencias %}<option>{{ u }}</option>{% endfor %}
-          </select>
+          <label>Fecha tope para cubrir la vacante</label>
+          <input type="date" name="fecha_requerida" required>
         </div>
         <div class="field">
-          <label>Fecha tope para cubrir la vacante</label>
-          <input type="date" name="fecha_requerida">
+          <label>Horario</label>
+          <select name="horario_id" required>
+            <option value="">Seleccionar…</option>
+            {% for h in horarios %}<option value="{{ h.id }}">{{ h.nombre }} — {{ h.resumen }}</option>{% endfor %}
+          </select>
+          <div class="muted" style="font-size:11px; margin-top:3px;">
+            {% if horarios %}Se crean en <a href="/rrhh/asistencia/horarios">Control de Asistencia › Horarios</a>.
+            {% else %}Todavía no hay horarios: <a href="/rrhh/asistencia/horarios">crea el primero</a>.{% endif %}
+          </div>
         </div>
         <div class="field" style="grid-column:span 3;"><label>Observaciones</label><input type="text" name="observaciones"></div>
       </div>
 
-      <div class="section-title">Compensación sugerida para este cargo</div>
-      <p class="hint">Se completa sola según el cargo elegido (Parámetros &gt; Esquemas de Pago). Ajústala si hace falta — al registrar el pedido, el solicitante da su OK a estos montos.</p>
-      <div class="grid4">
-        <div class="field"><label>Sueldo Base (S/)</label><input type="number" step="0.01" name="sueldo_base_ofrecido" id="sueldo_base_ofrecido"></div>
-        <div class="field"><label>Comisión Variable (S/)</label><input type="number" step="0.01" name="comision_ofrecida" id="comision_ofrecida"></div>
-        <div class="field"><label>Movilidad (S/)</label><input type="number" step="0.01" name="movilidad_ofrecida" id="movilidad_ofrecida"></div>
-        <div class="field"><label>Combustible (S/)</label><input type="number" step="0.01" name="combustible_ofrecido" id="combustible_ofrecido"></div>
-        <div class="field"><label>Otros Ingresos (S/)</label><input type="number" step="0.01" name="otros_ingresos_ofrecido" id="otros_ingresos_ofrecido"></div>
+      <div class="section-title">Modalidad y condiciones económicas</div>
+      <div class="grid3">
+        <div class="field">
+          <label>Modalidad</label>
+          <select name="modalidad" id="modalidad" required onchange="aplicarModalidad()">
+            <option value="">Seleccionar…</option>
+            {% for k, lbl in modalidades %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field" id="campo-tipo-contrato" style="display:none;">
+          <label>Tipo de contrato</label>
+          <select name="tipo_contrato" id="tipo_contrato">
+            <option value="">Seleccionar…</option>
+            {% for t in tipos_contrato %}<option>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label id="lbl-sueldo">Sueldo Base (S/)</label>
+          <input type="number" step="0.01" min="0" name="sueldo_base_ofrecido" id="sueldo_base_ofrecido" required>
+        </div>
+      </div>
+      <p class="hint" id="hint-modalidad" style="margin-top:6px;">Elige la modalidad: de ella depende la ficha del personal y el documento que se firma.</p>
+
+      <div id="bloque-conceptos" style="display:none; margin-top:10px;">
+        <label style="font-weight:600;">Otros conceptos (remunerativos y no remunerativos)</label>
+        <p class="hint" style="margin:2px 0 6px;">Importes que se pagan aparte del sueldo base: Movilidad, Alimentación, Gasolina, Bono, etc. Cada importe va por separado para el cálculo de la planilla.</p>
+        <table id="tabla-conceptos">
+          <tr><th>Concepto</th><th style="width:150px;">Importe (S/)</th><th style="width:190px;">Tipo</th><th style="width:40px;"></th></tr>
+        </table>
+        <datalist id="lista-conceptos">
+          <option value="Movilidad"><option value="Alimentación"><option value="Gasolina / Combustible"><option value="Bono por producción">
+          <option value="Asignación familiar"><option value="Bono de puntualidad"><option value="Otros ingresos">
+        </datalist>
+        <button type="button" class="btn small secondary" onclick="agregarConcepto()" style="margin-top:6px;">+ Agregar concepto</button>
       </div>
 
-      <button class="btn" type="submit" style="margin-top:14px;">Registrar pedido</button>
+      <div id="bloque-comision" style="display:none; margin-top:14px;">
+        <label style="font-weight:600;">Comisiones <span id="comision-obligatoria" style="color:var(--red); display:none;">(obligatoria en APE)</span></label>
+        <p class="hint" style="margin:2px 0 6px;">Las comisiones pueden variar por cargo e incluso por persona. Adjunta el <strong>PDF que explica cómo se calculan</strong> (queda asociado a esta vacante) o, en su lugar, indica el <strong>importe mensual</strong> que se entregará para el cálculo de la planilla.</p>
+        <div class="grid3">
+          <div class="field"><label>Importe mensual de comisión (S/)</label><input type="number" step="0.01" min="0" name="comision_ofrecida" id="comision_ofrecida"></div>
+          <div class="field" style="grid-column:span 2;"><label>PDF con el cálculo de comisiones (máx. 10 MB)</label><input type="file" name="comision_pdf" id="comision_pdf" accept="application/pdf,.pdf"></div>
+        </div>
+      </div>
+
+      <p class="hint" style="margin-top:12px;">Se sugieren el sueldo y los conceptos del cargo elegido (Parámetros &gt; Esquemas de Pago); ajústalos si hace falta. Al registrar el pedido, el solicitante da su OK a estos montos. Todo esto se publica en <em>Trabaja con Nosotros</em>.</p>
+      <button class="btn" type="submit" style="margin-top:6px;">Registrar pedido</button>
     </form>
     {% else %}
-    <p class="muted" style="margin-top:16px;">Solo Jefes/Gerentes (con usuario de Operaciones) o un administrador pueden registrar un pedido nuevo.</p>
+    <p class="muted" style="margin-top:16px;">No tienes permiso para registrar pedidos nuevos. Pídelo al administrador.</p>
     {% endif %}
   </div>
 
@@ -158,12 +202,50 @@
 <script>
   const COMPENSACION_POR_CARGO = {{ compensacion_por_cargo | tojson }};
   const CARGOS_REQUIEREN_BASE = {{ cargos_requieren_base | tojson }};
-  function validarBaseObligatoria() {
+  const TIPOS_CONCEPTO_HTML = '{% for k, lbl in tipos_concepto %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}';
+  const HINTS = {
+    APE: "APE: se firma un Convenio de Aprendizaje. La comisión se ingresa mensualmente para el cálculo de la planilla.",
+    RHE: "RHE: el Sueldo Base es el TOTAL del Recibo por Honorarios y el documento es el de Locación de Servicios.",
+    MYPE: "MYPE: contrato de trabajo; cada importe va por separado para la planilla de la empresa.",
+    GENERAL: "GENERAL: contrato de trabajo; cada importe va por separado para la planilla de la empresa.",
+  };
+  function aplicarModalidad() {
+    const m = document.getElementById("modalidad").value;
+    document.getElementById("campo-tipo-contrato").style.display = (m === "MYPE" || m === "GENERAL") ? "" : "none";
+    document.getElementById("tipo_contrato").required = (m === "MYPE" || m === "GENERAL");
+    document.getElementById("bloque-conceptos").style.display = (m && m !== "RHE") ? "" : "none";
+    document.getElementById("bloque-comision").style.display = (m && m !== "RHE") ? "" : "none";
+    document.getElementById("comision-obligatoria").style.display = (m === "APE") ? "" : "none";
+    document.getElementById("lbl-sueldo").textContent = m === "RHE" ? "Sueldo Base = total del Recibo por Honorarios (S/)" : (m === "APE" ? "Subvención / Sueldo Base (S/)" : "Sueldo Base (S/)");
+    document.getElementById("hint-modalidad").textContent = HINTS[m] || "Elige la modalidad: de ella depende la ficha del personal y el documento que se firma.";
+  }
+  function agregarConcepto(nombre, importe, tipo) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td><input type="text" name="concepto_nombre" list="lista-conceptos" placeholder="Ej.: Movilidad"></td>' +
+      '<td><input type="number" step="0.01" min="0" name="concepto_importe"></td>' +
+      '<td><select name="concepto_tipo">' + TIPOS_CONCEPTO_HTML + '</select></td>' +
+      '<td><button type="button" class="icon-btn danger" title="Quitar" onclick="this.closest(\'tr\').remove()">✕</button></td>';
+    document.getElementById("tabla-conceptos").appendChild(tr);
+    if (nombre) tr.querySelector("[name=concepto_nombre]").value = nombre;
+    if (importe !== undefined && importe !== null && importe !== "") tr.querySelector("[name=concepto_importe]").value = importe;
+    if (tipo) tr.querySelector("[name=concepto_tipo]").value = tipo;
+  }
+  function validarPedido() {
     const cargo = (document.getElementById("cargo_solicitado").value || "").toLowerCase();
     const requiereBase = CARGOS_REQUIEREN_BASE.some(k => cargo.includes(k));
     if (requiereBase && !document.getElementById("base_id").value) {
       alert("Este cargo requiere indicar la Base (zona) donde va a trabajar.");
       return false;
+    }
+    const m = document.getElementById("modalidad").value;
+    if (m === "APE") {
+      const tienePdf = document.getElementById("comision_pdf").files.length > 0;
+      const tieneImporte = (document.getElementById("comision_ofrecida").value || "") !== "";
+      if (!tienePdf && !tieneImporte) {
+        alert("En modalidad APE la comisión es obligatoria: indica el importe mensual o adjunta el PDF que explica cómo se calcula.");
+        return false;
+      }
     }
     return true;
   }
@@ -172,10 +254,12 @@
     const comp = COMPENSACION_POR_CARGO[cargo] || {};
     document.getElementById("sueldo_base_ofrecido").value = comp.sueldo_base ?? "";
     document.getElementById("comision_ofrecida").value = comp.comision ?? "";
-    document.getElementById("movilidad_ofrecida").value = comp.movilidad ?? "";
-    document.getElementById("combustible_ofrecido").value = comp.combustible ?? "";
-    document.getElementById("otros_ingresos_ofrecido").value = comp.otros ?? "";
+    document.querySelectorAll("#tabla-conceptos tr:not(:first-child)").forEach(tr => tr.remove());
+    if (comp.movilidad) agregarConcepto("Movilidad", comp.movilidad, "no_remunerativo");
+    if (comp.combustible) agregarConcepto("Gasolina / Combustible", comp.combustible, "no_remunerativo");
+    if (comp.otros) agregarConcepto("Otros ingresos", comp.otros, "remunerativo");
   }
+  aplicarModalidad();
 </script>
 </body>
 </html>

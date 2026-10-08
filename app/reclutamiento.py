@@ -19,6 +19,8 @@ from .database import get_db
 from .models import (
     PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
+    MODALIDADES_PEDIDO, MODALIDAD_PEDIDO_KEYS, TIPOS_CONTRATO_PEDIDO, TIPOS_CONCEPTO_PEDIDO, Horario,
+    MODALIDAD_A_REGIMEN_FICHA,
     ETAPAS_LEAD, ETAPA_LEAD_KEYS, ORIGENES_LEAD, ETAPAS_ONBOARDING, STATUS_PENDIENTE,
     CLASIFICACIONES_LEAD, HistorialDescarte, ETAPAS_DESCARTE, LEAD_NOMBRE_PENDIENTE, lead_incompleto,
     lead_semaforo,
@@ -27,7 +29,7 @@ from .auth import require_role, require_perm, require_jefe_o_gerente, es_jefe_o_
 from .rrhh import (
     _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead,
     _pedido_cubre_vacante, _a_lima, _eliminar_employee_completo, _notificar_lead_incompleto_n8n,
-    _payload_lead_para_n8n,
+    _payload_lead_para_n8n, UPLOADS_DIR,
 )
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
@@ -87,6 +89,33 @@ def _calcular_disc(respuestas: dict):
     return {**porcentajes, "perfil_dominante": dominante}
 
 
+def _ficha_desde_pedido(pedido: PedidoPersonal) -> dict:
+    """Datos de la ficha que ya se conocen por el pedido (07/10): de la
+    MODALIDAD depende el régimen laboral, el tipo de contrato y por tanto el
+    documento que se firma (contrato / locación de servicios / convenio APE),
+    y también la remuneración y el horario. RR.HH. los puede corregir en la
+    ficha; esto solo evita volver a digitarlos. Nada se pisa si el pedido no
+    trae el dato (pedidos anteriores al 07/10)."""
+    # (el cargo y el área NO se siembran: un candidato en Selección no debe contar
+    # como ocupante del cargo en Procesos y Funciones hasta que RR.HH. lo confirme)
+    datos = {}
+    regimen = MODALIDAD_A_REGIMEN_FICHA.get(pedido.modalidad or "")
+    if regimen:
+        datos["regimen_laboral_persona"] = regimen
+    if pedido.modalidad == "RHE":
+        datos["tipo_contrato"] = "Locación de Servicios"
+    elif pedido.tipo_contrato:
+        datos["tipo_contrato"] = pedido.tipo_contrato
+    if pedido.sueldo_base_ofrecido:
+        datos["remuneracion"] = f"{pedido.sueldo_base_ofrecido:.2f}"
+    movilidad = sum(c["importe"] for c in pedido.conceptos_lista if "movil" in (c.get("concepto") or "").lower())
+    if movilidad:
+        datos["movilidad"] = f"{movilidad:.2f}"
+    if pedido.horario:
+        datos["horario"] = f"{pedido.horario.nombre}: {pedido.horario.resumen}"
+    return datos
+
+
 def _parse_fecha(s: str):
     if not s:
         return None
@@ -120,8 +149,17 @@ def _generar_codigo_pedido(db: Session) -> str:
 # ---------------------------------------------------------------------------
 # Registro de Pedidos de Personal
 # ---------------------------------------------------------------------------
+def _hoy_utc():
+    return datetime.datetime.utcnow()
+
+
+PEDIDOS_PDF_DIR = os.path.join(UPLOADS_DIR, "pedidos_comision")
+os.makedirs(PEDIDOS_PDF_DIR, exist_ok=True)
+TAMANO_MAXIMO_PDF_COMISION = 10 * 1024 * 1024
+
+
 @router.get("/rrhh/reclutamiento/pedidos", response_class=HTMLResponse)
-def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_db),
+def pedidos_list(request: Request, estado: str = "", error: str = "", db: Session = Depends(get_db),
                   user: User = Depends(require_perm("pedidos", "ver"))):
     # Punto pedido (28/09): al entrar sin filtro elegido, se ven solo los
     # pedidos ABIERTO (lo que RR.HH. necesita mirar primero). "Todos" y cada
@@ -137,6 +175,7 @@ def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_d
     empleados = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
     bases = db.query(BaseOperativa).filter(BaseOperativa.activo == True).order_by(  # noqa: E712
         BaseOperativa.empresa_id, BaseOperativa.nombre).all()
+    horarios = db.query(Horario).filter(Horario.activo == True).order_by(Horario.nombre).all()  # noqa: E712
     puede_generar = es_jefe_o_gerente(user, db)
     compensacion_por_cargo = {
         c.nombre: {
@@ -149,24 +188,108 @@ def pedidos_list(request: Request, estado: str = "", db: Session = Depends(get_d
     }
     return templates.TemplateResponse(request, "rrhh_pedidos.html", _ctx(
         request, user, pedidos=pedidos, empresas=empresas, estados=ESTADOS_PEDIDO,
-        estado_labels=ESTADO_LABELS, motivos=MOTIVOS_PEDIDO, urgencias=URGENCIAS_PEDIDO,
-        cargos=cargos, areas=areas, empleados=empleados, bases=bases,
+        estado_labels=ESTADO_LABELS, motivos=MOTIVOS_PEDIDO,
+        cargos=cargos, areas=areas, empleados=empleados, bases=bases, horarios=horarios,
+        modalidades=MODALIDADES_PEDIDO, tipos_contrato=TIPOS_CONTRATO_PEDIDO, tipos_concepto=TIPOS_CONCEPTO_PEDIDO,
         compensacion_por_cargo=compensacion_por_cargo, puede_generar=puede_generar,
-        cargos_requieren_base=CARGOS_REQUIEREN_BASE,
+        cargos_requieren_base=CARGOS_REQUIEREN_BASE, error=error,
         f_estado=f_estado, active="pedidos",
     ))
 
 
+def _error_pedido(mensaje: str):
+    return RedirectResponse("/rrhh/reclutamiento/pedidos?error=" + quote(mensaje), status_code=303)
+
+
 @router.post("/rrhh/reclutamiento/pedidos/nuevo")
-def pedidos_crear(cargo_solicitado: str = Form(...), cantidad: int = Form(1),
+async def pedidos_crear(cargo_solicitado: str = Form(""), cantidad: str = Form("1"),
                    empresa_id: str = Form(""), area: str = Form(""), base_id: str = Form(""),
-                   solicitante: str = Form(""), motivo: str = Form(""), urgencia: str = Form(""),
+                   solicitante: str = Form(""), motivo: str = Form(""),
                    fecha_requerida: str = Form(""), observaciones: str = Form(""),
+                   horario_id: str = Form(""), modalidad: str = Form(""), tipo_contrato: str = Form(""),
                    sueldo_base_ofrecido: str = Form(""), comision_ofrecida: str = Form(""),
-                   movilidad_ofrecida: str = Form(""), combustible_ofrecido: str = Form(""),
-                   otros_ingresos_ofrecido: str = Form(""),
+                   concepto_nombre: list[str] = Form([]), concepto_importe: list[str] = Form([]),
+                   concepto_tipo: list[str] = Form([]),
+                   comision_pdf: UploadFile = File(None),
                    db: Session = Depends(get_db),
                    user: User = Depends(require_jefe_o_gerente)):
+    """Registro de Pedidos (rehecho el 07/10): el cargo debe existir en Cargos -
+    MOF, y de la MODALIDAD (APE / MYPE / GENERAL / RHE) depende cómo se llena la
+    ficha y qué documento se firma: APE = convenio (con comisión mensual), RHE =
+    locación de servicios (el sueldo base es el total del recibo por honorarios),
+    MYPE y GENERAL = contrato de trabajo (cada importe va por separado para la
+    planilla; hay que decir si es plazo fijo, indeterminado o por obra)."""
+    cargo = db.query(Cargo).filter(Cargo.nombre == cargo_solicitado.strip(), Cargo.activo == True).first()  # noqa: E712
+    if not cargo:
+        return _error_pedido("Elige un cargo que exista en Parámetros › Cargos - MOF.")
+    try:
+        cant = int(cantidad)
+    except ValueError:
+        cant = 0
+    if cant < 1:
+        return _error_pedido("La cantidad de vacantes debe ser al menos 1.")
+    empresa = db.query(Empresa).get(int(empresa_id)) if empresa_id.isdigit() else None
+    if not empresa:
+        return _error_pedido("Elige para qué empresa es el pedido.")
+    if modalidad not in MODALIDAD_PEDIDO_KEYS:
+        return _error_pedido("Elige la modalidad: APE, MYPE, GENERAL o RHE.")
+    sueldo = _monto_o_none(sueldo_base_ofrecido)
+    if sueldo is None or sueldo <= 0:
+        return _error_pedido("El Sueldo Base es obligatorio en todas las modalidades (y debe ser mayor a cero).")
+    if not area.strip():
+        return _error_pedido("Elige el área.")
+    if not motivo.strip():
+        return _error_pedido("Elige el motivo del pedido.")
+    fecha_tope = _parse_fecha(fecha_requerida)
+    if not fecha_tope:
+        return _error_pedido("Indica la fecha tope para cubrir la vacante.")
+    horario = db.query(Horario).get(int(horario_id)) if horario_id.isdigit() else None
+    if not horario or not horario.activo:
+        return _error_pedido("Elige el horario (si no existe, créalo en Control de Asistencia › Horarios).")
+    cargo_requiere_base = any(k in cargo.nombre.lower() for k in CARGOS_REQUIEREN_BASE)
+    if cargo_requiere_base and not base_id.isdigit():
+        return _error_pedido("Este cargo requiere indicar la Base (zona) donde va a trabajar.")
+
+    tipo_contrato_final = None
+    if modalidad in ("MYPE", "GENERAL"):
+        if tipo_contrato not in TIPOS_CONTRATO_PEDIDO:
+            return _error_pedido("Para MYPE y GENERAL indica si el contrato es a Plazo Fijo, Plazo Indeterminado o Por Obra o Servicio.")
+        tipo_contrato_final = tipo_contrato
+
+    # Conceptos remunerativos / no remunerativos (no aplica a RHE: ahí el sueldo
+    # base ya es el total del recibo por honorarios)
+    conceptos = []
+    comision_importe = None
+    pdf_path = pdf_nombre = None
+    if modalidad != "RHE":
+        tipos_validos = {k for k, _ in TIPOS_CONCEPTO_PEDIDO}
+        for i, nombre in enumerate(concepto_nombre):
+            nombre = (nombre or "").strip()
+            importe_txt = concepto_importe[i] if i < len(concepto_importe) else ""
+            tipo = concepto_tipo[i] if i < len(concepto_tipo) else ""
+            if not nombre and not (importe_txt or "").strip():
+                continue
+            importe = _monto_o_none(importe_txt)
+            if not nombre or importe is None or importe < 0:
+                return _error_pedido("Cada concepto necesita un nombre y un importe válido (o quítalo).")
+            if tipo not in tipos_validos:
+                return _error_pedido(f"Indica si «{nombre}» es remunerativo o no remunerativo.")
+            conceptos.append({"concepto": nombre, "importe": importe, "tipo": tipo})
+
+        comision_importe = _monto_o_none(comision_ofrecida)
+        if comision_pdf is not None and (comision_pdf.filename or ""):
+            contenido = await comision_pdf.read()
+            if not comision_pdf.filename.lower().endswith(".pdf") or not contenido.startswith(b"%PDF"):
+                return _error_pedido("El documento de comisiones debe ser un PDF.")
+            if len(contenido) > TAMANO_MAXIMO_PDF_COMISION:
+                return _error_pedido("El PDF de comisiones supera el tamaño máximo (10 MB).")
+            pdf_nombre = comision_pdf.filename
+            pdf_path = os.path.join(PEDIDOS_PDF_DIR, f"{uuid.uuid4().hex[:10]}_{os.path.basename(pdf_nombre)}")
+            with open(pdf_path, "wb") as f:
+                f.write(contenido)
+        if modalidad == "APE" and comision_importe is None and not pdf_path:
+            return _error_pedido("En modalidad APE la comisión es obligatoria: indica el importe mensual o adjunta el PDF que explica cómo se calcula.")
+
     # Punto 3 del pedido: si quien registra NO es administrador (es un Jefe/
     # Gerente generando su propio pedido), el Solicitante es él mismo — se
     # ignora cualquier otro valor que llegue del formulario.
@@ -176,18 +299,28 @@ def pedidos_crear(cargo_solicitado: str = Form(...), cantidad: int = Form(1),
         solicitante_final = user.nombre_completo
     db.add(PedidoPersonal(
         codigo=_generar_codigo_pedido(db),
-        cargo_solicitado=cargo_solicitado.strip(), area=area.strip() or None,
-        empresa_id=int(empresa_id) if empresa_id else None, base_id=int(base_id) if base_id else None,
-        cantidad=max(cantidad, 1),
-        motivo=motivo or None, urgencia=urgencia or None, solicitante=solicitante_final,
-        fecha_requerida=_parse_fecha(fecha_requerida), observaciones=observaciones.strip() or None,
-        sueldo_base_ofrecido=_monto_o_none(sueldo_base_ofrecido), comision_ofrecida=_monto_o_none(comision_ofrecida),
-        movilidad_ofrecida=_monto_o_none(movilidad_ofrecida), combustible_ofrecido=_monto_o_none(combustible_ofrecido),
-        otros_ingresos_ofrecido=_monto_o_none(otros_ingresos_ofrecido),
+        cargo_solicitado=cargo.nombre, area=area.strip(),
+        empresa_id=empresa.id, base_id=int(base_id) if base_id.isdigit() else None,
+        cantidad=cant, motivo=motivo, solicitante=solicitante_final,
+        fecha_requerida=fecha_tope, observaciones=observaciones.strip() or None,
+        horario_id=horario.id, modalidad=modalidad, tipo_contrato=tipo_contrato_final,
+        sueldo_base_ofrecido=sueldo, comision_ofrecida=comision_importe, conceptos=conceptos or None,
+        comision_pdf_path=pdf_path, comision_pdf_filename=pdf_nombre,
         registrado_por=user.nombre_completo,
     ))
     db.commit()
     return RedirectResponse("/rrhh/reclutamiento/pedidos", status_code=303)
+
+
+@router.get("/rrhh/reclutamiento/pedidos/{pedido_id}/comision.pdf")
+def pedido_comision_pdf(pedido_id: int, db: Session = Depends(get_db),
+                        user: User = Depends(require_perm("pedidos", "ver"))):
+    from fastapi.responses import FileResponse
+    pedido = db.query(PedidoPersonal).get(pedido_id)
+    if not pedido or not pedido.comision_pdf_path or not os.path.exists(pedido.comision_pdf_path):
+        raise HTTPException(404, "Este pedido no tiene PDF de comisiones.")
+    return FileResponse(pedido.comision_pdf_path, filename=pedido.comision_pdf_filename or "comisiones.pdf",
+                        media_type="application/pdf")
 
 
 @router.get("/rrhh/reclutamiento/pedidos/{pedido_id}", response_class=HTMLResponse)
@@ -743,6 +876,7 @@ def lead_aprobar(lead_id: int, entrevistador_id: str = Form(""), db: Session = D
         ficha_inicial["codigo_pedido_seleccion"] = lead.pedido.codigo
         ficha_inicial["vacante_cargo"] = lead.pedido.cargo_solicitado
         ficha_inicial["vacante_area"] = lead.pedido.area
+        ficha_inicial.update(_ficha_desde_pedido(lead.pedido))
     if lead.clasificacion:
         ficha_inicial["clasificacion_entrevista"] = lead.clasificacion
     disc = (lead.entrevista_data or {}).get("disc")

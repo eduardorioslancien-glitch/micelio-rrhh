@@ -31,6 +31,19 @@
       <p style="margin-top:8px;">{{ pedido.observaciones }}</p>
       {% endif %}
 
+      {% set cond = pedido.condiciones_publicas %}
+      {% if cond.tiene_algo %}
+      <div class="section-title">Condiciones</div>
+      <table>
+        {% if cond.modalidad %}<tr><td style="width:200px;"><strong>Modalidad</strong></td><td>{{ cond.modalidad }}{% if cond.tipo_contrato %} · {{ cond.tipo_contrato }}{% endif %}</td></tr>{% endif %}
+        {% if cond.horario %}<tr><td><strong>Horario</strong></td><td>{{ cond.horario }} — {{ cond.horario_resumen }} <span class="muted">({{ '%g'|format(cond.horas) }} h semanales)</span></td></tr>{% endif %}
+        {% if cond.sueldo %}<tr><td><strong>{{ cond.sueldo_etiqueta }}</strong></td><td>S/ {{ "{:,.2f}".format(cond.sueldo) }}</td></tr>{% endif %}
+        {% for c in cond.conceptos %}<tr><td><strong>{{ c.concepto }}</strong></td><td>S/ {{ "{:,.2f}".format(c.importe) }} <span class="muted">· {{ 'remunerativo' if c.tipo == 'remunerativo' else 'no remunerativo' }}</span></td></tr>{% endfor %}
+        {% if cond.comision %}<tr><td><strong>Comisiones</strong></td><td>{{ cond.comision }}</td></tr>{% endif %}
+      </table>
+      <p class="hint" style="margin-top:6px;">Condiciones sugeridas para esta vacante; el detalle final se confirma en el proceso de selección.</p>
+      {% endif %}
+
       {% if cargo and (cargo.descripcion or cargo.funciones_todas or cargo.requisito_academico or cargo.requisito_experiencia or cargo.requisito_conocimientos) %}
         {% if cargo.descripcion %}<p>{{ cargo.descripcion }}</p>{% endif %}
         {% if cargo.funciones_todas %}

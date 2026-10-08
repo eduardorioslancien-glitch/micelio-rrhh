@@ -28,6 +28,14 @@
           {% if v.base_nombre %} · Base: {{ v.base_nombre }}{% endif %}
           {% if v.pedido.cantidad and v.pedido.cantidad > 1 %} · {{ v.pedido.cantidad }} vacantes{% endif %}
         </p>
+        {% set cond = v.pedido.condiciones_publicas %}
+        {% if cond.tiene_algo %}
+        <p style="margin:0 0 8px; font-size:13px;">
+          {% if cond.modalidad %}<span class="badge abierto">{{ v.pedido.modalidad }}</span> {% endif %}
+          {% if cond.sueldo %}<strong>S/ {{ "{:,.0f}".format(cond.sueldo) }}</strong> <span class="muted">{{ 'en honorarios' if v.pedido.modalidad == 'RHE' else 'sueldo base' }}</span>{% endif %}
+          {% if cond.horario %} · <span class="muted">{{ cond.horario }}: {{ cond.horario_resumen }}</span>{% endif %}
+        </p>
+        {% endif %}
         {% if v.cargo and v.cargo.descripcion %}<p style="margin:0 0 10px;">{{ v.cargo.descripcion }}</p>
         {% elif v.pedido.observaciones %}<p style="margin:0 0 10px;">{{ v.pedido.observaciones }}</p>{% endif %}
         <a class="btn small" href="/trabaja-con-nosotros/{{ v.pedido.id }}">Ver vacante y postular</a>

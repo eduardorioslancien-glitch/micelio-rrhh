@@ -23,7 +23,18 @@
       <tr><td><strong>Cantidad solicitada</strong></td><td>{{ pedido.cantidad }}</td></tr>
       <tr><td><strong>Solicitante</strong></td><td>{{ pedido.solicitante or "—" }}</td></tr>
       <tr><td><strong>Motivo</strong></td><td>{{ pedido.motivo or "—" }}</td></tr>
-      <tr><td><strong>Urgencia</strong></td><td>{{ pedido.urgencia or "—" }}</td></tr>
+      <tr><td><strong>Horario</strong></td><td>{% if pedido.horario %}{{ pedido.horario.nombre }} <span class="muted">— {{ pedido.horario.resumen }} · {{ '%g'|format(pedido.horario.total_semanal) }} h semanales</span>{% else %}—{% endif %}</td></tr>
+      <tr><td><strong>Modalidad</strong></td><td>{% if pedido.modalidad %}<span class="badge abierto">{{ pedido.modalidad }}</span>{% if pedido.tipo_contrato %} · {{ pedido.tipo_contrato }}{% endif %}{% else %}—{% endif %}</td></tr>
+      <tr><td><strong>{{ 'Honorarios (total del Recibo por Honorarios)' if pedido.modalidad == 'RHE' else 'Sueldo Base' }}</strong></td><td>{{ "S/ %.2f"|format(pedido.sueldo_base_ofrecido) if pedido.sueldo_base_ofrecido is not none else "—" }}</td></tr>
+      {% for c in pedido.conceptos_lista %}
+      <tr><td><strong>{{ c.concepto }}</strong></td><td>S/ {{ "%.2f"|format(c.importe) }} <span class="muted">· {{ 'Remunerativo' if c.tipo == 'remunerativo' else 'No remunerativo' }}</span></td></tr>
+      {% endfor %}
+      {% if pedido.comision_ofrecida is not none or pedido.comision_pdf_path %}
+      <tr><td><strong>Comisiones</strong></td><td>
+        {% if pedido.comision_ofrecida is not none %}S/ {{ "%.2f"|format(pedido.comision_ofrecida) }} mensuales{% endif %}
+        {% if pedido.comision_pdf_path %}{% if pedido.comision_ofrecida is not none %} · {% endif %}<a href="/rrhh/reclutamiento/pedidos/{{ pedido.id }}/comision.pdf" target="_blank">PDF: cómo se calculan ({{ pedido.comision_pdf_filename }})</a>{% endif %}
+      </td></tr>
+      {% endif %}
       <tr><td><strong>Fecha tope</strong></td><td>{{ pedido.fecha_requerida.strftime("%d/%m/%Y") if pedido.fecha_requerida else "—" }}</td></tr>
       <tr><td><strong>Observaciones</strong></td><td>{{ pedido.observaciones or "—" }}</td></tr>
       <tr><td><strong>Registrado por</strong></td><td>{{ pedido.registrado_por or "—" }} — {{ (pedido.created_at|lima).strftime("%d/%m/%Y") if pedido.created_at else "—" }}</td></tr>

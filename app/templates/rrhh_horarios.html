@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Horarios — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=16">
+<style>
+  .hor-tabla { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .hor-tabla th, .hor-tabla td { padding: 6px 8px; border-top: 1px solid var(--border); text-align: left; }
+  .hor-tabla input[type=time] { width: 120px; }
+  .hor-tabla input[type=checkbox] { width: auto; }
+  .hor-tabla tr.hor-off td:not(:first-child):not(:nth-child(2)) { opacity: .35; }
+  .hor-total { font-weight: 700; margin: 6px 0 10px; }
+  .hor-total.mal { color: var(--red, #b3261e); }
+  .hor-total.ok { color: #1a7f4b; }
+  .hor-lista-item { border-top: 1px solid var(--border); padding: 12px 0; }
+  .hor-lista-item:first-child { border-top: 0; }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if error %}<div class="alert-error" style="margin-bottom:14px;">{{ error }}</div>{% endif %}
+  {% if ok %}<div class="alert-ok" style="margin-bottom:14px;">{{ ok }}</div>{% endif %}
+
+  {% macro form_horario(h, accion, boton) %}
+  <form method="post" action="{{ accion }}" class="form-horario">
+    <div class="field" style="max-width:380px;"><label>Nombre del horario</label>
+      <input type="text" name="nombre" value="{{ h.nombre if h else '' }}" required placeholder="Ej.: Oficina L-V, Técnicos L-S, Turno noche">
+    </div>
+    <table class="hor-tabla">
+      <tr><th style="width:36px;"></th><th>Día</th><th>Inicia</th><th>Termina</th><th>Horas (sin refrigerio)</th></tr>
+      {% for i in range(7) %}
+      {% set d = (h.dias or {}).get(i|string) if h else None %}
+      {% set marcado = (d is not none) if h else (i < 5) %}
+      <tr data-dia="{{ i }}">
+        <td><input type="checkbox" name="dia_{{ i }}" value="1" {{ 'checked' if marcado else '' }}></td>
+        <td>{{ dias_semana[i] }}</td>
+        <td><input type="time" name="ini_{{ i }}" value="{{ d.inicio if d else '08:00' }}"></td>
+        <td><input type="time" name="fin_{{ i }}" value="{{ d.fin if d else '17:00' }}"></td>
+        <td class="hor-horas">—</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <div class="hor-total">Total semanal: <span class="hor-suma">0</span> h <span class="muted" style="font-weight:400;">(máximo {{ '%g'|format(max_semanal) }} h; a cada día se le resta {{ '%g'|format(refrigerio) }} h de refrigerio)</span>
+      <span class="hor-aviso" style="margin-left:8px;"></span></div>
+    <button class="btn" type="submit">{{ boton }}</button>
+  </form>
+  {% endmacro %}
+
+  <div class="card">
+    <h2>Horarios de trabajo ({{ horarios|length }})</h2>
+    <p class="muted" style="margin-top:-4px;">Define a qué hora entra y sale el personal cada día. A la jornada se le resta <strong>1 hora de refrigerio</strong> y la semana no puede pasar de <strong>48 horas</strong>. Estos horarios aparecen en la lista desplegable de Registro de Pedidos y se publican en Trabaja con Nosotros.</p>
+
+    {% for h in horarios %}
+    <div class="hor-lista-item">
+      <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;">
+        <div>
+          <strong>{{ h.nombre }}</strong>
+          {% if not h.activo %}<span class="badge pendiente" style="margin-left:6px;">inactivo</span>{% endif %}
+          <div class="muted">{{ h.resumen }}</div>
+          <div class="muted" style="font-size:12px;">{{ '%g'|format(h.total_semanal) }} h semanales{% if en_uso.get(h.id) %} · usado en {{ en_uso[h.id] }} pedido(s){% endif %}</div>
+        </div>
+        {% if user.puede('horarios', 'editar') %}
+        <div style="display:flex; gap:8px;">
+          <form method="post" action="/rrhh/asistencia/horarios/{{ h.id }}/toggle" style="margin:0;">
+            <button class="btn small secondary" type="submit">{{ 'Desactivar' if h.activo else 'Activar' }}</button>
+          </form>
+          <form method="post" action="/rrhh/asistencia/horarios/{{ h.id }}/eliminar" style="margin:0;" onsubmit="return confirm('¿Eliminar el horario {{ h.nombre }}?');">
+            <button class="btn small secondary" type="submit" {{ 'disabled title="Ya se usa en pedidos: desactívalo"' if en_uso.get(h.id) else '' }}>Eliminar</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% if user.puede('horarios', 'editar') %}
+      <details style="margin-top:8px;">
+        <summary class="action-link">Editar este horario</summary>
+        {{ form_horario(h, '/rrhh/asistencia/horarios/' ~ h.id ~ '/editar', 'Guardar cambios') }}
+      </details>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="muted">Todavía no hay horarios. Crea el primero abajo.</p>
+    {% endfor %}
+  </div>
+
+  {% if user.puede('horarios', 'editar') %}
+  <div class="card">
+    <h2>Nuevo horario</h2>
+    {{ form_horario(none, '/rrhh/asistencia/horarios', 'Crear horario') }}
+  </div>
+  {% endif %}
+
+<script>
+(function () {
+  var REFRIGERIO = {{ refrigerio }}, MAXIMO = {{ max_semanal }};
+  function minutos(v) { if (!v) return null; var p = v.split(':'); return (+p[0]) * 60 + (+p[1]); }
+  function recalcular(form) {
+    var total = 0, mal = false;
+    form.querySelectorAll('tr[data-dia]').forEach(function (tr) {
+      var on = tr.querySelector('input[type=checkbox]').checked;
+      var ini = minutos(tr.querySelector('input[name^=ini_]').value);
+      var fin = minutos(tr.querySelector('input[name^=fin_]').value);
+      var celda = tr.querySelector('.hor-horas');
+      tr.classList.toggle('hor-off', !on);
+      if (!on) { celda.textContent = '—'; return; }
+      if (ini === null || fin === null || fin <= ini) { celda.textContent = 'revisa las horas'; mal = true; return; }
+      var h = (fin - ini) / 60 - REFRIGERIO;
+      if (h <= 0) { celda.textContent = 'muy corta'; mal = true; return; }
+      celda.textContent = (Math.round(h * 100) / 100) + ' h';
+      total += h;
+    });
+    total = Math.round(total * 100) / 100;
+    var suma = form.querySelector('.hor-suma'), caja = form.querySelector('.hor-total'), aviso = form.querySelector('.hor-aviso');
+    suma.textContent = total;
+    var pasa = total > MAXIMO;
+    caja.classList.toggle('mal', pasa || mal);
+    caja.classList.toggle('ok', !pasa && !mal && total > 0);
+    aviso.textContent = pasa ? '⚠ Se pasa de ' + MAXIMO + ' h semanales' : (total === 0 ? '⚠ Marca al menos un día' : '');
+    form.querySelector('button[type=submit]').disabled = pasa || mal || total === 0;
+  }
+  document.querySelectorAll('.form-horario').forEach(function (f) {
+    f.addEventListener('input', function () { recalcular(f); });
+    f.addEventListener('change', function () { recalcular(f); });
+    recalcular(f);
+  });
+})();
+</script>
+
+</div>
+</body>
+</html>

@@ -163,7 +163,35 @@ ESTADOS_PEDIDO = [
 ]
 ESTADO_PEDIDO_KEYS = [e[0] for e in ESTADOS_PEDIDO]
 MOTIVOS_PEDIDO = ["Nueva posición", "Reemplazo", "Incremento de dotación", "Otro"]
-URGENCIAS_PEDIDO = ["Baja", "Media", "Alta"]
+URGENCIAS_PEDIDO = ["Baja", "Media", "Alta"]  # OBSOLETO (07/10): ya no se pide ni se muestra; la columna queda por datos viejos
+
+# Modalidad del pedido (07/10): de ella depende la ficha, el contrato y cómo
+# se leen los importes.
+#   APE     -> Convenio de aprendizaje; la comisión se ingresa mensualmente para la planilla.
+#   RHE     -> Locación de servicios; el "sueldo base" es el TOTAL del Recibo por Honorarios.
+#   MYPE / GENERAL -> Contrato de trabajo; cada importe va por separado para la planilla.
+MODALIDADES_PEDIDO = [
+    ("APE", "APE — Convenio de Aprendizaje con Predominio en la Empresa"),
+    ("MYPE", "MYPE — Contrato de trabajo (Régimen MYPE)"),
+    ("GENERAL", "GENERAL — Contrato de trabajo (Régimen General)"),
+    ("RHE", "RHE — Recibo por Honorarios (Locación de Servicios)"),
+]
+MODALIDAD_PEDIDO_KEYS = [m[0] for m in MODALIDADES_PEDIDO]
+# Cómo se llama esa modalidad en la ficha de Personal (Régimen Laboral)
+MODALIDAD_A_REGIMEN_FICHA = {
+    "APE": "APE (Aprendizaje con Predominio en la Empresa)",
+    "MYPE": "MYPE",
+    "GENERAL": "Régimen General",
+    "RHE": "RHE (Recibo por Honorarios Electrónico)",
+}
+TIPOS_CONTRATO_PEDIDO = ["Plazo Fijo", "Plazo Indeterminado", "Por Obra o Servicio"]
+TIPOS_CONCEPTO_PEDIDO = [("remunerativo", "Remunerativo"), ("no_remunerativo", "No remunerativo")]
+
+# Horarios (Control de Asistencia > Horarios, 07/10): a la jornada de cada día
+# se le resta 1 hora de refrigerio y la suma semanal no puede pasar de 48 h.
+DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+HORAS_REFRIGERIO = 1.0
+MAX_HORAS_SEMANALES = 48.0
 
 # Control de Leads (candidatos) — Reclutamiento y Selección, Fase 3.
 ETAPAS_LEAD = [
@@ -916,6 +944,19 @@ class PedidoPersonal(Base):
     movilidad_ofrecida = Column(Float, nullable=True)
     combustible_ofrecido = Column(Float, nullable=True)
     otros_ingresos_ofrecido = Column(Float, nullable=True)
+    # --- Modalidad y condiciones económicas (07/10) ---
+    modalidad = Column(String(10), nullable=True)  # uno de MODALIDAD_PEDIDO_KEYS
+    tipo_contrato = Column(String(30), nullable=True)  # solo MYPE/GENERAL: uno de TIPOS_CONTRATO_PEDIDO
+    horario_id = Column(Integer, ForeignKey("horarios.id"), nullable=True)
+    # Conceptos remunerativos / no remunerativos con su importe, además del sueldo
+    # base: [{"concepto": "Movilidad", "importe": 150.0, "tipo": "no_remunerativo"}].
+    # Reemplaza a movilidad/combustible/otros (columnas viejas, solo lectura de datos antiguos).
+    conceptos = Column(JSON, nullable=True)
+    # La comisión varía por cargo o por persona: el solicitante entrega un PDF que
+    # explica cómo se calcula (se asocia a la vacante) o, en su lugar, un importe
+    # mensual que se ingresa para el cálculo de planilla (`comision_ofrecida`).
+    comision_pdf_path = Column(String(500), nullable=True)
+    comision_pdf_filename = Column(String(300), nullable=True)
     estado = Column(String(20), default="abierto")  # uno de ESTADO_PEDIDO_KEYS
     observaciones = Column(Text, nullable=True)
     registrado_por = Column(String(200), nullable=True)  # usuario de RR.HH. que lo cargó
@@ -924,7 +965,121 @@ class PedidoPersonal(Base):
 
     empresa = relationship("Empresa")
     base = relationship("BaseOperativa")
+    horario = relationship("Horario")
     leads = relationship("LeadCandidato", back_populates="pedido")
+
+    @property
+    def conceptos_lista(self):
+        """Conceptos del pedido como lista de {concepto, importe, tipo}. Los
+        pedidos anteriores al 07/10 guardaban movilidad/combustible/otros en
+        columnas sueltas: se muestran como conceptos para que se vean igual."""
+        if self.conceptos:
+            return list(self.conceptos)
+        viejos = []
+        for etiqueta, valor in (("Movilidad", self.movilidad_ofrecida), ("Combustible", self.combustible_ofrecido),
+                                ("Otros ingresos", self.otros_ingresos_ofrecido)):
+            if valor:
+                viejos.append({"concepto": etiqueta, "importe": valor, "tipo": "no_remunerativo" if etiqueta != "Otros ingresos" else "remunerativo"})
+        return viejos
+
+    @property
+    def condiciones_publicas(self):
+        """Lo que se publica en Trabaja con Nosotros (07/10): modalidad,
+        horario y condiciones económicas sugeridas. El PDF del cálculo de
+        comisiones NO se publica (es interno); si hay comisión, solo se avisa
+        o se muestra el importe mensual de referencia."""
+        etiquetas = {
+            "APE": "Convenio de Aprendizaje con Predominio en la Empresa (APE)",
+            "RHE": "Locación de servicios (Recibo por Honorarios)",
+            "MYPE": "Contrato de trabajo en planilla — Régimen MYPE",
+            "GENERAL": "Contrato de trabajo en planilla — Régimen General",
+        }
+        conceptos = [c for c in self.conceptos_lista if c.get("importe")]
+        comision = None
+        if self.modalidad != "RHE":
+            if self.comision_ofrecida:
+                comision = f"S/ {self.comision_ofrecida:,.2f} mensuales de referencia (según resultados)"
+            elif self.comision_pdf_path:
+                comision = "Incluye comisiones variables; te explicamos cómo se calculan en la entrevista."
+        horario = self.horario
+        return {
+            "modalidad": etiquetas.get(self.modalidad),
+            "tipo_contrato": self.tipo_contrato,
+            "sueldo": self.sueldo_base_ofrecido,
+            "sueldo_etiqueta": "Honorarios mensuales (total del Recibo por Honorarios)" if self.modalidad == "RHE"
+                               else ("Subvención mensual" if self.modalidad == "APE" else "Sueldo base"),
+            "conceptos": conceptos,
+            "comision": comision,
+            "horario": horario.nombre if horario else None,
+            "horario_resumen": horario.resumen if horario else None,
+            "horas": horario.total_semanal if horario else None,
+            "tiene_algo": bool(self.modalidad or self.sueldo_base_ofrecido or conceptos or comision or horario),
+        }
+
+
+class Horario(Base):
+    """Horario de trabajo (Control de Asistencia > Horarios). `dias` guarda,
+    por número de día (0 = lunes ... 6 = domingo), la hora de inicio y de fin
+    de la jornada: {"0": {"inicio": "08:00", "fin": "17:00"}, ...}. Los días que
+    no figuran no se trabajan. Al tiempo de cada día se le resta
+    HORAS_REFRIGERIO y el total de la semana no puede superar MAX_HORAS_SEMANALES."""
+    __tablename__ = "horarios"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(120), unique=True, nullable=False)
+    dias = Column(JSON, default=dict)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    @staticmethod
+    def _minutos(hhmm: str) -> int:
+        h, m = (hhmm or "0:0").split(":")[:2]
+        return int(h) * 60 + int(m)
+
+    def horas_dia(self, dia) -> float:
+        """Horas efectivas de ese día (jornada menos el refrigerio); 0 si no se trabaja."""
+        d = (self.dias or {}).get(str(dia))
+        if not d:
+            return 0.0
+        bruto = (self._minutos(d["fin"]) - self._minutos(d["inicio"])) / 60.0
+        return max(0.0, round(bruto - HORAS_REFRIGERIO, 2))
+
+    @property
+    def total_semanal(self) -> float:
+        return round(sum(self.horas_dia(i) for i in range(7)), 2)
+
+    @property
+    def resumen(self) -> str:
+        """Texto corto: 'Lun-Vie 08:00-17:00 · Sáb 08:00-13:00 (1 h de refrigerio)'."""
+        abrev = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+        grupos = []  # [(dias[], inicio, fin)]
+        for i in range(7):
+            d = (self.dias or {}).get(str(i))
+            if not d:
+                continue
+            if grupos and grupos[-1][1] == d["inicio"] and grupos[-1][2] == d["fin"] and grupos[-1][0][-1] == i - 1:
+                grupos[-1][0].append(i)
+            else:
+                grupos.append([[i], d["inicio"], d["fin"]])
+        partes = []
+        for dias, ini, fin in grupos:
+            rango = abrev[dias[0]] if len(dias) == 1 else f"{abrev[dias[0]]}-{abrev[dias[-1]]}"
+            partes.append(f"{rango} {ini}-{fin}")
+        return " · ".join(partes) + (f" (refrigerio {int(HORAS_REFRIGERIO)} h)" if partes else "")
+
+
+class AvisoVisto(Base):
+    """Avisos de la pantalla de Inicio ("Tienes un nuevo Pedido de Personal",
+    "Tienes un nuevo Lead") que cada usuario ya vio: al hacer clic en el aviso
+    se registra acá y no vuelve a salirle."""
+    __tablename__ = "avisos_vistos"
+    __table_args__ = (UniqueConstraint("user_id", "tipo", "objeto_id", name="uq_aviso_visto"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    tipo = Column(String(20), nullable=False)  # "pedido" | "lead"
+    objeto_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class LeadCandidato(Base):

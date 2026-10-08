@@ -31,6 +31,33 @@
   </div>
   {% endif %}
 
+  {% if avisos_pedidos or avisos_leads %}
+  <div class="card" style="border-left:4px solid var(--red, #b3261e);">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+      <h2 style="margin:0;">🔔 Novedades en Reclutamiento y Selección</h2>
+      <form method="post" action="/rrhh/avisos/marcar-todo" style="margin:0;">
+        <button class="btn small secondary" type="submit">Marcar todo como visto</button>
+      </form>
+    </div>
+    <p class="muted" style="margin:4px 0 8px;">Haz clic en un aviso para abrirlo: al abrirlo desaparece.</p>
+    {% for p in avisos_pedidos %}
+    <a href="/rrhh/avisos/pedido/{{ p.id }}" style="display:block; padding:8px 0; border-top:1px solid var(--border); text-decoration:none; color:inherit;">
+      <strong>Tienes un nuevo Pedido de Personal</strong>
+      <span class="muted"> — {{ p.cargo_solicitado }}{% if p.cantidad and p.cantidad > 1 %} ({{ p.cantidad }} vacantes){% endif %}
+        · {{ p.empresa.nombre if p.empresa else 'sin empresa' }}{% if p.modalidad %} · {{ p.modalidad }}{% endif %}
+        · {{ p.codigo or '' }} · pide {{ p.solicitante or 'RR.HH.' }}</span>
+    </a>
+    {% endfor %}
+    {% for l in avisos_leads %}
+    <a href="/rrhh/avisos/lead/{{ l.id }}" style="display:block; padding:8px 0; border-top:1px solid var(--border); text-decoration:none; color:inherit;">
+      <strong>Tienes un nuevo Lead</strong>
+      <span class="muted"> — {{ l.nombre_completo }}{% if l.pedido %} postula a {{ l.pedido.cargo_solicitado }}{% endif %}
+        · {{ l.origen or 'sin origen' }} · {{ (l.created_at|lima).strftime('%d/%m %H:%M') }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if cumple_hoy %}
   <div class="card birthday-today-card">
     <h2>🎉 Hoy cumple años</h2>

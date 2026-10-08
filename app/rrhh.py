@@ -22,7 +22,7 @@ from .models import (
     OnboardingRegistro, Competencia, Cargo, CargoRequisitoCompetencia, ContratoRenovacion, EsquemaPago,
     Holding, LineaProducto, Anuncio, SaludoCumpleanos, SolicitudRenovacion, AnuncioVista, AnuncioLike,
     SedeGeocerca, ConsentimientoAsistencia, BaseOperativa, ManAcademyAcceso, ManAcademyCatalogItem,
-    SolicitudVacaciones, ESTADOS_SOLICITUD_VACACIONES,
+    SolicitudVacaciones, ESTADOS_SOLICITUD_VACACIONES, PedidoPersonal, LeadCandidato, AvisoVisto,
     ATTACHMENT_TYPES, REGIMENES_LABORALES, DOC_TYPES,
     ROLES, ROLES_ANTERIORES, TIPOS_BITACORA, CATALOGO_TIPOS, CATALOGO_TIPO_KEYS, ETAPAS_ONBOARDING, ETAPA_ONBOARDING_KEYS,
     ESTADOS_ONBOARDING, TIPOS_COMPETENCIA, TIPO_COMPETENCIA_KEYS, TIPOS_LICENCIA, NIVELES_EDUCATIVOS,
@@ -409,13 +409,64 @@ def rrhh_home(request: Request, db: Session = Depends(get_db), user: User = Depe
     contratos_por_vencer_pronto = (
         _contratos_no_indefinidos(db, dias_max=15, empresa_ids=alcance) if user.puede("contratos") else [])
 
+    avisos_pedidos, avisos_leads = _avisos_pendientes(db, user)
     return templates.TemplateResponse(request, "rrhh_home.html", _ctx(
         request, user, cumple_hoy=cumple_hoy, cumple_semana=cumple_semana, anuncios=anuncios,
+        avisos_pedidos=avisos_pedidos, avisos_leads=avisos_leads,
         conteos_anuncio=conteos, active="home",
         puede_marcar_asistencia=puede_marcar_asistencia, puede_marcar_entrada=puede_marcar_entrada,
         tiene_consentimiento_geo=tiene_consentimiento_geo,
         contratos_por_vencer_pronto=contratos_por_vencer_pronto,
     ))
+
+
+AVISOS_DIAS = 14  # solo se avisa de lo reciente: no inundar a nadie con el historial
+
+
+def _avisos_pendientes(db: Session, user: User):
+    """Avisos de Inicio (07/10) para quien gestiona Leads (acceso total a
+    Gestión de Leads): "Tienes un nuevo Pedido de Personal" / "Tienes un nuevo
+    Lead". Desaparece al hacer clic (ver aviso_abrir). No se avisa a quien
+    registró el pedido él mismo."""
+    if not user.puede("leads", "editar"):
+        return [], []
+    desde = datetime.datetime.utcnow() - datetime.timedelta(days=AVISOS_DIAS)
+    vistos = {(t, i) for t, i in db.query(AvisoVisto.tipo, AvisoVisto.objeto_id).filter(AvisoVisto.user_id == user.id).all()}
+    pedidos = [
+        p for p in db.query(PedidoPersonal).filter(PedidoPersonal.created_at >= desde, PedidoPersonal.estado == "abierto")
+        .order_by(PedidoPersonal.created_at.desc()).all()
+        if ("pedido", p.id) not in vistos and p.registrado_por != user.nombre_completo
+    ]
+    leads = [
+        l for l in db.query(LeadCandidato).filter(LeadCandidato.created_at >= desde)
+        .order_by(LeadCandidato.created_at.desc()).limit(60).all()
+        if ("lead", l.id) not in vistos
+    ]
+    return pedidos[:10], leads[:10]
+
+
+@router.get("/rrhh/avisos/{tipo}/{objeto_id}")
+def aviso_abrir(tipo: str, objeto_id: int, db: Session = Depends(get_db),
+                user: User = Depends(require_perm("leads", "editar"))):
+    """Marca el aviso como visto para este usuario y lo lleva al pedido o lead."""
+    if tipo not in ("pedido", "lead"):
+        raise HTTPException(404)
+    if not db.query(AvisoVisto).filter_by(user_id=user.id, tipo=tipo, objeto_id=objeto_id).first():
+        db.add(AvisoVisto(user_id=user.id, tipo=tipo, objeto_id=objeto_id))
+        db.commit()
+    destino = "/rrhh/reclutamiento/pedidos/" if tipo == "pedido" else "/rrhh/reclutamiento/leads/"
+    return RedirectResponse(f"{destino}{objeto_id}", status_code=303)
+
+
+@router.post("/rrhh/avisos/marcar-todo")
+def avisos_marcar_todo(db: Session = Depends(get_db), user: User = Depends(require_perm("leads", "editar"))):
+    pedidos, leads = _avisos_pendientes(db, user)
+    for p in pedidos:
+        db.add(AvisoVisto(user_id=user.id, tipo="pedido", objeto_id=p.id))
+    for l in leads:
+        db.add(AvisoVisto(user_id=user.id, tipo="lead", objeto_id=l.id))
+    db.commit()
+    return RedirectResponse("/rrhh", status_code=303)
 
 
 @router.post("/rrhh/saludos/{employee_id}")

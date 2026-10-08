@@ -59,6 +59,14 @@ def api_pedidos_abiertos(db: Session = Depends(get_db), _=Depends(_verificar_api
             "area": p.area,
             "cantidad": p.cantidad,
             "estado": p.estado,
+            # Condiciones (07/10): n8n/la IA las usan para responder al candidato
+            "modalidad": p.modalidad,
+            "tipo_contrato": p.tipo_contrato,
+            "horario": p.horario.nombre if p.horario else None,
+            "horario_detalle": p.horario.resumen if p.horario else None,
+            "sueldo_base": p.sueldo_base_ofrecido,
+            "conceptos": p.conceptos_lista,
+            "comision_mensual": p.comision_ofrecida,
         }
         for p in pedidos
     ]

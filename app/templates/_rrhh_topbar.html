@@ -32,13 +32,21 @@
 
   {% set param_items = ['p_holdings', 'p_unidades', 'p_empresas', 'p_procesos', 'p_lineas', 'p_competencias', 'p_catalogos', 'p_cargos', 'p_esquemas', 'p_bases', 'p_sedes'] %}
   {% set ve_parametros = user.puede_alguna(*param_items) or es_admin %}
-  {% if user.puede_alguna('personal', 'asistencia', 'contratos') or ve_parametros %}
-  {% set administracion_activos = ('personal', 'asistencia', 'contratos', 'parametrizacion', 'usuarios', 'holdings', 'unidades', 'empresas', 'procesos', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'esquemas_pago', 'sedes_geocercas') %}
+  {% if user.puede_alguna('personal', 'asistencia', 'horarios', 'contratos') or ve_parametros %}
+  {% set administracion_activos = ('personal', 'asistencia', 'horarios', 'contratos', 'parametrizacion', 'usuarios', 'holdings', 'unidades', 'empresas', 'procesos', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'esquemas_pago', 'sedes_geocercas') %}
   <details class="nav-group" {{ 'open' if active in administracion_activos else '' }}>
     <summary>Administración</summary>
     <div class="nav-children">
       {% if user.puede('personal') %}<a href="/rrhh/personal" class="{{ 'active' if active == 'personal' else '' }}">Personal</a>{% endif %}
-      {% if user.puede('asistencia') %}<a href="/rrhh/asistencia" class="{{ 'active' if active == 'asistencia' else '' }}">Control de Asistencia</a>{% endif %}
+      {% if user.puede_alguna('asistencia', 'horarios') %}
+      <details class="nav-group nested" {{ 'open' if active in ('asistencia', 'horarios') else '' }}>
+        <summary>Control de Asistencia</summary>
+        <div class="nav-children">
+          {% if user.puede('asistencia') %}<a href="/rrhh/asistencia" class="{{ 'active' if active == 'asistencia' else '' }}">Marcaciones</a>{% endif %}
+          {% if user.puede('horarios') %}<a href="/rrhh/asistencia/horarios" class="{{ 'active' if active == 'horarios' else '' }}">Horarios</a>{% endif %}
+        </div>
+      </details>
+      {% endif %}
       {% if user.puede('contratos') %}<a href="/rrhh/contratos" class="{{ 'active' if active == 'contratos' else '' }}">Contratos / Renovaciones</a>{% endif %}
       {% if ve_parametros %}
       {% set parametrizacion_activos = ('parametrizacion', 'holdings', 'unidades', 'empresas', 'procesos', 'lineas_producto', 'competencias', 'cargos', 'area', 'gerencia', 'sede', 'banco', 'centro_costo', 'usuarios', 'esquemas_pago', 'sedes_geocercas') %}
@@ -142,7 +150,7 @@
 {% set _sec_por_pantalla = {'holdings': 'p_holdings', 'unidades': 'p_unidades', 'empresas': 'p_empresas', 'procesos': 'p_procesos',
    'lineas_producto': 'p_lineas', 'competencias': 'p_competencias', 'area': 'p_catalogos', 'gerencia': 'p_catalogos',
    'banco': 'p_catalogos', 'centro_costo': 'p_catalogos', 'cargos': 'p_cargos', 'esquemas_pago': 'p_esquemas',
-   'sede': 'p_bases', 'sedes_geocercas': 'p_sedes', 'pedidos': 'pedidos', 'leads': 'leads', 'seleccion': 'seleccion',
+   'sede': 'p_bases', 'sedes_geocercas': 'p_sedes', 'horarios': 'horarios', 'pedidos': 'pedidos', 'leads': 'leads', 'seleccion': 'seleccion',
    'anuncios': 'anuncios', 'personal': 'personal', 'asistencia': 'asistencia', 'contratos': 'contratos'} %}
 {% set _sec = _sec_por_pantalla.get(active) %}
 {% if _sec and user.rol != 'administrador' and not user.puede(_sec, 'editar') %}

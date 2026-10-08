@@ -49,6 +49,8 @@ SECCIONES = [
      "Listado y fichas de los trabajadores, con sus documentos, bitácora y vacaciones."),
     ("asistencia", "Control de Asistencia", "Administración", "empresa", EDITAR,
      "Marcaciones del día y registro manual."),
+    ("horarios", "Control de Asistencia › Horarios", "Administración", "comun", EDITAR,
+     "Horarios de trabajo (días, entrada y salida). Los usa Registro de Pedidos."),
     ("contratos", "Contratos / Renovaciones", "Administración", "empresa", EDITAR,
      "Contratos por vencer y renovaciones."),
     ("p_holdings", "Parámetros › Holdings", "Parámetros", "global", VER, ""),
@@ -86,7 +88,7 @@ for _s in SECCIONES:
 # Lo que recibe un gerente mientras el administrador no le personalice los
 # accesos (el administrador puede cambiarlo opción por opción).
 PERMISOS_GERENTE = {
-    "dashboard": VER, "personal": EDITAR, "asistencia": EDITAR, "contratos": EDITAR,
+    "dashboard": VER, "personal": EDITAR, "asistencia": EDITAR, "horarios": VER, "contratos": EDITAR,
     "p_empresas": VER, "p_procesos": EDITAR, "p_lineas": EDITAR, "p_cargos": VER, "p_esquemas": VER,
     "p_bases": EDITAR, "p_competencias": VER, "p_catalogos": VER, "p_sedes": VER,
     "pedidos": EDITAR, "leads": EDITAR, "seleccion": EDITAR, "descartados": VER, "onboarding": VER,
