@@ -20,10 +20,10 @@ from fastapi import APIRouter, Depends, Form, File, Header, HTTPException, Reque
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import Cargo, LeadCandidato, PedidoPersonal, LEAD_NOMBRE_PENDIENTE, lead_incompleto
+from .models import Cargo, LeadCandidato, PedidoPersonal, LEAD_NOMBRE_PENDIENTE, lead_incompleto, lead_semaforo
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 from .rrhh import _pedido_recibio_lead
-from .telefono import normalizar_o_dejar
+from .telefono import normalizar_o_dejar, solo_digitos_whatsapp
 import datetime as _dt
 
 router = APIRouter()
@@ -43,6 +43,65 @@ def api_ping(_=Depends(_verificar_api_key)):
     si responde {"ok": true}, la URL de MICELIO y la clave están bien. Queda
     registrado en la bitácora de Integración n8n."""
     return {"ok": True, "servicio": "MICELIO", "hora_utc": _dt.datetime.utcnow().isoformat(timespec="seconds")}
+
+
+def _resumen_lead(lead: LeadCandidato) -> dict:
+    """Estado de un lead para que n8n sepa qué le falta preguntar."""
+    faltan = []
+    if not lead.nombre_completo or lead.nombre_completo == LEAD_NOMBRE_PENDIENTE:
+        faltan.append("nombre_completo")
+    if not lead.email:
+        faltan.append("email")
+    if not lead.celular:
+        faltan.append("celular")
+    if not lead.cv_path:
+        faltan.append("cv")
+    if not lead.distrito:
+        faltan.append("distrito")
+    if not lead.pedido_id:
+        faltan.append("codigo_pedido")
+    p = lead.pedido
+    return {
+        "id": lead.id, "nombre_completo": None if lead.nombre_completo == LEAD_NOMBRE_PENDIENTE else lead.nombre_completo,
+        "email": lead.email, "celular": lead.celular, "celular_whatsapp": solo_digitos_whatsapp(lead.celular or ""),
+        "documento_tipo": lead.documento_tipo, "documento_numero": lead.documento_numero, "distrito": lead.distrito,
+        "tiene_cv": bool(lead.cv_path), "incompleto": lead_incompleto(lead), "faltan": faltan,
+        "semaforo": lead_semaforo(lead), "etapa": lead.etapa, "estrellas": lead.estrellas,
+        "codigo_pedido": p.codigo if p else None, "cargo": p.cargo_solicitado if p else None,
+        "empresa": p.empresa.nombre if p and p.empresa else None,
+        "base_distritos": (p.base.distritos or []) if p and p.base else [],
+        "mensajes": len(lead.conversacion_whatsapp or []),
+        "creado": lead.created_at.isoformat(timespec="seconds") if lead.created_at else None,
+    }
+
+
+@router.get("/api/leads/por-celular/{celular}")
+def api_lead_por_celular(celular: str, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
+    """Cuando un candidato responde por WhatsApp, n8n solo conoce su número
+    (el wa_id de Meta, p. ej. 51987654321): con esto encuentra su lead. Devuelve
+    el MÁS RECIENTE que no esté descartado (y cuántos otros hay con ese número).
+    404 si ese número no tiene ningún lead (entonces n8n puede crear uno con
+    POST /api/leads)."""
+    buscado = solo_digitos_whatsapp(celular) or "".join(ch for ch in celular if ch.isdigit())
+    if not buscado:
+        raise HTTPException(400, "Celular inválido.")
+    candidatos = []
+    for lead in db.query(LeadCandidato).filter(LeadCandidato.celular.isnot(None)).order_by(LeadCandidato.id.desc()).limit(1000).all():
+        digitos = solo_digitos_whatsapp(lead.celular or "") or "".join(ch for ch in (lead.celular or "") if ch.isdigit())
+        if digitos == buscado:
+            candidatos.append(lead)
+    vivos = [l for l in candidatos if l.etapa != "descartado"] or candidatos
+    if not vivos:
+        raise HTTPException(404, "Ese celular no tiene ningún lead.")
+    return {**_resumen_lead(vivos[0]), "otros_leads_con_ese_numero": len(candidatos) - 1}
+
+
+@router.get("/api/leads/{lead_id}")
+def api_lead_detalle(lead_id: int, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead:
+        raise HTTPException(404, "Lead no encontrado.")
+    return _resumen_lead(lead)
 
 
 @router.get("/api/pedidos-abiertos")
