@@ -80,7 +80,7 @@
   {% endif %}
 
   {% if user.puede_alguna('pedidos', 'leads', 'seleccion', 'descartados', 'onboarding') %}
-  <details class="nav-group" {{ 'open' if active in ('seleccion', 'pedidos', 'leads', 'descartados', 'onboarding') else '' }}>
+  <details class="nav-group" {{ 'open' if active in ('seleccion', 'pedidos', 'leads', 'descartados', 'onboarding', 'integracion') else '' }}>
     <summary>Reclutamiento y Selección</summary>
     <div class="nav-children">
       <a href="/trabaja-con-nosotros" target="_blank">Trabaja con Nosotros ↗</a>
@@ -92,6 +92,7 @@
          dentro de Personal (rrhh_personal_detalle.html), sin cambios. #}
       {% if user.puede('seleccion') %}<a href="/rrhh/reclutamiento/seleccion" class="{{ 'active' if active == 'seleccion' else '' }}">Selección</a>{% endif %}
       {% if user.puede('descartados') %}<a href="/rrhh/reclutamiento/descartados" class="{{ 'active' if active == 'descartados' else '' }}">Historial de Descartados</a>{% endif %}
+      {% if es_admin %}<a href="/rrhh/reclutamiento/integracion" class="{{ 'active' if active == 'integracion' else '' }}">Integración n8n / WhatsApp</a>{% endif %}
       {% if user.puede('onboarding') %}
       <details class="nav-group nested" {{ 'open' if active == 'onboarding' else '' }}>
         <summary>Onboarding</summary>

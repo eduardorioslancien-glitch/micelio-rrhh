@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Integración n8n — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=17">
+<style>
+  .int-estado { display:inline-block; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
+  .int-estado.ok { background:#e3f4ea; color:#1a7f4b; }
+  .int-estado.mal { background:#fde8e6; color:#b3261e; }
+  .int-estado.aviso { background:#fff3d6; color:#8a5a00; }
+  .int-tabla td, .int-tabla th { font-size:13px; }
+  .int-err { color:#b3261e; font-size:12px; }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  {% if msg %}<div class="alert-info" style="margin-bottom:14px; padding:10px 14px; border-radius:8px; background:var(--light2);">{{ msg }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Integración con n8n y WhatsApp</h2>
+    <p class="muted" style="margin-top:-4px;">Aquí ves si la automatización de WhatsApp está viva. MICELIO le avisa a n8n cuando entra un candidato; n8n conversa por WhatsApp (Meta Cloud API) y guarda lo que obtiene de vuelta en MICELIO.</p>
+    <table class="int-tabla">
+      <tr><th>Última vez que n8n llamó a MICELIO</th><td><strong>{{ n8n_llamo }}</strong>
+        {% if n8n_llamo == 'nunca' %}<span class="int-err"> — n8n todavía no ha hablado con MICELIO. Prueba el nodo «HTTP Request» con GET /api/ping (ver abajo).</span>{% endif %}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Configuración del servidor</h2>
+    <p class="muted" style="margin-top:-4px;">Solo se muestra si está configurado o no; nunca los valores. Se cambian en el archivo <code>.env</code> del servidor.</p>
+    <table class="int-tabla">
+      <tr><th>Qué</th><th>Estado</th><th>Para qué sirve</th><th>Si falta</th></tr>
+      {% for c in config %}
+      <tr>
+        <td>{{ c.etiqueta }}</td>
+        <td><span class="int-estado {{ 'ok' if c.ok else 'mal' }}">{{ 'Configurado' if c.ok else 'Falta' }}</span></td>
+        <td class="muted">{{ c.para }}</td>
+        <td class="muted">{{ '—' if c.ok else c.falta }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td>Correo saliente (SMTP)</td>
+        <td><span class="int-estado {{ 'ok' if smtp_ok else 'mal' }}">{{ 'Configurado' if smtp_ok else 'Falta' }}</span></td>
+        <td class="muted">Respaldo cuando n8n no responde (Entrevistar / Descartar por correo).</td>
+        <td class="muted">{{ '—' if smtp_ok else 'No salen correos de respaldo.' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Probar los avisos a n8n</h2>
+    <p class="muted" style="margin-top:-4px;">Cada botón manda a n8n un aviso marcado <code>"prueba": true</code>, sin candidato ni celular reales. <strong>El flujo de n8n debe empezar con un nodo IF que, si <code>prueba</code> es true, responda <code>{"ok": true}</code> y termine</strong>, para no escribirle a nadie ni agendar nada.</p>
+    <table class="int-tabla">
+      <tr><th>Aviso</th><th>Webhook</th><th>Último éxito</th><th>Último intento</th><th></th></tr>
+      {% for e in resumen_eventos %}
+      <tr>
+        <td><strong>{{ {'nuevo_lead': 'Nuevo lead', 'entrevistar': 'Entrevistar', 'descartar': 'Descartar'}[e.evento] }}</strong></td>
+        <td><span class="int-estado {{ 'ok' if e.configurado else 'mal' }}">{{ 'Configurado' if e.configurado else 'Falta URL' }}</span></td>
+        <td>{{ e.ultimo_ok }}</td>
+        <td>{% if e.ultimo %}<span class="int-estado {{ 'ok' if e.ultimo.ok else 'mal' }}">{{ 'OK' if e.ultimo.ok else 'Falló' }}</span> {{ (e.ultimo.created_at|lima).strftime('%d/%m %H:%M') }}
+          {% if not e.ultimo.ok %}<div class="int-err">{{ e.ultimo.error }}</div>{% endif %}{% else %}<span class="muted">sin intentos</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/rrhh/reclutamiento/integracion/probar/{{ e.evento }}" style="margin:0;"
+                onsubmit="return confirm('Se enviará un aviso de PRUEBA a n8n (prueba: true). Tu flujo debe ignorarlo. ¿Continuar?');">
+            <button class="btn small secondary" type="submit" {{ 'disabled' if not e.configurado else '' }}>Probar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Probar que n8n llega a MICELIO</h2>
+    <p class="muted" style="margin-top:-4px;">En n8n crea un nodo <strong>HTTP Request</strong>: método <code>GET</code>, URL <code>https://micelio.digetelperu.com/api/ping</code>, y un header <code>X-API-Key</code> con la clave del API (la misma <code>LEADS_API_KEY</code>). Si responde <code>{"ok": true}</code>, la conexión está bien y aparecerá abajo como llamada entrante. Respuesta 401 = clave distinta; 503 = el servidor no tiene la clave configurada.</p>
+  </div>
+
+  <div class="card">
+    <h2>Últimas llamadas de MICELIO a n8n</h2>
+    <table class="int-tabla">
+      <tr><th>Cuándo</th><th>Evento</th><th>Resultado</th><th>Destino</th><th>Duración</th><th>Lead</th></tr>
+      {% for l in salientes %}
+      <tr>
+        <td class="muted">{{ (l.created_at|lima).strftime('%d/%m %H:%M:%S') }}</td>
+        <td>{{ l.evento }}</td>
+        <td><span class="int-estado {{ 'ok' if l.ok else 'mal' }}">{{ 'OK' if l.ok else 'Falló' }}{% if l.http_status %} · {{ l.http_status }}{% endif %}</span>
+          {% if l.error %}<div class="int-err">{{ l.error }}</div>{% endif %}</td>
+        <td class="muted">{{ l.destino }}</td>
+        <td class="muted">{{ l.duracion_ms ~ ' ms' if l.duracion_ms is not none else '—' }}</td>
+        <td>{% if l.lead_id %}<a href="/rrhh/reclutamiento/leads/{{ l.lead_id }}">#{{ l.lead_id }}</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Todavía no hubo llamadas de MICELIO a n8n.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Últimas llamadas de n8n a MICELIO</h2>
+    <table class="int-tabla">
+      <tr><th>Cuándo</th><th>Llamada</th><th>Resultado</th><th>Duración</th><th>Lead</th></tr>
+      {% for l in entrantes %}
+      <tr>
+        <td class="muted">{{ (l.created_at|lima).strftime('%d/%m %H:%M:%S') }}</td>
+        <td><code>{{ l.evento }}</code></td>
+        <td><span class="int-estado {{ 'ok' if l.ok else 'mal' }}">{{ 'OK' if l.ok else 'Falló' }} · {{ l.http_status }}</span>
+          {% if l.error %}<div class="int-err">{{ l.error }}</div>{% endif %}</td>
+        <td class="muted">{{ l.duracion_ms ~ ' ms' if l.duracion_ms is not none else '—' }}</td>
+        <td>{% if l.lead_id %}<a href="/rrhh/reclutamiento/leads/{{ l.lead_id }}">#{{ l.lead_id }}</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">n8n todavía no ha llamado al API de MICELIO.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

@@ -10,6 +10,7 @@ main.py, pero acá no hace falta token porque no hay datos sensibles del
 trabajador todavía, solo la postulación misma."""
 import os
 import uuid
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, BackgroundTasks, Request, Depends, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import PedidoPersonal, LeadCandidato, Cargo, TIPOS_DOCUMENTO_POSTULANTE, lead_incompleto
 from .rrhh import _pedido_recibio_lead, _notificar_lead_incompleto_n8n, _payload_lead_para_n8n
+from .telefono import formato_celular, ERROR_CELULAR
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "cv_postulantes")
@@ -72,11 +74,18 @@ def landing_vacante_detalle(request: Request, pedido_id: int, db: Session = Depe
 async def landing_postular(request: Request, background_tasks: BackgroundTasks, pedido_id: int,
                             nombre_completo: str = Form(...),
                             documento_tipo: str = Form(...), documento_numero: str = Form(...),
-                            email: str = Form(...), celular: str = Form(""),
+                            email: str = Form(...), celular: str = Form(...),
                             cv: UploadFile = File(...), db: Session = Depends(get_db)):
     pedido = db.query(PedidoPersonal).get(pedido_id)
     if not pedido or pedido.estado != "abierto":
         raise HTTPException(404)
+
+    # El celular es obligatorio y se guarda en formato internacional: es por donde
+    # le escribe la automatización de WhatsApp (sin celular el candidato quedaría
+    # sin respuesta para siempre).
+    celular_norm = formato_celular(celular)
+    if not celular_norm:
+        return RedirectResponse(f"/trabaja-con-nosotros/{pedido_id}?error=" + quote_plus(ERROR_CELULAR), status_code=303)
 
     nombre_archivo = cv.filename or ""
     if not nombre_archivo.lower().endswith(EXTENSIONES_CV_VALIDAS):
@@ -98,7 +107,7 @@ async def landing_postular(request: Request, background_tasks: BackgroundTasks, 
 
     lead = LeadCandidato(
         pedido_id=pedido.id, nombre_completo=nombre_completo.strip(),
-        email=email.strip() or None, celular=celular.strip() or None,
+        email=email.strip() or None, celular=celular_norm,
         documento_tipo=documento_tipo or None, documento_numero=documento_numero.strip() or None,
         origen="Trabaja con Nosotros", etapa="nuevo",
         cv_path=ruta, cv_filename=nombre_archivo,

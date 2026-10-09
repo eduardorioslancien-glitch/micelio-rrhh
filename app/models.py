@@ -1102,6 +1102,26 @@ class ConceptoRemunerativo(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class LlamadaN8n(Base):
+    """Bitácora de la integración con n8n (08/10): cada llamada de MICELIO hacia
+    n8n ("saliente": nuevo lead, entrevistar, descartar) y cada llamada de n8n
+    hacia el API de MICELIO ("entrante"). Sirve para saber si la automatización
+    de WhatsApp está viva y, si no, por qué. Nunca guarda secretos, cuerpos ni
+    URLs completas. Se conservan solo las últimas 500."""
+    __tablename__ = "llamadas_n8n"
+
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    sentido = Column(String(10), nullable=False)  # saliente | entrante
+    evento = Column(String(60), nullable=False)
+    destino = Column(String(300), nullable=True)
+    ok = Column(Boolean, default=False)
+    http_status = Column(Integer, nullable=True)
+    error = Column(String(300), nullable=True)
+    duracion_ms = Column(Integer, nullable=True)
+    lead_id = Column(Integer, nullable=True)
+
+
 class AvisoVisto(Base):
     """Avisos de la pantalla de Inicio ("Tienes un nuevo Pedido de Personal",
     "Tienes un nuevo Lead") que cada usuario ya vio: al hacer clic en el aviso

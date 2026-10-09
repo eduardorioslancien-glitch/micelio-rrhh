@@ -189,6 +189,11 @@ def _pedido_recibio_lead(pedido) -> None:
     pass
 
 
+def _celular_whatsapp(celular) -> str:
+    from .telefono import solo_digitos_whatsapp
+    return solo_digitos_whatsapp(celular or "") or ""
+
+
 def _payload_lead_para_n8n(lead, pedido=None) -> dict:
     """Arma el payload para avisarle a n8n de un lead — SIEMPRE se llama
     mientras la sesión de base de datos del request sigue abierta (nunca
@@ -199,6 +204,8 @@ def _payload_lead_para_n8n(lead, pedido=None) -> dict:
         "nombre_completo": lead.nombre_completo,
         "email": lead.email,
         "celular": lead.celular,
+        # Para la API de WhatsApp: código de país + número, solo dígitos (51987654321)
+        "celular_whatsapp": _celular_whatsapp(lead.celular),
         "cv_adjunto": bool(lead.cv_path),
         "cargo": pedido.cargo_solicitado if pedido else None,
         "empresa": pedido.empresa.nombre if pedido and pedido.empresa else None,

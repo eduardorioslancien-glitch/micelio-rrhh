@@ -21,6 +21,7 @@ import json
 import mimetypes
 import os
 import smtplib
+import time
 import uuid
 from email.message import EmailMessage
 
@@ -44,6 +45,7 @@ from . import clima as clima_module
 from . import procesos as procesos_module
 from . import horarios as horarios_module
 from . import conceptos as conceptos_module
+from . import integracion as integracion_module
 from . import public_landing as public_landing_module
 from . import api_leads as api_leads_module
 from . import man_academy as man_academy_module
@@ -108,9 +110,44 @@ app.include_router(reclutamiento_module.router)
 app.include_router(clima_module.router)
 app.include_router(procesos_module.router)
 app.include_router(horarios_module.router)
+app.include_router(integracion_module.router)
 app.include_router(public_landing_module.router)
 app.include_router(api_leads_module.router)
 app.include_router(man_academy_module.router)
+
+
+_PISTAS_API = {
+    401: "Clave X-API-Key incorrecta: no coincide con LEADS_API_KEY del servidor.",
+    503: "El servidor no tiene LEADS_API_KEY configurada.",
+    404: "El lead (o recurso) no existe.",
+    400: "Datos inválidos: revisa el cuerpo de la llamada.",
+    422: "Faltan campos o tienen formato incorrecto.",
+}
+
+
+@app.middleware("http")
+async def _registrar_llamadas_api(request: Request, call_next):
+    """Bitácora de lo que n8n le pide a MICELIO (solo /api/*): método, ruta, código
+    y duración. No guarda cuerpo, claves ni parámetros — ver Reclutamiento y
+    Selección › Integración n8n."""
+    if not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    inicio = time.monotonic()
+    response = await call_next(request)
+    try:
+        import re as _re
+        from . import n8n as _n8n
+        ruta = request.url.path
+        m = _re.search(r"/api/leads/(\d+)", ruta)
+        _n8n.registrar_llamada(
+            sentido="entrante", evento=f"{request.method} " + _re.sub(r"/\d+", "/{id}", ruta),
+            destino=request.client.host if request.client else "", ok=response.status_code < 400,
+            http_status=response.status_code, error=None if response.status_code < 400 else _PISTAS_API.get(response.status_code, "Error en la llamada."),
+            duracion_ms=int((time.monotonic() - inicio) * 1000), lead_id=int(m.group(1)) if m else None,
+        )
+    except Exception:
+        pass
+    return response
 
 
 @app.exception_handler(NotAuthenticated)

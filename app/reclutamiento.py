@@ -16,6 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .database import get_db
+from .telefono import normalizar_o_dejar
 from .models import (
     PedidoPersonal, LeadCandidato, Empresa, Employee, User, Cargo, Catalogo, EsquemaPago, BaseOperativa,
     ESTADOS_PEDIDO, ESTADO_PEDIDO_KEYS, MOTIVOS_PEDIDO, URGENCIAS_PEDIDO,
@@ -445,7 +446,7 @@ async def leads_crear(background_tasks: BackgroundTasks,
                        db: Session = Depends(get_db),
                        user: User = Depends(require_perm("leads", "editar"))):
     lead = LeadCandidato(
-        nombre_completo=nombre_completo.strip(), email=email.strip() or None, celular=celular.strip() or None,
+        nombre_completo=nombre_completo.strip(), email=email.strip() or None, celular=normalizar_o_dejar(celular),
         origen=origen or None, pedido_id=int(pedido_id) if pedido_id else None, notas=notas.strip() or None,
         registrado_por=user.nombre_completo,
     )

@@ -23,6 +23,8 @@ from .database import get_db
 from .models import Cargo, LeadCandidato, PedidoPersonal, LEAD_NOMBRE_PENDIENTE, lead_incompleto
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 from .rrhh import _pedido_recibio_lead
+from .telefono import normalizar_o_dejar
+import datetime as _dt
 
 router = APIRouter()
 
@@ -33,6 +35,14 @@ def _verificar_api_key(x_api_key: str = Header(None)):
         raise HTTPException(503, "LEADS_API_KEY no está configurada en el servidor.")
     if x_api_key != clave:
         raise HTTPException(401, "API key inválida.")
+
+
+@router.get("/api/ping")
+def api_ping(_=Depends(_verificar_api_key)):
+    """Prueba de conexión para n8n (nodo HTTP Request con el header X-API-Key):
+    si responde {"ok": true}, la URL de MICELIO y la clave están bien. Queda
+    registrado en la bitácora de Integración n8n."""
+    return {"ok": True, "servicio": "MICELIO", "hora_utc": _dt.datetime.utcnow().isoformat(timespec="seconds")}
 
 
 @router.get("/api/pedidos-abiertos")
@@ -113,7 +123,7 @@ async def api_crear_lead(
     lead = LeadCandidato(
         nombre_completo=nombre_completo.strip() or LEAD_NOMBRE_PENDIENTE,
         email=email.strip() or None,
-        celular=celular.strip() or None,
+        celular=normalizar_o_dejar(celular),
         origen=origen.strip() or None,
         pedido_id=pedido.id if pedido else None,
         notas=notas.strip() or None,
@@ -160,7 +170,8 @@ async def api_actualizar_lead(lead_id: int, request: Request, db: Session = Depe
     payload = await request.json()
     for campo in ("nombre_completo", "email", "celular", "documento_tipo", "documento_numero", "distrito", "notas"):
         if campo in payload and (payload[campo] or "").strip():
-            setattr(lead, campo, payload[campo].strip())
+            valor = payload[campo].strip()
+            setattr(lead, campo, normalizar_o_dejar(valor) if campo == "celular" else valor)
     codigo_pedido = (payload.get("codigo_pedido") or "").strip()
     if codigo_pedido and not lead.pedido_id:
         pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == codigo_pedido).first()
