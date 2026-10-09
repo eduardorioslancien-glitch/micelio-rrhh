@@ -8,6 +8,7 @@ no una calificación automática por IA — ese análisis se quitó por completo
 Sin autenticación — mismo criterio que las rutas públicas /f/{token} de
 main.py, pero acá no hace falta token porque no hay datos sensibles del
 trabajador todavía, solo la postulación misma."""
+import datetime
 import os
 import uuid
 from urllib.parse import quote_plus
@@ -18,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import PedidoPersonal, LeadCandidato, Cargo, TIPOS_DOCUMENTO_POSTULANTE, lead_incompleto
+from .models import PedidoPersonal, LeadCandidato, Cargo, Empresa, TIPOS_DOCUMENTO_POSTULANTE, lead_incompleto
 from .rrhh import _pedido_recibio_lead, _notificar_lead_incompleto_n8n, _payload_lead_para_n8n
 from .telefono import formato_celular, ERROR_CELULAR
 
@@ -45,6 +46,37 @@ def _vacantes_abiertas(db: Session):
         cargo = db.query(Cargo).filter(Cargo.nombre == p.cargo_solicitado, Cargo.activo == True).first()  # noqa: E712
         resultado.append({"pedido": p, "cargo": cargo, "base_nombre": p.base.nombre if p.base else None})
     return resultado
+
+
+ACTUALIZACION_LEGAL = "9 de octubre de 2026"
+
+
+def _datos_empresa_legal(db: Session) -> dict:
+    """Quién es el responsable de los datos, tomado de Parámetros › Empresas
+    (Digetel; si no está, la primera empresa activa con RUC) — así las páginas
+    legales nunca quedan desactualizadas respecto a los datos reales."""
+    emp = db.query(Empresa).filter(Empresa.nombre == "Digetel").first()
+    if not emp or not emp.ruc:
+        emp = db.query(Empresa).filter(Empresa.activo == True, Empresa.ruc.isnot(None)).first() or emp  # noqa: E712
+    return {
+        "razon_social": (emp.razon_social or emp.nombre) if emp else "DIGETEL GROUP",
+        "ruc": emp.ruc if emp else None,
+        "domicilio": emp.domicilio_fiscal if emp else None,
+    }
+
+
+@router.get("/privacidad", response_class=HTMLResponse)
+def pagina_privacidad(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(request, "public_privacidad.html", {
+        "empresa": _datos_empresa_legal(db), "contacto_email": CONTACTO_EMAIL, "actualizado": ACTUALIZACION_LEGAL,
+    })
+
+
+@router.get("/terminos", response_class=HTMLResponse)
+def pagina_terminos(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(request, "public_terminos.html", {
+        "empresa": _datos_empresa_legal(db), "contacto_email": CONTACTO_EMAIL, "actualizado": ACTUALIZACION_LEGAL,
+    })
 
 
 @router.get("/trabaja-con-nosotros", response_class=HTMLResponse)
@@ -74,11 +106,17 @@ def landing_vacante_detalle(request: Request, pedido_id: int, db: Session = Depe
 async def landing_postular(request: Request, background_tasks: BackgroundTasks, pedido_id: int,
                             nombre_completo: str = Form(...),
                             documento_tipo: str = Form(...), documento_numero: str = Form(...),
-                            email: str = Form(...), celular: str = Form(...),
+                            email: str = Form(...), celular: str = Form(...), acepta_privacidad: str = Form(""),
                             cv: UploadFile = File(...), db: Session = Depends(get_db)):
     pedido = db.query(PedidoPersonal).get(pedido_id)
     if not pedido or pedido.estado != "abierto":
         raise HTTPException(404)
+
+    if not acepta_privacidad:
+        return RedirectResponse(
+            f"/trabaja-con-nosotros/{pedido_id}?error=" + quote_plus(
+                "Para postular debes aceptar la Política de Privacidad y el contacto por WhatsApp."),
+            status_code=303)
 
     # El celular es obligatorio y se guarda en formato internacional: es por donde
     # le escribe la automatización de WhatsApp (sin celular el candidato quedaría
@@ -112,6 +150,7 @@ async def landing_postular(request: Request, background_tasks: BackgroundTasks, 
         origen="Trabaja con Nosotros", etapa="nuevo",
         cv_path=ruta, cv_filename=nombre_archivo,
         registrado_por="Landing Trabaja con Nosotros",
+        consentimiento_at=datetime.datetime.utcnow(),
     )
     db.add(lead)
     db.commit()

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}{% endblock %} — DIGETEL GROUP</title>
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="/static/style.css?v=17">
+<style>
+  .legal { max-width: 820px; margin: 0 auto; line-height: 1.65; }
+  .legal h2 { margin-top: 0; }
+  .legal h3 { margin: 26px 0 6px; color: var(--navy-dark); font-size: 16px; }
+  .legal ul { margin: 6px 0 10px 20px; padding: 0; }
+  .legal li { margin-bottom: 4px; }
+  .legal .meta { color: var(--gray); font-size: 13px; margin-bottom: 14px; }
+  .legal table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+  .legal th, .legal td { text-align: left; padding: 7px 9px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: top; }
+  .legal-pie { text-align: center; color: var(--gray); font-size: 13px; margin-top: 22px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <img src="/static/dg_logo.png" alt="DG">
+    <div>
+      <h1>DIGETEL GROUP</h1>
+      <div class="sub">{% block subtitulo %}{% endblock %}</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card legal">
+      {% block contenido %}{% endblock %}
+    </div>
+    <p class="legal-pie">
+      <a href="/trabaja-con-nosotros">Vacantes</a> ·
+      <a href="/privacidad">Política de Privacidad</a> ·
+      <a href="/terminos">Términos y Condiciones</a> ·
+      <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a>
+    </p>
+  </div>
+</body>
+</html>

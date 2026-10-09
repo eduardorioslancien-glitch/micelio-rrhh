@@ -1,0 +1,50 @@
+{% extends "public_legal_base.html" %}
+{% block titulo %}Términos y Condiciones{% endblock %}
+{% block subtitulo %}Términos y Condiciones de uso{% endblock %}
+{% block contenido %}
+<h2>Términos y Condiciones</h2>
+<p class="meta">Última actualización: {{ actualizado }}</p>
+
+<p>Estos términos regulan el uso del sitio «Trabaja con Nosotros» y de los canales de contacto del proceso de selección (correo electrónico y WhatsApp) de <strong>{{ empresa.razon_social }}</strong>{% if empresa.ruc %} (RUC {{ empresa.ruc }}){% endif %} («DIGETEL GROUP», «nosotros»). Al postular o escribirnos aceptas estos términos y nuestra <a href="/privacidad">Política de Privacidad</a>.</p>
+
+<h3>1. Qué ofrecemos</h3>
+<p>Publicamos las vacantes de las empresas de DIGETEL GROUP y recibimos postulaciones. Nos comunicamos con los candidatos por correo y por WhatsApp para completar sus datos, coordinar entrevistas e informar el resultado.</p>
+
+<h3>2. Quién puede postular</h3>
+<p>Personas mayores de edad con capacidad legal para trabajar en el Perú. Si postulas en nombre de otra persona, declaras tener su autorización.</p>
+
+<h3>3. Veracidad de la información</h3>
+<p>Los datos y el CV que nos envíes deben ser verdaderos y estar actualizados. Un dato falso o la suplantación de otra persona pueden descalificar la postulación y, si se detectan después, dar lugar a las medidas que permita la ley.</p>
+
+<h3>4. Sobre tu postulación</h3>
+<ul>
+  <li>Postular no garantiza una entrevista ni una contratación. La selección depende del perfil y de la necesidad de la vacante.</li>
+  <li>El proceso puede incluir revisión de CV (con apoyo de herramientas de inteligencia artificial, siempre con decisión final humana), entrevistas y evaluaciones.</li>
+  <li>Las condiciones publicadas en cada vacante (modalidad, horario y remuneración) son <strong>referenciales</strong> y se confirman al formalizar la contratación.</li>
+  <li>Podemos cerrar una vacante en cualquier momento, por ejemplo cuando se cubre.</li>
+</ul>
+
+<h3>5. Comunicación por WhatsApp</h3>
+<p>Al darnos tu número de celular aceptas que te escribamos por WhatsApp <strong>solo para fines del proceso de selección</strong>. Puedes dejar de recibir mensajes en cualquier momento respondiendo <strong>BAJA</strong>. WhatsApp es un servicio de Meta y su uso también está sujeto a sus propias condiciones.</p>
+
+<h3>6. Nunca te cobramos por postular</h3>
+<p>DIGETEL GROUP no solicita pagos, depósitos ni compras a los candidatos en ninguna etapa del proceso. Si alguien te pide dinero en nuestro nombre, no pagues y avísanos a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a>. Solo escribimos desde nuestro correo oficial y desde el número de WhatsApp del proceso de selección.</p>
+
+<h3>7. Uso adecuado</h3>
+<p>No está permitido enviar archivos con virus o contenido dañino, suplantar identidades, intentar acceder a áreas restringidas ni usar el sitio o el canal de WhatsApp para enviar spam u ofensas. Podemos bloquear a quien lo haga.</p>
+
+<h3>8. Propiedad intelectual</h3>
+<p>Los contenidos del sitio (textos, logotipos y diseño) pertenecen a DIGETEL GROUP o a sus licenciantes. No puedes copiarlos ni usarlos sin autorización.</p>
+
+<h3>9. Disponibilidad y responsabilidad</h3>
+<p>Procuramos que el sitio y los canales funcionen sin interrupciones, pero no garantizamos disponibilidad permanente. En la medida que permita la ley, no respondemos por daños derivados de fallas técnicas, de servicios de terceros (como WhatsApp o el correo) ni por el uso que hagas de la información publicada.</p>
+
+<h3>10. Datos personales</h3>
+<p>El tratamiento de tus datos se rige por nuestra <a href="/privacidad">Política de Privacidad</a>, donde también explicamos cómo ejercer tus derechos de acceso, rectificación, cancelación y oposición.</p>
+
+<h3>11. Cambios</h3>
+<p>Podemos modificar estos términos. La versión vigente es la publicada en esta página, con su fecha de actualización.</p>
+
+<h3>12. Ley aplicable y contacto</h3>
+<p>Estos términos se rigen por las leyes de la República del Perú. Cualquier controversia se someterá a los jueces y tribunales de Lima, sin perjuicio de los derechos que la ley te reconozca como persona usuaria. Para consultas: <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a>.</p>
+{% endblock %}

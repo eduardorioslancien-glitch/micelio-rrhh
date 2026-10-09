@@ -1182,6 +1182,10 @@ class LeadCandidato(Base):
     # la zona que cubre la base del pedido. Texto libre (nombre de distrito,
     # ver ubigeo_peru.json) — no obligatorio, no afecta lead_incompleto().
     distrito = Column(String(120), nullable=True)
+    # Cuándo aceptó la Política de Privacidad y el contacto por WhatsApp (casilla
+    # obligatoria de "Trabaja con Nosotros", 09/10). Vacío en leads que entraron
+    # por otro canal (correo, alta manual, WhatsApp directo).
+    consentimiento_at = Column(DateTime, nullable=True)
 
     # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
     # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.

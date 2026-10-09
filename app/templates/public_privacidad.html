@@ -1,0 +1,70 @@
+{% extends "public_legal_base.html" %}
+{% block titulo %}Política de Privacidad{% endblock %}
+{% block subtitulo %}Política de Privacidad y Protección de Datos Personales{% endblock %}
+{% block contenido %}
+<h2>Política de Privacidad</h2>
+<p class="meta">Última actualización: {{ actualizado }}</p>
+
+<p>En <strong>{{ empresa.razon_social }}</strong>{% if empresa.ruc %} (RUC {{ empresa.ruc }}){% endif %}{% if empresa.domicilio %}, con domicilio en {{ empresa.domicilio }}{% endif %} (en adelante, <strong>DIGETEL GROUP</strong>, «nosotros»), tratamos tus datos personales de acuerdo con la Ley N.° 29733, Ley de Protección de Datos Personales, y su Reglamento. Esta política explica qué datos recogemos cuando postulas a una vacante o nos escribes por WhatsApp, para qué los usamos y cómo ejercer tus derechos.</p>
+
+<h3>1. Quién es el responsable</h3>
+<p>El responsable del tratamiento es {{ empresa.razon_social }}. Puedes escribirnos a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a> para cualquier consulta sobre tus datos.</p>
+
+<h3>2. Qué datos recogemos</h3>
+<ul>
+  <li><strong>Datos que tú nos das:</strong> nombre completo, tipo y número de documento de identidad, correo electrónico, número de celular, distrito de residencia, tu CV y la información que contenga, y las respuestas que escribas en la conversación de WhatsApp.</li>
+  <li><strong>Datos del proceso de selección:</strong> la vacante a la que postulas, resultados de entrevistas y evaluaciones, fechas de contacto y el estado de tu postulación.</li>
+  <li><strong>Datos técnicos mínimos:</strong> fecha y hora de la postulación y los registros de seguridad del sitio.</li>
+</ul>
+<p>No te pedimos datos sensibles (salud, creencias, orientación, etc.) para postular. Si tu CV los incluye por decisión tuya, solo los usamos si son necesarios para el puesto.</p>
+
+<h3>3. Para qué usamos tus datos</h3>
+<ul>
+  <li>Evaluar tu postulación y gestionar el proceso de selección (revisión de CV, entrevistas, evaluaciones y decisión).</li>
+  <li>Contactarte por <strong>WhatsApp, correo electrónico o llamada</strong> para completar tus datos, coordinar entrevistas y comunicarte el resultado.</li>
+  <li>Considerarte para otras vacantes similares, si aceptas permanecer en nuestra base de candidatos.</li>
+  <li>Si resultas seleccionado: preparar tu legajo y contrato de trabajo.</li>
+  <li>Cumplir obligaciones legales y atender consultas o reclamos.</li>
+</ul>
+<p>No vendemos tus datos ni los usamos para publicidad de terceros.</p>
+
+<h3>4. Uso de inteligencia artificial</h3>
+<p>Usamos herramientas de inteligencia artificial para <strong>apoyar</strong> la revisión de CV: generan un resumen y una calificación orientativa frente a los requisitos del puesto. <strong>La decisión final siempre la toma una persona</strong> del equipo de Recursos Humanos; ninguna decisión se toma de forma exclusivamente automática. Puedes pedir que una persona revise tu caso escribiéndonos.</p>
+
+<h3>5. Base de legitimación</h3>
+<p>Tratamos tus datos con tu <strong>consentimiento</strong>, que das al marcar la casilla de aceptación en el formulario de postulación o al escribirnos por WhatsApp para postular. Puedes retirarlo en cualquier momento (ver el punto 9).</p>
+
+<h3>6. Con quién compartimos tus datos</h3>
+<p>Para operar el proceso usamos proveedores que tratan datos por encargo nuestro y bajo nuestras instrucciones:</p>
+<table>
+  <tr><th>Proveedor</th><th>Para qué</th></tr>
+  <tr><td>Meta Platforms (WhatsApp Business Platform)</td><td>Enviar y recibir los mensajes de WhatsApp del proceso.</td></tr>
+  <tr><td>n8n</td><td>Automatizar el flujo de mensajes y de datos entre WhatsApp y nuestro sistema.</td></tr>
+  <tr><td>Proveedores de inteligencia artificial</td><td>Apoyar el resumen y la calificación orientativa de los CV.</td></tr>
+  <tr><td>Google (Calendar, Meet, correo, almacenamiento de respaldos)</td><td>Agendar entrevistas virtuales, enviar correos y guardar copias de seguridad.</td></tr>
+  <tr><td>Amazon Web Services</td><td>Alojar nuestro sistema de Recursos Humanos (MICELIO).</td></tr>
+</table>
+<p>Algunos de estos proveedores pueden tratar datos en servidores fuera del Perú (<em>flujo transfronterizo</em>). En esos casos exigimos medidas de seguridad adecuadas. Solo accede a tu información el personal autorizado de Recursos Humanos y de las áreas que participan en la selección. Fuera de esto, solo compartimos datos si una autoridad competente lo exige por ley.</p>
+
+<h3>7. Cuánto tiempo los conservamos</h3>
+<p>Conservamos tus datos mientras dure el proceso de selección y, si no resultas seleccionado, hasta <strong>2 años</strong> después para poder considerarte en futuras vacantes. Si te contratamos, pasan a tu legajo laboral y se conservan según la normativa laboral. Puedes pedir su eliminación antes (ver el punto 9).</p>
+
+<h3>8. Cómo los protegemos</h3>
+<p>Aplicamos medidas técnicas y organizativas razonables: conexiones cifradas (HTTPS), acceso con usuario y contraseña, permisos por rol, copias de seguridad y registro de accesos. Ninguna medida es infalible; si ocurriera un incidente que afecte tus datos, actuaremos conforme a la ley.</p>
+
+<h3 id="derechos">9. Tus derechos</h3>
+<p>Puedes ejercer en cualquier momento tus derechos de <strong>acceso, rectificación, cancelación (eliminación) y oposición</strong>, y retirar tu consentimiento, escribiendo a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a> con tu nombre completo, número de documento y lo que solicitas. Responderemos dentro de los plazos que fija la ley.</p>
+<ul>
+  <li><strong>Dejar de recibir mensajes por WhatsApp:</strong> responde <strong>BAJA</strong> a cualquiera de nuestros mensajes o escríbenos por correo.</li>
+  <li id="eliminar-datos"><strong>Eliminar tus datos:</strong> escribe a <a href="mailto:{{ contacto_email }}">{{ contacto_email }}</a> con el asunto «Eliminar mis datos». Los borraremos de nuestro sistema y de sus copias en el plazo legal, salvo los que debamos conservar por obligación legal.</li>
+</ul>
+<p>Si consideras que no atendimos bien tu solicitud, puedes presentar un reclamo ante la <strong>Autoridad Nacional de Protección de Datos Personales</strong> (Ministerio de Justicia y Derechos Humanos).</p>
+
+<h3>10. Cookies</h3>
+<p>Este sitio solo usa cookies técnicas necesarias para su funcionamiento (por ejemplo, la sesión del personal autorizado). No usamos cookies de publicidad ni de seguimiento de terceros.</p>
+
+<h3>11. Cambios en esta política</h3>
+<p>Podemos actualizar esta política. Publicaremos la versión vigente en esta misma página con su fecha de actualización.</p>
+
+<p style="margin-top:22px;">Consulta también nuestros <a href="/terminos">Términos y Condiciones</a>.</p>
+{% endblock %}
