@@ -592,6 +592,12 @@ class User(Base):
     # "editar", ...}. NULL = todavía sin personalizar -> rige lo que
     # corresponde al tipo de usuario (permisos.permisos_base). Ver app/permisos.py.
     permisos = Column(JSON, nullable=True)
+    # A qué empresas tiene acceso (12/10): lista de ids elegidos por el
+    # administrador (p. ej. [1, 2, 5]). NULL = todas las que le correspondan
+    # (para un gerente: las suyas como Representante Legal). `empresa_id` queda
+    # solo por compatibilidad con cuentas anteriores: si `empresas_acceso` es
+    # NULL y hay `empresa_id`, se entiende como una sola empresa.
+    empresas_acceso = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
 

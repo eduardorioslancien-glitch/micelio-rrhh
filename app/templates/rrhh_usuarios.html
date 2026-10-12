@@ -27,10 +27,10 @@
         <td class="muted" style="font-size:12px;">
           {% if u.rol == 'administrador' %}Todo MICELIO
           {% elif u.rol == 'gerente' %}
-            {% if alcance_texto.get(u.id) %}Solo: {{ alcance_texto[u.id] }}{% else %}<span style="color:var(--red);">Sin empresa (ya no es Representante Legal)</span>{% endif %}
+            {% if alcance_texto.get(u.id) and alcance_texto[u.id] != 'Ninguna' %}Solo: {{ alcance_texto[u.id] }}{% else %}<span style="color:var(--red);">Sin empresa (ya no es Representante Legal)</span>{% endif %}
           {% else %}
             {% set n = u.permisos|length if u.permisos is not none else (1 if u.rol == 'opeoka' else 0) %}
-            Su ficha{% if n %} + {{ n }} opción(es){% endif %}{% if u.empresa %} · {{ u.empresa.nombre }}{% endif %}
+            Su ficha{% if n %} + {{ n }} opción(es){% endif %}{% if n %} · {{ alcance_texto.get(u.id, 'Todas las empresas') }}{% endif %}
           {% endif %}
         </td>
         <td>{% if u.employee %}<a href="/rrhh/personal/{{ u.employee.id }}">{{ u.employee.nombre_completo }}</a>{% else %}—{% endif %}</td>

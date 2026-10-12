@@ -194,11 +194,27 @@ def alcance_empresas(user, db):
     (vacío = ninguna: p. ej. un gerente que dejó de ser Representante Legal)."""
     if user is None or user.rol == "administrador":
         return None
+    elegidas = getattr(user, "empresas_acceso", None)
     if user.rol == "gerente":
-        return {e.id for e in empresas_de_gerente(user, db)}
-    if getattr(user, "empresa_id", None):
+        propias = {e.id for e in empresas_de_gerente(user, db)}
+        # el administrador puede acotar aún más a un gerente, nunca ampliarlo
+        return propias & {int(i) for i in elegidas} if elegidas else propias
+    if elegidas:
+        return {int(i) for i in elegidas}
+    if getattr(user, "empresa_id", None):  # cuentas anteriores: una sola empresa
         return {user.empresa_id}
     return None
+
+
+def nombres_alcance(user, db) -> str:
+    """Texto para mostrar a qué empresas llega este usuario."""
+    from .models import Empresa
+    alcance = alcance_empresas(user, db)
+    if alcance is None:
+        return "Todas las empresas"
+    if not alcance:
+        return "Ninguna"
+    return ", ".join(e.nombre for e in db.query(Empresa).filter(Empresa.id.in_(alcance)).order_by(Empresa.nombre).all())
 
 
 def puede_empresa(user, db, empresa_id) -> bool:

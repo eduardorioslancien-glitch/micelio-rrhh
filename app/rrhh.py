@@ -1620,8 +1620,7 @@ def usuarios_list(request: Request, error: str = "", db: Session = Depends(get_d
     return templates.TemplateResponse(request, "rrhh_usuarios.html", _ctx(
         request, user, usuarios=usuarios, roles=ROLES, empleados=empleados,
         candidatos_gerente=_candidatos_gerente(db, empleados),
-        alcance_texto={u.id: ", ".join(e.nombre for e in permisos_module.empresas_de_gerente(u, db))
-                       for u in usuarios if u.rol == "gerente"},
+        alcance_texto={u.id: permisos_module.nombres_alcance(u, db) for u in usuarios if u.rol != "administrador"},
         error=error, active="usuarios",
     ))
 
@@ -1710,6 +1709,9 @@ def usuario_accesos(request: Request, user_id: int, error: str = "", ok: str = "
         empresas=db.query(Empresa).filter(Empresa.activo == True).order_by(Empresa.nombre).all(),  # noqa: E712
         candidatos_gerente=_candidatos_gerente(db, empleados),
         diag=permisos_module.diagnostico_gerente(db, u.employee) if u.employee else None,
+        todas_empresas=(u.empresas_acceso is None and not u.empresa_id),
+        empresas_marcadas=set(u.empresas_acceso or ([u.empresa_id] if u.empresa_id else [])),
+        empresas_rep={e.id for e in permisos_module.empresas_de_gerente(u, db)},
         secciones=permisos_module.SECCIONES, grupos=permisos_module.GRUPOS,
         actuales=permisos_module.permisos_efectivos(u), sugerido_gerente=sugerido_gerente,
         NIVEL=permisos_module, error=error, ok=ok, active="usuarios",
@@ -1747,7 +1749,14 @@ async def usuario_accesos_guardar(request: Request, user_id: int, db: Session = 
     u.rol = rol
     u.employee_id = emp_id
     u.man_academy_admin = bool(form.get("man_academy_admin"))
-    u.empresa_id = int(form.get("empresa_id")) if (form.get("empresa_id") and rol == "usuario") else None
+    # Empresas a las que tiene acceso: las marcadas (None = todas las que le correspondan)
+    validas = {e.id for e in db.query(Empresa).filter(Empresa.activo == True).all()}  # noqa: E712
+    marcadas = sorted({int(x) for x in form.getlist("empresas_acceso") if x.isdigit() and int(x) in validas})
+    u.empresa_id = None  # reemplazado por empresas_acceso
+    if rol == "administrador" or form.get("todas_empresas") or not marcadas:
+        u.empresas_acceso = None
+    else:
+        u.empresas_acceso = marcadas
     if rol == "administrador":
         u.permisos = None
     else:

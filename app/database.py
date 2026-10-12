@@ -98,6 +98,7 @@ _MIGRACIONES_COLUMNAS = [
     ("empresas", "representante_nacionalidad", "VARCHAR(60)"),
     ("users", "man_academy_admin", "BOOLEAN"),
     ("users", "permisos", "JSON"),
+    ("users", "empresas_acceso", "JSON"),
     ("leads_candidatos", "consentimiento_at", "DATETIME"),
     ("pedidos_personal", "modalidad", "VARCHAR(10)"),
     ("pedidos_personal", "tipo_contrato", "VARCHAR(30)"),

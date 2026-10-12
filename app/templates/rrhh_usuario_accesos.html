@@ -51,12 +51,19 @@
         </select>
       </div>
       <div class="field" id="acc-empresa-campo">
-        <label>Limitar a una empresa (opcional)</label>
-        <select name="empresa_id">
-          <option value="">— Todas las empresas —</option>
-          {% for e in empresas %}<option value="{{ e.id }}" {{ 'selected' if u.empresa_id == e.id else '' }}>{{ e.nombre }}</option>{% endfor %}
-        </select>
-        <div class="hint">Si le das acceso a Personal, Asistencia, etc., solo verá a las personas de esa empresa.</div>
+        <label>Empresas a las que tiene acceso</label>
+        <label style="text-transform:none; font-weight:600; font-size:13px; display:flex; gap:7px; align-items:center; margin:4px 0;">
+          <input type="checkbox" name="todas_empresas" value="1" id="acc-todas" style="width:auto;" {{ 'checked' if todas_empresas else '' }}>
+          <span id="acc-todas-texto">Todas las empresas</span>
+        </label>
+        <div id="acc-lista-empresas" style="display:grid; gap:2px; margin-left:4px;">
+          {% for e in empresas %}
+          <label data-rep="{{ 1 if e.id in empresas_rep else 0 }}" style="text-transform:none; font-weight:400; font-size:13px; display:flex; gap:7px; align-items:center; margin:2px 0;">
+            <input type="checkbox" name="empresas_acceso" value="{{ e.id }}" style="width:auto;" {{ 'checked' if e.id in empresas_marcadas else '' }}> {{ e.nombre }}
+          </label>
+          {% endfor %}
+        </div>
+        <div class="hint">Elige cuáles: la persona solo verá los datos de esas empresas en Personal, Asistencia, Contratos, Procesos, etc. Si marcas «Todas», verá todas las que le corresponden.</div>
       </div>
     </div>
 
@@ -156,7 +163,12 @@
   function aplicar() {
     var r = rol.value;
     bloque.hidden = (r === 'administrador');
-    campoEmpresa.style.display = (r === 'usuario') ? '' : 'none';
+    campoEmpresa.style.display = (r === 'usuario' || r === 'gerente') ? '' : 'none';
+    var esG = (r === 'gerente');
+    document.getElementById('acc-todas-texto').textContent = esG ? 'Todas mis empresas (las de las que soy Representante Legal)' : 'Todas las empresas';
+    document.querySelectorAll('#acc-lista-empresas label').forEach(function (l) {
+      l.style.display = (esG && l.getAttribute('data-rep') !== '1') ? 'none' : 'flex';
+    });
     if (diag) diag.style.display = (r === 'gerente') ? '' : 'none';
     document.querySelectorAll('#acc-ayuda-tipo [data-tipo]').forEach(function (d) {
       d.style.display = (d.getAttribute('data-tipo') === r) ? '' : 'none';
@@ -184,8 +196,16 @@
     var nombres = ['ninguno', 'ver', 'editar'];
     todas(function (k) { poner(k, nombres[sugerido[k] || 0]); });
   });
+  function sincronizarEmpresas() {
+    var todas = document.getElementById('acc-todas').checked;
+    document.querySelectorAll('#acc-lista-empresas input[type=checkbox]').forEach(function (c) {
+      c.disabled = todas; if (todas) c.checked = false;
+    });
+  }
+  document.getElementById('acc-todas').addEventListener('change', sincronizarEmpresas);
   rol.addEventListener('change', aplicar);
   aplicar();
+  sincronizarEmpresas();
 })();
 </script>
 
