@@ -936,8 +936,9 @@ def lead_aprobar(lead_id: int, entrevistador_id: str = Form(""), db: Session = D
 # no se toca (ver nota en _rrhh_topbar.html).
 #
 # El envío por WhatsApp queda como un enlace "wa.me" con el mensaje ya
-# armado (Eduardo lo confirma y lo manda él mismo) — MICELIO no tiene hoy
-# ninguna integración de WhatsApp Business API para mandarlo solo.
+# armado (Eduardo lo confirma y lo manda él mismo). Excepción (12/10):
+# Confirmar APROBADO avisa a n8n, que manda la plantilla «seleccion» por
+# WhatsApp Business — MICELIO nunca tiene las credenciales de Meta.
 # ---------------------------------------------------------------------------
 
 def _celular_completo(ficha: dict, campo: str = "celular") -> str:
@@ -1068,17 +1069,53 @@ def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db)
         enviado = _enviar_correo([emp.email], "¡Felicitaciones! Siguiente paso — DIGETEL GROUP", cuerpo)
 
     wa_link = None
+    wa_auto = False
     wa_numero = _celular_completo(f)
     if wa_numero:
-        texto_wa = (
-            f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''}, te escribimos de "
-            "Recursos Humanos de DIGETEL GROUP. ¡Felicitaciones! Te acabamos de enviar un correo con el "
-            "siguiente paso de tu proceso — por favor revísalo."
-        )
-        wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
+        # 12/10: si el flujo de n8n está configurado, él manda la plantilla
+        # «seleccion» por WhatsApp Business (Meta Cloud API) y RR.HH. ya no
+        # tiene que hacer clic en el wa.me. Si no está o falla, queda el
+        # enlace manual de siempre.
+        from . import n8n
+        primer_nombre = emp.nombre_completo.split()[0] if emp.nombre_completo else ""
+        if n8n.webhook_configurado("N8N_WEBHOOK_SELECCION_APROBADO_URL"):
+            pedido_origen = (db.query(PedidoPersonal)
+                             .filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
+                             if f.get("codigo_pedido_seleccion") else None)
+            cargo = f.get("vacante_cargo") or (pedido_origen.cargo_solicitado if pedido_origen else None)
+            resultado_n8n = n8n.llamar_webhook("N8N_WEBHOOK_SELECCION_APROBADO_URL", {
+                "employee_id": emp.id,
+                "nombre_completo": emp.nombre_completo,
+                "primer_nombre": primer_nombre,
+                "email": emp.email,
+                "celular": wa_numero,
+                "cargo": cargo,
+                # Los cargos se guardan en MAYÚSCULAS; para el texto del
+                # WhatsApp ("...para el puesto de Asesor Comercial").
+                "cargo_legible": cargo.title() if cargo else "",
+                "area": f.get("vacante_area"),
+                "empresa": pedido_origen.empresa.nombre if pedido_origen and pedido_origen.empresa else None,
+                "pedido_codigo": f.get("codigo_pedido_seleccion"),
+                "enlace_ficha": enlace,
+            })
+            # n8n puede contestar {"ok": true} o solo recibir el aviso (sin
+            # JSON): en ambos casos la llamada quedó registrada como OK.
+            from .models import LlamadaN8n
+            ultima = db.query(LlamadaN8n).filter(LlamadaN8n.evento == "seleccion_aprobado")                 .order_by(LlamadaN8n.id.desc()).first()
+            wa_auto = bool((resultado_n8n and resultado_n8n.get("ok") is not False) or
+                           (resultado_n8n is None and ultima and ultima.ok))
+        if not wa_auto:
+            texto_wa = (
+                f"Hola {primer_nombre}, te escribimos de "
+                "Recursos Humanos de DIGETEL GROUP. ¡Felicitaciones! Te acabamos de enviar un correo con el "
+                "siguiente paso de tu proceso — por favor revísalo."
+            )
+            wa_link = f"https://wa.me/{wa_numero}?text={quote(texto_wa)}"
 
     mensaje = "correo_enviado" if enviado else "correo_no_configurado"
     destino = f"/rrhh/reclutamiento/seleccion/{employee_id}?ok={mensaje}"
+    if wa_auto:
+        destino += "&wa_auto=1"
     if wa_link:
         destino += f"&wa={quote(wa_link)}"
     return RedirectResponse(destino, status_code=303)

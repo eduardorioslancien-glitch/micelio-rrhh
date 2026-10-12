@@ -15,6 +15,9 @@
   {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor, o falta un correo cargado).</p></div>
   {% endif %}
+  {% if request.query_params.get('wa_auto') %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Mensaje de WhatsApp enviado automáticamente al candidato.</p></div>
+  {% endif %}
   {% if request.query_params.get('wa') %}
   <div class="card" style="margin-top:16px;">
     <p class="muted" style="margin:0 0 8px;">También puedes mandarlo por WhatsApp:</p>

@@ -43,11 +43,15 @@ CONFIGURACION = [
     ("N8N_WEBHOOK_DESCARTAR_URL", "Webhook «Descartar»",
      "n8n avisa el descarte por correo y WhatsApp.",
      "El botón Descartar cae al correo manual."),
+    ("N8N_WEBHOOK_SELECCION_APROBADO_URL", "Webhook «Selección aprobado»",
+     "n8n le escribe al candidato por WhatsApp con la plantilla «seleccion» (nombre y puesto).",
+     "Confirmar APROBADO solo manda el correo y muestra el enlace wa.me manual."),
 ]
 PRUEBAS = {
     "nuevo_lead": "N8N_WEBHOOK_NUEVO_LEAD_URL",
     "entrevistar": "N8N_WEBHOOK_ENTREVISTAR_URL",
     "descartar": "N8N_WEBHOOK_DESCARTAR_URL",
+    "seleccion_aprobado": "N8N_WEBHOOK_SELECCION_APROBADO_URL",
 }
 
 

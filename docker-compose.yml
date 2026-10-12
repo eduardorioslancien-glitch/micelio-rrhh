@@ -33,6 +33,9 @@ services:
       - N8N_WEBHOOK_ENTREVISTAR_URL=${N8N_WEBHOOK_ENTREVISTAR_URL:-}
       - N8N_WEBHOOK_DESCARTAR_URL=${N8N_WEBHOOK_DESCARTAR_URL:-}
       - N8N_WEBHOOK_NUEVO_LEAD_URL=${N8N_WEBHOOK_NUEVO_LEAD_URL:-}
+      # Selección › Confirmar APROBADO (12/10): n8n manda la plantilla de
+      # WhatsApp «seleccion» (es_PE) con nombre y puesto.
+      - N8N_WEBHOOK_SELECCION_APROBADO_URL=${N8N_WEBHOOK_SELECCION_APROBADO_URL:-}
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
       # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
       # Integración con Man Academy (menú Capacitación): URL pública de esa
