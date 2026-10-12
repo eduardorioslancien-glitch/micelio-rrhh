@@ -31,7 +31,7 @@
       "nombre": "Digetel",
       "razon_social": "Digetel Soluciones S.A.C.",
       "ruc": "20603062451",
-      "regimen_laboral": null,
+      "regimen_laboral": "Microempresa (MYPE)",
       "representante_legal": "Ana Karina Hernandez Salcedo",
       "gerente_nombre": null,
       "gerente_email": null,
@@ -57,9 +57,9 @@
       "nombre": "Intecno",
       "razon_social": "Intecno S.A.C.",
       "ruc": "20603062451",
-      "regimen_laboral": null,
-      "representante_legal": "Ana Karina Hernandez Salcedo",
-      "gerente_nombre": null,
+      "regimen_laboral": "Microempresa (MYPE)",
+      "representante_legal": "Carlos Vidal",
+      "gerente_nombre": "Carlos Vidal Carranza",
       "gerente_email": null,
       "jefe_rrhh_nombre": null,
       "jefe_rrhh_email": null,
@@ -311,7 +311,24 @@
       "cuenta_contable": null
     }
   ],
-  "bases": [],
+  "bases": [
+    {
+      "nombre": "LIMA NORTE",
+      "departamento": "LIMA",
+      "provincia": "LIMA",
+      "distritos": [
+        "CARABAYLLO",
+        "COMAS",
+        "INDEPENDENCIA",
+        "LOS OLIVOS",
+        "LURIGANCHO",
+        "SAN JUAN DE LURIGANCHO",
+        "SAN MARTIN DE PORRES"
+      ],
+      "activo": true,
+      "empresa_nombre": "Intecno"
+    }
+  ],
   "competencias": [
     {
       "tipo": "competencia",
@@ -1179,6 +1196,15 @@
       "movilidad": 250.0,
       "combustible": null,
       "otros_ingresos": 250.0,
+      "notas": null
+    },
+    {
+      "cargo_nombre": "GUARDIAN DE EXPERIENCIA - GX",
+      "sueldo_base": 2000.0,
+      "comision_variable": 1000.0,
+      "movilidad": 700.0,
+      "combustible": 500.0,
+      "otros_ingresos": 0.0,
       "notas": null
     }
   ]
