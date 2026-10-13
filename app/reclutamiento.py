@@ -30,6 +30,7 @@ from .auth import require_role, require_perm, require_jefe_o_gerente, es_jefe_o_
 from .rrhh import (
     _ctx, _enviar_correo, _public_base_url, _ensure_documents, _pedido_recibio_lead,
     _pedido_cubre_vacante, _a_lima, _eliminar_employee_completo, _notificar_lead_incompleto_n8n,
+    _payload_analizar_cv, _notificar_analizar_cv_n8n,
     _payload_lead_para_n8n, UPLOADS_DIR,
 )
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
@@ -476,9 +477,30 @@ async def leads_crear(background_tasks: BackgroundTasks,
         db.commit()
     payload_n8n = _payload_lead_para_n8n(lead, pedido)
     background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead))
+    if lead.cv_path and pedido:
+        background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, pedido))
 
     destino = f"/rrhh/reclutamiento/leads?pedido_id={pedido_id}" if pedido_id else "/rrhh/reclutamiento/leads?pedido_id=none"
     return RedirectResponse(destino, status_code=303)
+
+
+@router.post("/rrhh/reclutamiento/leads/{lead_id}/analizar-cv")
+def lead_analizar_cv(lead_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
+                     user: User = Depends(require_perm("leads", "editar"))):
+    """Botón «Analizar CV» / «Volver a analizar»: pide a n8n el análisis con IA.
+    El resultado aparece solo en la ficha del lead (unos segundos después)."""
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead:
+        raise HTTPException(404)
+    if not lead.cv_path or not os.path.exists(lead.cv_path):
+        return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_sin_cv", status_code=303)
+    if not lead.pedido_id:
+        return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_sin_pedido", status_code=303)
+    from . import n8n as n8n_mod
+    if not n8n_mod.webhook_configurado("N8N_WEBHOOK_ANALIZAR_CV_URL"):
+        return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_no_configurado", status_code=303)
+    background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, lead.pedido))
+    return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_solicitado", status_code=303)
 
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/etapa")

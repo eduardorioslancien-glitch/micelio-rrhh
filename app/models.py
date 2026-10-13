@@ -1192,6 +1192,9 @@ class LeadCandidato(Base):
     # obligatoria de "Trabaja con Nosotros", 09/10). Vacío en leads que entraron
     # por otro canal (correo, alta manual, WhatsApp directo).
     consentimiento_at = Column(DateTime, nullable=True)
+    # Cuándo pidió la BAJA (escribió «BAJA» por WhatsApp) y todavía no se pudo borrar
+    # sola porque ya está en Selección/Oferta: RR.HH. debe resolverla a mano.
+    baja_solicitada_at = Column(DateTime, nullable=True)
 
     # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
     # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.
@@ -1207,6 +1210,19 @@ class LeadCandidato(Base):
     conversacion_whatsapp = Column(JSON, default=list)
 
     pedido = relationship("PedidoPersonal", back_populates="leads")
+
+
+class BajaContacto(Base):
+    """Lista de «no contactar» (10/2026): quien escribe BAJA por WhatsApp se
+    borra de MICELIO, pero guardamos un hash (SHA-256) de su número —nunca el
+    número— para que la automatización no le vuelva a escribir ni le cree otro
+    lead. Si más adelante postula él mismo por la web (nuevo consentimiento),
+    se quita de esta lista."""
+    __tablename__ = "bajas_contacto"
+
+    id = Column(Integer, primary_key=True)
+    celular_hash = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 LEAD_NOMBRE_PENDIENTE = "(Nombre pendiente — WhatsApp)"

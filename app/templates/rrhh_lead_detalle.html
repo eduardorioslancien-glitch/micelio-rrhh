@@ -20,6 +20,14 @@
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Aprobado y enviado a Selección, pero no se pudo enviar el correo a quien hará la segunda entrevista (falta configurar SMTP_* en el servidor, o no tiene correo cargado).</p></div>
   {% elif request.query_params.get('ok') == 'sin_entrevistador' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección. No se eligió a nadie para la segunda entrevista todavía — puedes asignarla más tarde desde Selección.</p></div>
+  {% elif request.query_params.get('ok') == 'analisis_solicitado' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Pedimos el análisis del CV. En unos segundos aparecerá aquí abajo; si no, recarga la página.</p></div>
+  {% elif request.query_params.get('ok') == 'analisis_sin_cv' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Este candidato todavía no tiene CV adjunto.</p></div>
+  {% elif request.query_params.get('ok') == 'analisis_sin_pedido' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El CV se compara contra los requisitos del cargo: primero asigna el candidato a un pedido.</p></div>
+  {% elif request.query_params.get('ok') == 'analisis_no_configurado' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El análisis automático todavía no está conectado (falta N8N_WEBHOOK_ANALIZAR_CV_URL en el servidor).</p></div>
   {% elif request.query_params.get('ok') == 'entrevista_agendada' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Entrevista agendada — se creó el evento en Google Calendar (trabajaconnosotros@digetelgroup.com) y el candidato quedó como invitado.</p></div>
   {% endif %}
@@ -77,11 +85,26 @@
       <span class="muted" style="font-size:13px;">({{ lead.estrellas or '—' }}/5, contra los requisitos de {{ cargo.nombre if cargo else 'este cargo' }})</span>
     </p>
     {% if lead.analisis_ia %}<p style="white-space:pre-wrap;">{{ lead.analisis_ia }}</p>{% endif %}
+    <p class="muted" style="font-size:12px; margin:8px 0;">La IA solo apoya: no descarta ni aprueba a nadie. La decisión es de RR.HH.</p>
+    {% if lead.cv_path %}
+    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/analizar-cv" style="margin:0;">
+      <button class="btn small secondary" type="submit">Volver a analizar el CV</button>
+    </form>
+    {% endif %}
   </div>
   {% elif not lead_incompleto %}
   <div class="card" style="margin-top:16px;">
     <h2>Análisis de CV (IA)</h2>
-    <p class="muted">Todavía no hay calificación de IA para este candidato — la genera la automatización de n8n (POST /api/leads/{{ lead.id }}/analisis-ia).</p>
+    {% if lead.cv_path and lead.pedido_id %}
+    <p class="muted">Todavía no hay análisis del CV. Se genera solo al recibir el CV; si no aparece, pídelo ahora:</p>
+    <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/analizar-cv" style="margin:0;">
+      <button class="btn small" type="submit">Analizar CV</button>
+    </form>
+    {% elif not lead.cv_path %}
+    <p class="muted">Todavía no hay CV adjunto: cuando llegue, se analizará automáticamente contra los requisitos del cargo.</p>
+    {% else %}
+    <p class="muted">Asigna el candidato a un pedido para poder comparar su CV con los requisitos del cargo.</p>
+    {% endif %}
   </div>
   {% endif %}
 

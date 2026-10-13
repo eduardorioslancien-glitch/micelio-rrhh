@@ -46,12 +46,16 @@ CONFIGURACION = [
     ("N8N_WEBHOOK_SELECCION_APROBADO_URL", "Webhook «Selección aprobado»",
      "n8n le escribe al candidato por WhatsApp con la plantilla «seleccion» (nombre y puesto).",
      "Confirmar APROBADO solo manda el correo y muestra el enlace wa.me manual."),
+    ("N8N_WEBHOOK_ANALIZAR_CV_URL", "Webhook «Analizar CV»",
+     "n8n lee el CV, lo compara con los requisitos del cargo con IA y devuelve estrellas y resumen.",
+     "El CV no se analiza solo: el botón «Analizar CV» de la ficha del lead no hace nada."),
 ]
 PRUEBAS = {
     "nuevo_lead": "N8N_WEBHOOK_NUEVO_LEAD_URL",
     "entrevistar": "N8N_WEBHOOK_ENTREVISTAR_URL",
     "descartar": "N8N_WEBHOOK_DESCARTAR_URL",
     "seleccion_aprobado": "N8N_WEBHOOK_SELECCION_APROBADO_URL",
+    "analizar_cv": "N8N_WEBHOOK_ANALIZAR_CV_URL",
 }
 
 

@@ -237,6 +237,33 @@ def _notificar_lead_incompleto_n8n(payload: dict, incompleto: bool) -> None:
     n8n.llamar_webhook("N8N_WEBHOOK_NUEVO_LEAD_URL", payload)
 
 
+def _payload_analizar_cv(lead, pedido=None) -> dict:
+    """Payload del aviso «analizar CV» a n8n (13/10): n8n baja el CV
+    (GET /api/leads/{id}/cv), pide el MOF del cargo y llama a la IA; el
+    resultado vuelve por POST /api/leads/{id}/analisis-ia. Se arma con la
+    sesión abierta, igual que _payload_lead_para_n8n."""
+    return {
+        "lead_id": lead.id,
+        "nombre_completo": lead.nombre_completo,
+        "cargo": pedido.cargo_solicitado if pedido else None,
+        "empresa": pedido.empresa.nombre if pedido and pedido.empresa else None,
+        "pedido_codigo": pedido.codigo if pedido else None,
+        "base_distritos": (pedido.base.distritos or []) if pedido and pedido.base else [],
+        "distrito": lead.distrito,
+        "cv_filename": lead.cv_filename,
+        "cv_es_pdf": bool((lead.cv_filename or "").lower().endswith(".pdf")),
+    }
+
+
+def _notificar_analizar_cv_n8n(payload: dict) -> None:
+    """Pide a n8n el análisis del CV. Sin webhook configurado no pasa nada
+    (queda el botón «Analizar CV» en la ficha del lead)."""
+    if not payload.get("lead_id") or not payload.get("cargo"):
+        return
+    from . import n8n
+    n8n.llamar_webhook("N8N_WEBHOOK_ANALIZAR_CV_URL", payload)
+
+
 def _pedido_cubre_vacante(pedido) -> None:
     """Al aprobar a alguien en Selección se resta una vacante del pedido;
     si llega a cero pasa automáticamente a CUBIERTO."""

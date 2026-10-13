@@ -83,7 +83,7 @@
       <span class="semaforo rojo"></span>no ha respondido</p>
     <div class="scroll-10">
     <table>
-      <tr><th></th><th>Candidato</th><th>Contacto</th><th>Origen</th><th>Registrado</th><th>Etapa</th><th></th></tr>
+      <tr><th></th><th>Candidato</th><th>Contacto</th><th>Origen</th><th>CV (IA)</th><th>Registrado</th><th>Etapa</th><th></th></tr>
       {% for l in leads %}
       <tr>
         <td><span class="semaforo {{ lead_semaforo(l) }}" title="{{ lead_semaforo(l) }}"></span></td>
@@ -94,12 +94,13 @@
         </td>
         <td>{{ l.email or "—" }}{% if l.celular %}<br>{{ l.celular }}{% endif %}</td>
         <td>{{ l.origen or "—" }}</td>
+        <td style="white-space:nowrap;">{% if l.estrellas %}<span title="{{ l.estrellas }}/5 según el análisis de IA">{% for i in range(1,6) %}{{ '★' if i <= l.estrellas else '☆' }}{% endfor %}</span> <span class="muted" style="font-size:12px;">{{ l.estrellas }}</span>{% elif l.cv_path %}<span class="muted" style="font-size:12px;">sin analizar</span>{% else %}<span class="muted">—</span>{% endif %}</td>
         <td>{{ (l.created_at|lima).strftime("%d/%m/%Y") }}</td>
         <td><span class="badge {{ l.etapa }}">{{ etapa_labels.get(l.etapa, l.etapa) }}</span></td>
         <td><a class="btn small secondary" href="/rrhh/reclutamiento/leads/{{ l.id }}">Ver</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="muted">Todavía no hay candidatos para este pedido.</td></tr>
+      <tr><td colspan="8" class="muted">Todavía no hay candidatos para este pedido.</td></tr>
       {% endfor %}
     </table>
     </div>

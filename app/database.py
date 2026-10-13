@@ -79,6 +79,7 @@ _MIGRACIONES_COLUMNAS = [
     ("leads_candidatos", "cv_filename", "VARCHAR(300)"),
     ("leads_candidatos", "estrellas", "FLOAT"),
     ("leads_candidatos", "analisis_ia", "TEXT"),
+    ("leads_candidatos", "baja_solicitada_at", "DATETIME"),
     ("leads_candidatos", "entrevista_data", "JSON"),
     ("asistencia_registros", "latitud", "FLOAT"),
     ("asistencia_registros", "longitud", "FLOAT"),

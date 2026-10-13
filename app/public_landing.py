@@ -20,7 +20,9 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import PedidoPersonal, LeadCandidato, Cargo, Empresa, TIPOS_DOCUMENTO_POSTULANTE, lead_incompleto
-from .rrhh import _pedido_recibio_lead, _notificar_lead_incompleto_n8n, _payload_lead_para_n8n
+from .rrhh import (_pedido_recibio_lead, _notificar_lead_incompleto_n8n, _payload_lead_para_n8n,
+                   _payload_analizar_cv, _notificar_analizar_cv_n8n)
+from . import bajas
 from .telefono import formato_celular, ERROR_CELULAR
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -152,6 +154,9 @@ async def landing_postular(request: Request, background_tasks: BackgroundTasks, 
         registrado_por="Landing Trabaja con Nosotros",
         consentimiento_at=datetime.datetime.utcnow(),
     )
+    # Postula de nuevo por su cuenta (consentimiento nuevo): si había pedido BAJA,
+    # vuelve a ser contactable.
+    bajas.quitar_de_bajas(db, celular_norm)
     db.add(lead)
     db.commit()
     db.refresh(lead)
@@ -162,6 +167,7 @@ async def landing_postular(request: Request, background_tasks: BackgroundTasks, 
     # sesión todavía abierta — la BackgroundTask ya no puede tocar objetos ORM.
     payload_n8n = _payload_lead_para_n8n(lead, pedido)
     background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead))
+    background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, pedido))
 
     return RedirectResponse(f"/trabaja-con-nosotros/{pedido_id}/gracias", status_code=303)
 

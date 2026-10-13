@@ -16,13 +16,15 @@ import datetime
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, Form, File, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, File, Header, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import Cargo, LeadCandidato, PedidoPersonal, LEAD_NOMBRE_PENDIENTE, lead_incompleto, lead_semaforo
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
-from .rrhh import _pedido_recibio_lead
+from .rrhh import _pedido_recibio_lead, _payload_analizar_cv, _notificar_analizar_cv_n8n
+from . import bajas
 from .telefono import normalizar_o_dejar, solo_digitos_whatsapp
 import datetime as _dt
 
@@ -65,7 +67,8 @@ def _resumen_lead(lead: LeadCandidato) -> dict:
         "id": lead.id, "nombre_completo": None if lead.nombre_completo == LEAD_NOMBRE_PENDIENTE else lead.nombre_completo,
         "email": lead.email, "celular": lead.celular, "celular_whatsapp": solo_digitos_whatsapp(lead.celular or ""),
         "documento_tipo": lead.documento_tipo, "documento_numero": lead.documento_numero, "distrito": lead.distrito,
-        "tiene_cv": bool(lead.cv_path), "incompleto": lead_incompleto(lead), "faltan": faltan,
+        "tiene_cv": bool(lead.cv_path), "cv_filename": lead.cv_filename,
+        "baja_solicitada": bool(lead.baja_solicitada_at), "incompleto": lead_incompleto(lead), "faltan": faltan,
         "semaforo": lead_semaforo(lead), "etapa": lead.etapa, "estrellas": lead.estrellas,
         "codigo_pedido": p.codigo if p else None, "cargo": p.cargo_solicitado if p else None,
         "empresa": p.empresa.nombre if p and p.empresa else None,
@@ -92,6 +95,9 @@ def api_lead_por_celular(celular: str, db: Session = Depends(get_db), _=Depends(
             candidatos.append(lead)
     vivos = [l for l in candidatos if l.etapa != "descartado"] or candidatos
     if not vivos:
+        if bajas.esta_en_bajas(db, buscado):
+            # Pidió BAJA: no se le escribe ni se le crea otro lead.
+            return JSONResponse({"baja": True, "detail": "Este número pidió BAJA: no contactar."}, status_code=410)
         raise HTTPException(404, "Ese celular no tiene ningún lead.")
     return {**_resumen_lead(vivos[0]), "otros_leads_con_ese_numero": len(candidatos) - 1}
 
@@ -163,6 +169,7 @@ async def api_crear_lead(
     codigo_pedido: str = Form(""),
     notas: str = Form(""),
     cv: UploadFile = File(None),
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
     _=Depends(_verificar_api_key),
 ):
@@ -175,6 +182,8 @@ async def api_crear_lead(
     PATCH /api/leads/{id} a medida que avanza la conversación — así RR.HH.
     ya lo ve en Gestión de Leads, marcado "incompleto", desde el primer
     contacto."""
+    if celular.strip() and bajas.esta_en_bajas(db, celular):
+        raise HTTPException(410, "Este número pidió BAJA: no se crea el lead ni se le debe escribir.")
     pedido = None
     if codigo_pedido.strip():
         pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == codigo_pedido.strip()).first()
@@ -200,6 +209,8 @@ async def api_crear_lead(
 
     _pedido_recibio_lead(pedido)
     db.commit()
+    if background_tasks is not None and lead.cv_path and pedido:
+        background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, pedido))
 
     return {
         "id": lead.id, "nombre_completo": lead.nombre_completo,
@@ -209,8 +220,8 @@ async def api_crear_lead(
 
 
 @router.patch("/api/leads/{lead_id}")
-async def api_actualizar_lead(lead_id: int, request: Request, db: Session = Depends(get_db),
-                               _=Depends(_verificar_api_key)):
+async def api_actualizar_lead(lead_id: int, request: Request, background_tasks: BackgroundTasks,
+                               db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
     """n8n va completando acá los datos que obtiene en la conversación de
     WhatsApp (nombre, correo, celular, distrito) — solo actualiza los campos
     que vengan en el body JSON, deja el resto tal cual. Campos aceptados:
@@ -238,12 +249,14 @@ async def api_actualizar_lead(lead_id: int, request: Request, db: Session = Depe
             lead.pedido_id = pedido.id
     db.commit()
     db.refresh(lead)
+    if lead.cv_path and lead.pedido_id and not lead.analisis_ia:
+        background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, lead.pedido))
     return {"id": lead.id, "nombre_completo": lead.nombre_completo, "incompleto": lead_incompleto(lead)}
 
 
 @router.post("/api/leads/{lead_id}/cv")
-async def api_subir_cv_lead(lead_id: int, cv: UploadFile = File(...), db: Session = Depends(get_db),
-                             _=Depends(_verificar_api_key)):
+async def api_subir_cv_lead(lead_id: int, background_tasks: BackgroundTasks, cv: UploadFile = File(...),
+                             db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
     """Sube (o reemplaza) el CV de un lead ya creado — para cuando llega
     por WhatsApp después del primer contacto, en vez de junto con el resto
     de los datos en POST /api/leads."""
@@ -252,8 +265,44 @@ async def api_subir_cv_lead(lead_id: int, cv: UploadFile = File(...), db: Sessio
         raise HTTPException(404, "Lead no encontrado.")
     contenido = await cv.read()
     _guardar_cv_lead(lead, cv.filename or "cv", contenido)
+    lead.estrellas = None
+    lead.analisis_ia = None  # CV nuevo: el análisis anterior ya no aplica
     db.commit()
+    if lead.pedido_id:
+        background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, lead.pedido))
     return {"id": lead.id, "cv_adjunto": True, "incompleto": lead_incompleto(lead)}
+
+
+@router.get("/api/leads/{lead_id}/cv")
+def api_descargar_cv(lead_id: int, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
+    """El archivo del CV tal cual (PDF o Word), para que n8n lo mande a la IA."""
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
+        raise HTTPException(404, "El lead no tiene CV.")
+    return FileResponse(lead.cv_path, filename=lead.cv_filename or "cv")
+
+
+@router.get("/api/leads/{lead_id}/cv-texto")
+def api_cv_texto(lead_id: int, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
+    """Texto plano del CV (.docx o .pdf con texto). Para un .doc antiguo o un
+    PDF escaneado devuelve `texto` vacío: n8n debe mandar el archivo a la IA."""
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
+        raise HTTPException(404, "El lead no tiene CV.")
+    texto = bajas.extraer_texto_cv(lead.cv_path)
+    return {"id": lead.id, "cv_filename": lead.cv_filename, "caracteres": len(texto), "texto": texto}
+
+
+@router.post("/api/leads/{lead_id}/baja")
+def api_baja_lead(lead_id: int, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
+    """El candidato escribió BAJA por WhatsApp: se borran sus datos (lead, CV,
+    conversación, historial de descartes) y su número entra a la lista de «no
+    contactar» como hash. Si ya está en Selección/Oferta NO se borra: se marca
+    para que RR.HH. decida (`eliminado: false`). Ver app/bajas.py."""
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead:
+        raise HTTPException(404, "Lead no encontrado (¿ya se dio de baja?).")
+    return bajas.ejecutar_baja(db, lead)
 
 
 @router.post("/api/leads/{lead_id}/conversacion")
