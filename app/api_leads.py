@@ -282,6 +282,24 @@ def api_descargar_cv(lead_id: int, db: Session = Depends(get_db), _=Depends(_ver
     return FileResponse(lead.cv_path, filename=lead.cv_filename or "cv")
 
 
+@router.get("/api/leads/{lead_id}/cv-base64")
+def api_cv_base64(lead_id: int, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
+    """El CV como JSON (base64) para mandarlo a la IA desde n8n sin manejar
+    archivos binarios (más simple y confiable dentro de un flujo)."""
+    import base64
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead or not lead.cv_path or not os.path.exists(lead.cv_path):
+        raise HTTPException(404, "El lead no tiene CV.")
+    with open(lead.cv_path, "rb") as f:
+        contenido = f.read()
+    nombre = (lead.cv_filename or lead.cv_path).lower()
+    tipo = "application/pdf" if nombre.endswith(".pdf") else (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if nombre.endswith(".docx")
+        else "application/msword")
+    return {"id": lead.id, "cv_filename": lead.cv_filename, "media_type": tipo, "bytes": len(contenido),
+            "base64": base64.b64encode(contenido).decode("ascii")}
+
+
 @router.get("/api/leads/{lead_id}/cv-texto")
 def api_cv_texto(lead_id: int, db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
     """Texto plano del CV (.docx o .pdf con texto). Para un .doc antiguo o un
