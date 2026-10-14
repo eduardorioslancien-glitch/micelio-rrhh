@@ -367,6 +367,9 @@ async def api_guardar_analisis_ia(lead_id: int, request: Request, db: Session = 
     if not lead:
         raise HTTPException(404, "Lead no encontrado.")
     payload = await request.json()
+    # Aviso de falla de n8n («⚠ No se pudo analizar…»): no pisa un análisis bueno que ya exista.
+    if str(payload.get("resumen") or "").startswith("⚠") and payload.get("estrellas") is None and lead.estrellas is not None:
+        return {"id": lead.id, "estrellas": lead.estrellas, "ignorado": True}
     estrellas = payload.get("estrellas")
     if estrellas is not None:
         try:

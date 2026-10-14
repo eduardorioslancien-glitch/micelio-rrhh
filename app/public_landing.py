@@ -166,7 +166,8 @@ async def landing_postular(request: Request, background_tasks: BackgroundTasks, 
     # Se arma el payload (y se lee lead_incompleto/pedido.empresa) ACÁ, con la
     # sesión todavía abierta — la BackgroundTask ya no puede tocar objetos ORM.
     payload_n8n = _payload_lead_para_n8n(lead, pedido)
-    background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead))
+    # También avisa si solo falta el distrito (el formulario web no lo pide): n8n se lo pregunta por WhatsApp.
+    background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead) or not lead.distrito)
     background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, pedido))
 
     return RedirectResponse(f"/trabaja-con-nosotros/{pedido_id}/gracias", status_code=303)

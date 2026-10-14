@@ -231,6 +231,8 @@ def _notificar_lead_incompleto_n8n(payload: dict, incompleto: bool) -> None:
     los objetos ORM: para cuando esta función corre, la sesión del request
     (Depends(get_db)) ya se cerró, y tocar una relación no cargada todavía
     sobre un objeto fuera de sesión revienta con DetachedInstanceError."""
+    # `incompleto` = faltan datos obligatorios o, desde el 14/10, solo el distrito
+    # (necesario para comparar contra la zona de la base en el análisis del CV).
     if not payload.get("celular") or not incompleto:
         return
     from . import n8n

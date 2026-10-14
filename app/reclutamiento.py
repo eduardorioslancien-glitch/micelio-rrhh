@@ -42,6 +42,8 @@ CARGOS_REQUIEREN_BASE = ["tecnico", "técnico", "guardian", "guardián", "lider 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 templates.env.filters["lima"] = _a_lima
+from . import disc as _disc
+templates.env.globals["interpretar_disc"] = _disc.interpretar
 router = APIRouter()
 
 ESTADO_LABELS = dict(ESTADOS_PEDIDO)
@@ -476,7 +478,7 @@ async def leads_crear(background_tasks: BackgroundTasks,
         _pedido_recibio_lead(pedido)
         db.commit()
     payload_n8n = _payload_lead_para_n8n(lead, pedido)
-    background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead))
+    background_tasks.add_task(_notificar_lead_incompleto_n8n, payload_n8n, lead_incompleto(lead) or not lead.distrito)
     if lead.cv_path and pedido:
         background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, pedido))
 
@@ -541,12 +543,16 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
     disc_respuestas_guardadas = (lead.entrevista_data or {}).get("disc_respuestas") or {}
     entrevistadores = db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all()
     pedido_base_distritos = (lead.pedido.base.distritos or []) if lead.pedido and lead.pedido.base else []
+    from .models import LlamadaN8n
+    ultimo_analisis = (db.query(LlamadaN8n)
+                       .filter(LlamadaN8n.evento == "analizar_cv", LlamadaN8n.lead_id == lead.id)
+                       .order_by(LlamadaN8n.id.desc()).first())
     return templates.TemplateResponse(request, "rrhh_lead_detalle.html", _ctx(
         request, user, lead=lead, cargo=cargo, disc_preguntas=DISC_PREGUNTAS,
         disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado,
         disc_respuestas_guardadas=disc_respuestas_guardadas, entrevistadores=entrevistadores,
         clasificaciones=CLASIFICACIONES_LEAD, lead_incompleto=lead_incompleto(lead),
-        pedido_base_distritos=pedido_base_distritos, active="leads",
+        pedido_base_distritos=pedido_base_distritos, ultimo_analisis=ultimo_analisis, active="leads",
     ))
 
 

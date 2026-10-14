@@ -1,0 +1,31 @@
+{# Resultado DISC explicado. Uso: {% set disc = <dict D/I/S/C/perfil_dominante> %}{% include "_disc_explicado.html" %} #}
+{% set info = interpretar_disc(disc) %}
+{% if info %}
+<div style="margin-top:12px; padding:14px 16px; border:1px solid #d9dfe8; border-radius:10px; background:#fafbfd;">
+  <p style="margin:0 0 12px;"><strong>Lectura del perfil.</strong> {{ info.resumen }}</p>
+  {% for d in info.dimensiones %}
+  <div style="margin:0 0 14px;">
+    <div style="display:flex; justify-content:space-between; gap:8px; align-items:baseline;">
+      <span><strong>{{ d.clave }} · {{ d.nombre }}</strong>
+        <span class="muted" style="font-size:12px;">— {{ d.lema }}</span></span>
+      <span style="white-space:nowrap;"><strong>{{ d.pct }}%</strong>
+        <span class="muted" style="font-size:12px;">· {{ d.nivel }}</span></span>
+    </div>
+    <div style="background:#e4e8ef; height:8px; border-radius:4px; margin:5px 0 6px;">
+      <div style="height:8px; border-radius:4px; width:{{ d.ancho }}%; background:{{ '#1e4aa8' if d.es_primario else '#8fa3c7' }};"></div>
+    </div>
+    <div style="font-size:14px;">{{ d.texto }}</div>
+    <details style="margin-top:4px;">
+      <summary class="muted" style="cursor:pointer; font-size:13px;">Fortalezas, qué vigilar y cómo conversar</summary>
+      <ul style="margin:6px 0 0 18px; font-size:13px;">
+        <li><strong>Fortalezas:</strong> {{ d.fortalezas }}</li>
+        <li><strong>Qué vigilar:</strong> {{ d.vigilar }}</li>
+        <li><strong>Cómo comunicarse:</strong> {{ d.comunicacion }}</li>
+        <li><strong>Rinde bien en:</strong> {{ d.entornos }}</li>
+      </ul>
+    </details>
+  </div>
+  {% endfor %}
+  <p class="muted" style="margin:0; font-size:12px;">{{ info.cautela }}</p>
+</div>
+{% endif %}

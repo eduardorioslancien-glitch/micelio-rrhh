@@ -44,14 +44,7 @@
 
     {% if ficha.get('disc_resultado') %}
     <div class="section-title" style="margin-top:14px;">Evaluación DISC</div>
-    <div class="kpi-grid">
-      {% for dim, label in disc_dimensiones.items() %}
-      <div class="kpi-card">
-        <div class="kpi-value">{{ ficha.disc_resultado.get(dim, 0) }}%</div>
-        <div class="kpi-label">{{ label }}</div>
-      </div>
-      {% endfor %}
-    </div>
+    {% set disc = ficha.disc_resultado %}{% include "_disc_explicado.html" %}
     {% endif %}
 
     {% if ficha.get('competencias_entrevista') %}

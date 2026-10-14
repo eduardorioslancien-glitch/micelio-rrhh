@@ -86,6 +86,10 @@
     </p>
     {% if lead.analisis_ia %}<p style="white-space:pre-wrap;">{{ lead.analisis_ia }}</p>{% endif %}
     <p class="muted" style="font-size:12px; margin:8px 0;">La IA solo apoya: no descarta ni aprueba a nadie. La decisión es de RR.HH.</p>
+    {% if ultimo_analisis %}
+    <p class="muted" style="font-size:12px; margin:0 0 8px;">Último pedido de análisis: {{ (ultimo_analisis.created_at|lima).strftime("%d/%m %H:%M") }} —
+      {% if ultimo_analisis.ok %}n8n lo recibió.{% else %}<span style="color:var(--red,#b42318);">falló: {{ ultimo_analisis.error or 'sin detalle' }}</span>{% endif %}</p>
+    {% endif %}
     {% if lead.cv_path %}
     <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/analizar-cv" style="margin:0;">
       <button class="btn small secondary" type="submit">Volver a analizar el CV</button>
@@ -97,6 +101,10 @@
     <h2>Análisis de CV (IA)</h2>
     {% if lead.cv_path and lead.pedido_id %}
     <p class="muted">Todavía no hay análisis del CV. Se genera solo al recibir el CV; si no aparece, pídelo ahora:</p>
+    {% if ultimo_analisis %}
+    <p class="muted" style="font-size:12px;">Último pedido: {{ (ultimo_analisis.created_at|lima).strftime("%d/%m %H:%M") }} —
+      {% if ultimo_analisis.ok %}n8n lo recibió (si no llega el resultado, revisa la ejecución del flujo «Analizar CV» en n8n).{% else %}<span style="color:var(--red,#b42318);">falló: {{ ultimo_analisis.error or 'sin detalle' }}</span>{% endif %}</p>
+    {% endif %}
     <form method="post" action="/rrhh/reclutamiento/leads/{{ lead.id }}/analizar-cv" style="margin:0;">
       <button class="btn small" type="submit">Analizar CV</button>
     </form>
@@ -179,30 +187,32 @@
       <div class="section-title" style="margin-top:18px;">Evaluación DISC</div>
       <p class="hint">Que el candidato responda qué tanto lo describe cada frase (1 = nada, 5 = totalmente) — se puede llenar junto con él en la entrevista.</p>
       {% set dr = (lead.entrevista_data or {}).get('disc') or {} %}
-      <table>
-        <tr><th>Afirmación</th><th style="width:200px;">1 (nada) — 5 (totalmente)</th></tr>
-        {% for pid, dim, texto in disc_preguntas %}
-        <tr>
-          <td>{{ texto }}</td>
-          <td>
-            <select name="disc_{{ pid }}">
+      <style>
+        .disc-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 28px; }
+        .disc-item { display:flex; gap:10px; align-items:center; justify-content:space-between;
+                     padding:6px 0; border-bottom:1px solid #e8ecf3; }
+        .disc-item span { flex:1; font-size:14px; }
+        .disc-item select { width:64px; flex:none; }
+        @media (max-width: 760px) { .disc-grid { grid-template-columns:1fr; } }
+      </style>
+      <div class="disc-grid">
+        {% for col in (disc_preguntas[:10], disc_preguntas[10:]) %}
+        <div>
+          {% for pid, dim, texto in col %}
+          <div class="disc-item">
+            <span>{{ texto }}</span>
+            <select name="disc_{{ pid }}" title="1 = nada, 5 = totalmente">
               <option value="">—</option>
               {% for n in [1,2,3,4,5] %}<option value="{{ n }}" {{ 'selected' if disc_respuestas_guardadas.get(pid)|string == n|string else '' }}>{{ n }}</option>{% endfor %}
             </select>
-          </td>
-        </tr>
-        {% endfor %}
-      </table>
-      {% if disc_resultado %}
-      <div class="kpi-grid" style="margin-top:14px;">
-        {% for dim, label in disc_dimensiones.items() %}
-        <div class="kpi-card">
-          <div class="kpi-value">{{ disc_resultado.get(dim, 0) }}%</div>
-          <div class="kpi-label">{{ label }}</div>
+          </div>
+          {% endfor %}
         </div>
         {% endfor %}
       </div>
-      <p class="muted" style="margin-top:8px;">Perfil dominante: <strong>{{ disc_dimensiones.get(disc_resultado.get('perfil_dominante'), '—') }}</strong></p>
+      {% if disc_resultado %}
+      <div class="section-title" style="margin-top:14px;">Resultado DISC</div>
+      {% set disc = disc_resultado %}{% include "_disc_explicado.html" %}
       {% endif %}
 
       <div class="field" style="margin-top:14px;"><label>Conclusión de la entrevista</label><textarea name="conclusion" rows="3">{{ (lead.entrevista_data or {}).get('conclusion') or '' }}</textarea></div>
