@@ -21,7 +21,11 @@
   {% elif request.query_params.get('ok') == 'sin_entrevistador' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección. No se eligió a nadie para la segunda entrevista todavía — puedes asignarla más tarde desde Selección.</p></div>
   {% elif request.query_params.get('ok') == 'analisis_solicitado' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Pedimos el análisis del CV. En unos segundos aparecerá aquí abajo; si no, recarga la página.</p></div>
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Pedimos el análisis del CV. En unos segundos aparecerá aquí abajo; la página se actualiza sola.</p></div>
+  {% set intento = (request.query_params.get('n') or '0')|int %}
+  {% if not lead.analisis_ia and not lead.estrellas and intento < 8 %}
+  <script>setTimeout(function(){ location.replace(location.pathname + "?ok=analisis_solicitado&n={{ intento + 1 }}"); }, 5000);</script>
+  {% endif %}
   {% elif request.query_params.get('ok') == 'analisis_sin_cv' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Este candidato todavía no tiene CV adjunto.</p></div>
   {% elif request.query_params.get('ok') == 'analisis_sin_pedido' %}

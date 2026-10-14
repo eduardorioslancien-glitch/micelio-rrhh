@@ -501,8 +501,14 @@ def lead_analizar_cv(lead_id: int, background_tasks: BackgroundTasks, db: Sessio
     from . import n8n as n8n_mod
     if not n8n_mod.webhook_configurado("N8N_WEBHOOK_ANALIZAR_CV_URL"):
         return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_no_configurado", status_code=303)
+    # Un aviso de falla anterior («⚠ No se pudo analizar…») se quita para que no
+    # parezca el resultado del nuevo intento; un análisis bueno se conserva.
+    if (lead.analisis_ia or "").startswith("⚠"):
+        lead.analisis_ia = None
+        lead.estrellas = None
+        db.commit()
     background_tasks.add_task(_notificar_analizar_cv_n8n, _payload_analizar_cv(lead, lead.pedido))
-    return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_solicitado", status_code=303)
+    return RedirectResponse(f"/rrhh/reclutamiento/leads/{lead_id}?ok=analisis_solicitado&n=0", status_code=303)
 
 
 @router.post("/rrhh/reclutamiento/leads/{lead_id}/etapa")
