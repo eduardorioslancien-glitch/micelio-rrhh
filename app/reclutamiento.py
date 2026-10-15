@@ -999,6 +999,47 @@ def _ya_lleno_ficha(emp: Employee) -> bool:
     return bool((f.get("apellido_paterno") or "").strip() and (f.get("nombres") or "").strip())
 
 
+def _es_flujo_nuevo(f: dict) -> bool:
+    """Candidato que llegó por el flujo del 15/10 (formulario + entrevista del
+    creador del pedido). Los anteriores siguen con segunda entrevista por enlace."""
+    return bool(f.get("lead_origen_id") or f.get("entrevista_cita"))
+
+
+def _contrato_firmado(emp: Employee) -> bool:
+    from .models import STATUS_FIRMADO
+    return any(d.doc_type == "contrato" and d.status == STATUS_FIRMADO for d in emp.documents)
+
+
+def _etapa_seleccion(emp: Employee, f: dict) -> tuple[str, str]:
+    """(clave, etiqueta) del punto del proceso en el que está el candidato."""
+    if f.get("seleccion_rrhh_confirmado") == "aprobado":
+        if _contrato_firmado(emp):
+            return "firmado", "Contrato firmado"
+        if f.get("contrato_enviado_at"):
+            return "contrato_enviado", "Contrato enviado, esperando firma"
+        if emp.completed_at or _ya_lleno_ficha(emp):
+            return "ficha_completa", "Ficha completa: falta enviar el contrato"
+        return "ficha_enviada", "Contratar: esperando que llene su ficha"
+    if _es_flujo_nuevo(f):
+        return "decidir", "Entrevista agendada: falta decidir"
+    return "legado", "Esperando evaluación"
+
+
+def registrar_contrato_firmado(db: Session, emp: Employee) -> None:
+    """Se llama cuando el postulante firma su contrato. Descuenta UNA vacante
+    del pedido (si llega a cero queda CUBIERTO) y deja constancia. A partir de
+    acá la persona aparece en Onboarding."""
+    f = dict(emp.ficha_data or {})
+    f["contrato_firmado_at"] = datetime.datetime.utcnow().isoformat(timespec="seconds")
+    if not f.get("vacante_descontada") and f.get("codigo_pedido_seleccion"):
+        pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
+        if pedido:
+            _pedido_cubre_vacante(pedido)
+        f["vacante_descontada"] = True
+    emp.ficha_data = f
+    db.commit()
+
+
 @router.get("/rrhh/reclutamiento/seleccion", response_class=HTMLResponse)
 def seleccion_list(request: Request, db: Session = Depends(get_db),
                     user: User = Depends(require_perm("seleccion", "ver"))):
@@ -1010,14 +1051,21 @@ def seleccion_list(request: Request, db: Session = Depends(get_db),
     # pipeline de reclutamiento (tiene codigo_pedido_seleccion) y todavía no
     # tiene una decisión final confirmada por RR.HH. (aprobado o descartado)
     # — la clasificación, si existe, se sigue mostrando para priorizar.
-    candidatos = [
-        e for e in db.query(Employee).filter(Employee.estado == "activo")
-        .order_by(Employee.nombre_completo).all()
-        if (e.ficha_data or {}).get("codigo_pedido_seleccion")
-        and (e.ficha_data or {}).get("seleccion_rrhh_confirmado") not in ("aprobado", "descartado")
-    ]
+    candidatos = []
+    for e in db.query(Employee).filter(Employee.estado == "activo").order_by(Employee.nombre_completo).all():
+        f = e.ficha_data or {}
+        if not f.get("codigo_pedido_seleccion"):
+            continue
+        if _es_flujo_nuevo(f):
+            # permanece en Selección hasta que firma el contrato (luego pasa a Onboarding)
+            if f.get("seleccion_rrhh_confirmado") == "descartado" or _contrato_firmado(e):
+                continue
+        elif f.get("seleccion_rrhh_confirmado") in ("aprobado", "descartado"):
+            continue
+        candidatos.append(e)
+    estados = {e.id: _etapa_seleccion(e, e.ficha_data or {}) for e in candidatos}
     return templates.TemplateResponse(request, "rrhh_seleccion.html", _ctx(
-        request, user, candidatos=candidatos, active="seleccion",
+        request, user, candidatos=candidatos, estados=estados, active="seleccion",
     ))
 
 
@@ -1037,10 +1085,18 @@ def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(
     entrevistador_actual = None
     if f.get("segunda_entrevista_entrevistador_id"):
         entrevistador_actual = db.query(Employee).get(f["segunda_entrevista_entrevistador_id"])
+    pedido = (db.query(PedidoPersonal).filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
+              if f.get("codigo_pedido_seleccion") else None)
+    lead = db.query(LeadCandidato).get(f["lead_origen_id"]) if f.get("lead_origen_id") else None
+    etapa_clave, etapa_texto = _etapa_seleccion(emp, f)
     return templates.TemplateResponse(request, "rrhh_seleccion_detalle.html", _ctx(
         request, user, e=emp, ficha=f, entrevistadores=entrevistadores,
         entrevistador_actual=entrevistador_actual, ya_lleno_ficha=_ya_lleno_ficha(emp),
-        disc_dimensiones=DISC_DIMENSIONES, active="seleccion",
+        disc_dimensiones=DISC_DIMENSIONES, nuevo=_es_flujo_nuevo(f), pedido=pedido, lead=lead,
+        etapa_clave=etapa_clave, etapa_texto=etapa_texto, legajo_completo=bool(emp.completed_at),
+        enlace_ficha=_public_base_url() + f"f/{emp.token}",
+        enlace_contrato=_public_base_url() + f"f/{emp.token}/contrato",
+        active="seleccion",
     ))
 
 
@@ -1077,7 +1133,7 @@ def seleccion_asignar(employee_id: int, entrevistador_id: int = Form(...),
 
 
 @router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-aprobado")
-def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db),
+def seleccion_confirmar_aprobado(employee_id: int, observaciones: str = Form(""), db: Session = Depends(get_db),
                                   user: User = Depends(require_perm("seleccion", "editar"))):
     """RR.HH. confirma el veredicto APROBADO del entrevistador — punto 1 del
     pedido (16/09): recién acá se le manda al candidato el enlace de
@@ -1089,15 +1145,22 @@ def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db)
     f = dict(emp.ficha_data or {})
     f["seleccion_aprobado"] = True
     f["seleccion_rrhh_confirmado"] = "aprobado"
+    f["contratar_at"] = datetime.datetime.utcnow().isoformat(timespec="seconds")
+    if observaciones.strip():
+        f["seleccion_observaciones"] = observaciones.strip()[:2000]
     emp.ficha_data = f
     db.commit()
 
     # Punto 1 del pedido (15/09): aprobar en Selección resta una vacante del
-    # pedido de origen; si llega a cero, el pedido pasa a CUBIERTO solo.
-    if f.get("codigo_pedido_seleccion"):
+    # pedido de origen. Desde el 15/10, en el flujo nuevo la vacante se descuenta
+    # recién cuando la persona FIRMA el contrato (registrar_contrato_firmado);
+    # el flujo anterior conserva el descuento al aprobar.
+    if f.get("codigo_pedido_seleccion") and not _es_flujo_nuevo(f):
         pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
         if pedido:
             _pedido_cubre_vacante(pedido)
+            f["vacante_descontada"] = True
+            emp.ficha_data = dict(f)
             db.commit()
 
     enlace = _public_base_url() + f"f/{emp.token}"
@@ -1167,7 +1230,7 @@ def seleccion_confirmar_aprobado(employee_id: int, db: Session = Depends(get_db)
 
 
 @router.post("/rrhh/reclutamiento/seleccion/{employee_id}/confirmar-descartado")
-def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_db),
+def seleccion_confirmar_descartado(employee_id: int, observaciones: str = Form(""), db: Session = Depends(get_db),
                                     user: User = Depends(require_perm("seleccion", "editar"))):
     """RR.HH. confirma el veredicto DESCARTADO del entrevistador (o descarta
     directamente un REVISAR) — punto 1 del pedido (16/09): a quien se
@@ -1181,20 +1244,30 @@ def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_d
     f = dict(emp.ficha_data or {})
 
     enviado = False
+    primer = emp.nombre_completo.split()[0] if emp.nombre_completo else ""
+    cuerpo = (
+        f"Hola {primer},\n\n"
+        "Queremos agradecerte de corazón el tiempo que dedicaste a nuestro proceso de selección y la "
+        "conversación que tuvimos contigo. Fue un gusto conocerte.\n\n"
+        "Después de evaluar con mucho cuidado a todas las personas que llegaron hasta esta etapa, hemos "
+        "decidido continuar con otro perfil para esta posición. Con esto damos por concluido tu proceso. "
+        "Sabemos que no es la noticia que esperabas, pero lo que mostraste nos dejó una muy buena impresión "
+        "y nos encantaría que sigas atento a futuras oportunidades en DIGETEL GROUP.\n\n"
+        "Te deseamos muchos éxitos en lo que viene.\n\n"
+        "Un abrazo,\nRecursos Humanos — DIGETEL GROUP"
+    )
     if emp.email:
-        cuerpo = (
-            f"Hola {emp.nombre_completo.split()[0] if emp.nombre_completo else ''},\n\n"
-            "Gracias por tu tiempo e interés en participar en el proceso de selección de DIGETEL "
-            "GROUP, y por la entrevista que tuviste con nuestro equipo.\n\n"
-            "Luego de revisar con cuidado tu postulación, en esta oportunidad hemos decidido "
-            "continuar el proceso con otro candidato cuyo perfil se ajusta un poco más a lo que "
-            "necesitamos para esta posición en particular. Esto no es en absoluto un reflejo de tu "
-            "valor profesional, y nos encantaría que sigas atento a futuras vacantes que calcen "
-            "mejor con tu perfil.\n\n"
-            "Te deseamos mucho éxito en tu búsqueda y en tus próximos pasos profesionales.\n\n"
-            "Saludos cordiales,\nRecursos Humanos — DIGETEL GROUP"
-        )
-        enviado = _enviar_correo([emp.email], "Sobre tu proceso de selección — DIGETEL GROUP", cuerpo)
+        # Primero por n8n (Gmail de trabajaconnosotros); si no está o falla, el SMTP de MICELIO.
+        from . import n8n as _n8n
+        resultado_n8n = _n8n.llamar_webhook("N8N_WEBHOOK_DESCARTAR_URL", {
+            "tipo": "seleccion", "employee_id": emp.id,
+            "nombre_completo": emp.nombre_completo, "email": emp.email,
+            "celular": _celular_completo(f), "cargo": f.get("vacante_cargo"), "empresa": emp.empresa,
+        }, evento="descartar")
+        if resultado_n8n and resultado_n8n.get("ok"):
+            enviado = True
+        else:
+            enviado = _enviar_correo([emp.email], "Gracias por tu tiempo — DIGETEL GROUP", cuerpo)
 
     wa_link = None
     wa_numero = _celular_completo(f)
@@ -1223,8 +1296,10 @@ def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_d
         db, nombre_completo=emp.nombre_completo, email=emp.email, celular=_celular_completo(f),
         empresa=emp.empresa, etapa_descarte="seleccion", codigo_pedido=f.get("codigo_pedido_seleccion"),
         vacante_cargo=f.get("vacante_cargo"),
-        motivo=f.get("segunda_entrevista_comentario"),
+        motivo=(observaciones.strip() or f.get("seleccion_observaciones") or f.get("segunda_entrevista_comentario")),
         datos_proceso={
+            "conclusion_ia": f.get("conclusion_ia"), "calificacion_final": f.get("calificacion_final"),
+            "entrevista_cita": f.get("entrevista_cita"),
             "clasificacion_entrevista": f.get("clasificacion_entrevista"),
             "disc_resultado": f.get("disc_resultado"),
             "competencias_entrevista": f.get("competencias_entrevista"),
@@ -1247,6 +1322,107 @@ def seleccion_confirmar_descartado(employee_id: int, db: Session = Depends(get_d
     if wa_link:
         destino += f"&wa={quote(wa_link)}"
     return RedirectResponse(destino, status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# ENVIAR CONTRATO (15/10): aparece cuando la persona terminó su ficha. Primero
+# se revisa en pantalla (borrador) y, si está bien, se envía a firma digital.
+# ---------------------------------------------------------------------------
+CAMPOS_REVISION_CONTRATO = [
+    ("empresa_razon_social", "Empresa"), ("empresa_ruc", "RUC"), ("nombre_completo", "Trabajador/a"),
+    ("tipo_documento", "Tipo de documento"), ("numero_documento", "N.º de documento"),
+    ("cargo", "Cargo"), ("area", "Área"), ("regimen_laboral_persona", "Régimen laboral"),
+    ("remuneracion", "Remuneración"), ("horario", "Horario"), ("jornada", "Jornada"),
+    ("fecha_ingreso", "Fecha de ingreso"), ("fecha_fin_contrato", "Fin del contrato"),
+    ("periodo_prueba_dias", "Periodo de prueba (días)"), ("direccion", "Dirección"),
+]
+
+
+def _campos_contrato(db: Session, emp: Employee) -> list[dict]:
+    from . import main as _main
+    campos = _main.build_doc_fields(emp, "contrato", db)
+    return [{"clave": k, "etiqueta": et, "valor": campos.get(k), "falta": not campos.get(k)} for k, et in CAMPOS_REVISION_CONTRATO]
+
+
+@router.get("/rrhh/reclutamiento/seleccion/{employee_id}/contrato", response_class=HTMLResponse)
+def seleccion_contrato_revision(request: Request, employee_id: int, db: Session = Depends(get_db),
+                                 user: User = Depends(require_perm("seleccion", "ver"))):
+    from .models import CONTRATO_LABELS_POR_REGIMEN, CONTRATO_LABEL_DEFAULT
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    f = emp.ficha_data or {}
+    regimen = (f.get("regimen_laboral_persona") or "").strip()
+    campos = _campos_contrato(db, emp)
+    return templates.TemplateResponse(request, "rrhh_contrato_revision.html", _ctx(
+        request, user, e=emp, ficha=f, campos=campos, faltan=[c for c in campos if c["falta"]],
+        titulo_doc=CONTRATO_LABELS_POR_REGIMEN.get(regimen, CONTRATO_LABEL_DEFAULT),
+        enlace_contrato=_public_base_url() + f"f/{emp.token}/contrato",
+        legajo_completo=bool(emp.completed_at), active="seleccion",
+    ))
+
+
+@router.get("/rrhh/reclutamiento/seleccion/{employee_id}/contrato/borrador.pdf")
+def seleccion_contrato_borrador(employee_id: int, db: Session = Depends(get_db),
+                                 user: User = Depends(require_perm("seleccion", "ver"))):
+    """Borrador del contrato para revisarlo dentro de la pantalla (inline)."""
+    from fastapi.responses import FileResponse
+    from . import main as _main
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    doc_fields = _main.build_doc_fields(emp, "contrato", db)
+    out_path = os.path.join(_main.GENERATED_DIR, f"contrato_revision_{emp.token}.pdf")
+    empresa_obj = emp.empresa_rel
+    _main.build_pdf(
+        doc_type="contrato", fields=doc_fields, signature_image_path="",
+        signed_at="(borrador — pendiente de firma)", ip="", hash_="(pendiente)", out_path=out_path,
+        empresa_nombre=empresa_obj.nombre if empresa_obj else emp.empresa,
+        representante_legal=empresa_obj.representante_legal if empresa_obj else None,
+        firma_empresa_path=empresa_obj.firma_representante_path if empresa_obj else None,
+    )
+    return FileResponse(out_path, media_type="application/pdf", content_disposition_type="inline")
+
+
+@router.post("/rrhh/reclutamiento/seleccion/{employee_id}/enviar-contrato")
+def seleccion_enviar_contrato(employee_id: int, db: Session = Depends(get_db),
+                               user: User = Depends(require_perm("seleccion", "editar"))):
+    """Confirmado en pantalla: manda el enlace de firma al postulante por
+    WhatsApp y correo (n8n) y deja constancia."""
+    from .models import CONTRATO_LABELS_POR_REGIMEN, CONTRATO_LABEL_DEFAULT
+    from . import n8n as _n8n
+    emp = db.query(Employee).get(employee_id)
+    if not emp:
+        raise HTTPException(404)
+    f = dict(emp.ficha_data or {})
+    if f.get("seleccion_rrhh_confirmado") != "aprobado":
+        raise HTTPException(400, "Primero hay que contratar al candidato.")
+    if _contrato_firmado(emp):
+        return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}?ok=contrato_ya_firmado", status_code=303)
+    regimen = (f.get("regimen_laboral_persona") or "").strip()
+    titulo = CONTRATO_LABELS_POR_REGIMEN.get(regimen, CONTRATO_LABEL_DEFAULT)
+    enlace = _public_base_url() + f"f/{emp.token}/contrato"
+    primer = emp.nombre_completo.split()[0] if emp.nombre_completo else ""
+    celular = _celular_completo(f)
+    resultado = None
+    if _n8n.webhook_configurado("N8N_WEBHOOK_CONTRATO_URL"):
+        resultado = _n8n.llamar_webhook("N8N_WEBHOOK_CONTRATO_URL", {
+            "employee_id": emp.id, "nombre_completo": emp.nombre_completo, "primer_nombre": primer,
+            "email": emp.email, "celular": celular, "cargo": f.get("vacante_cargo"),
+            "cargo_legible": (f.get("vacante_cargo") or "").title(), "empresa": emp.empresa,
+            "tipo_documento": titulo, "enlace_contrato": enlace,
+        }, evento="contrato")
+    enviado_correo = False
+    if not (resultado and resultado.get("ok")) and emp.email:
+        cuerpo = (f"Hola {primer},\n\nTu {titulo.lower()} está listo para tu revisión y firma digital. "
+                  f"Ingresa aquí para leerlo y firmarlo:\n{enlace}\n\nSaludos,\nRecursos Humanos — DIGETEL GROUP")
+        enviado_correo = _enviar_correo([emp.email], f"Tu {titulo} — DIGETEL GROUP", cuerpo)
+    f["contrato_enviado_at"] = datetime.datetime.utcnow().isoformat(timespec="seconds")
+    f["contrato_enviado_por"] = user.nombre_completo
+    emp.ficha_data = f
+    db.commit()
+    via = "n8n" if (resultado and resultado.get("ok")) else ("correo" if enviado_correo else "enlace")
+    return RedirectResponse(f"/rrhh/reclutamiento/seleccion/{employee_id}?ok=contrato_enviado&via={via}", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -1327,6 +1503,9 @@ def onboarding_overview(request: Request, db: Session = Depends(get_db),
     total_etapas = len(ETAPAS_ONBOARDING)
     resumen = []
     for e in empleados:
+        fe = e.ficha_data or {}
+        if _es_flujo_nuevo(fe) and not _contrato_firmado(e):
+            continue  # sigue en Selección: entra a Onboarding al firmar su contrato
         completadas = {r.etapa for r in e.onboarding if r.estado == "completado"}
         resumen.append({"e": e, "completadas": len(completadas), "total": total_etapas})
     return templates.TemplateResponse(request, "rrhh_onboarding.html", _ctx(

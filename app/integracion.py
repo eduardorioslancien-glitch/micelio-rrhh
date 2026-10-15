@@ -55,6 +55,9 @@ CONFIGURACION = [
     ("N8N_WEBHOOK_CONCLUSION_URL", "Webhook «Conclusión con IA»",
      "n8n redacta con IA la conclusión (CV + competencias + DISC + cargo) cuando el postulante responde.",
      "Queda la conclusión automática de MICELIO, más breve y sin IA."),
+    ("N8N_WEBHOOK_CONTRATO_URL", "Webhook «Enviar contrato»",
+     "n8n manda al postulante el enlace para revisar y firmar su contrato por WhatsApp y correo.",
+     "El contrato se envía por el correo de MICELIO (si está configurado) o se copia el enlace a mano."),
 ]
 PRUEBAS = {
     "nuevo_lead": "N8N_WEBHOOK_NUEVO_LEAD_URL",
@@ -64,6 +67,7 @@ PRUEBAS = {
     "analizar_cv": "N8N_WEBHOOK_ANALIZAR_CV_URL",
     "cuestionario": "N8N_WEBHOOK_CUESTIONARIO_URL",
     "conclusion": "N8N_WEBHOOK_CONCLUSION_URL",
+    "contrato": "N8N_WEBHOOK_CONTRATO_URL",
 }
 
 

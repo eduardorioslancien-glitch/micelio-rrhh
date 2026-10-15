@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisar contrato — {{ e.nombre_completo }} — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=17">
+<style>
+  .rev-grid { display:grid; grid-template-columns:minmax(260px,340px) 1fr; gap:16px; align-items:start; }
+  .rev-grid iframe { width:100%; height:78vh; border:1px solid #d9dfe8; border-radius:10px; background:#fff; }
+  @media (max-width: 900px) { .rev-grid { grid-template-columns:1fr; } .rev-grid iframe { height:60vh; } }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <a class="btn secondary" href="/rrhh/reclutamiento/seleccion/{{ e.id }}">&larr; Volver al candidato</a>
+
+  <div class="card" style="margin-top:16px;">
+    <h2 style="margin-top:0;">Revisar {{ titulo_doc|lower }} · {{ e.nombre_completo }}</h2>
+    <p class="muted">Lee el documento completo. Si todo está correcto, confírmalo y se enviará al postulante para su firma digital.
+      Si hay un error, corrígelo primero en su <a href="/rrhh/personal/{{ e.id }}">ficha de Personal</a>: el contrato se arma con esos datos.</p>
+    {% if faltan %}
+    <div style="background:var(--yellow-bg); border:1px solid var(--yellow); border-radius:8px; padding:10px 14px; margin-bottom:12px; color:var(--yellow);">
+      <strong>Faltan datos que el contrato necesita:</strong>
+      {% for c in faltan %}{{ c.etiqueta }}{{ ', ' if not loop.last else '.' }}{% endfor %}
+      Complétalos en la ficha antes de enviar.
+    </div>
+    {% endif %}
+    {% if not legajo_completo %}
+    <p class="hint" style="color:var(--yellow);">Ojo: la persona todavía no firmó todos los documentos de su legajo.</p>
+    {% endif %}
+  </div>
+
+  <div class="rev-grid">
+    <div class="card" style="margin:0;">
+      <h3 style="margin-top:0;">Datos principales</h3>
+      <table>
+        {% for c in campos %}
+        <tr>
+          <td style="width:46%;"><strong>{{ c.etiqueta }}</strong></td>
+          <td>{% if c.falta %}<span style="color:var(--yellow);">falta</span>{% else %}{{ c.valor }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/enviar-contrato" style="margin-top:16px;"
+            onsubmit="return confirm('¿El contrato está correcto? Se enviará a {{ e.nombre_completo }} para su firma digital.');">
+        <button class="btn" type="submit" style="width:100%;">CONFIRMAR Y ENVIAR A FIRMA</button>
+      </form>
+      <p class="hint">Se envía por WhatsApp y correo. Enlace de firma:<br>
+        <input type="text" readonly value="{{ enlace_contrato }}" onclick="this.select()" style="width:100%; font-size:12px;"></p>
+    </div>
+    <div>
+      <iframe src="/rrhh/reclutamiento/seleccion/{{ e.id }}/contrato/borrador.pdf" title="Borrador del contrato"></iframe>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

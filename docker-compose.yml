@@ -41,6 +41,7 @@ services:
       # Formulario de Competencias + DISC del postulante y conclusión con IA (15/10).
       - N8N_WEBHOOK_CUESTIONARIO_URL=${N8N_WEBHOOK_CUESTIONARIO_URL:-}
       - N8N_WEBHOOK_CONCLUSION_URL=${N8N_WEBHOOK_CONCLUSION_URL:-}
+      - N8N_WEBHOOK_CONTRATO_URL=${N8N_WEBHOOK_CONTRATO_URL:-}
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
       # Base de los enlaces públicos que MICELIO manda (ficha, contrato, formulario). Sin esto
       # los enlaces salían como http://127.0.0.1:8000.

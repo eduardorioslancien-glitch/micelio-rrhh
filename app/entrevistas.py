@@ -124,6 +124,17 @@ def enviar_a_entrevista(lead_id: int, sin_formulario: str = Form(""), db: Sessio
     comp = _competencias_resueltas(lead, db)
     if comp:
         ficha["competencias_entrevista"] = comp
+    # El celular del postulante viaja a su ficha: hace falta para mandarle por
+    # WhatsApp la ficha y el contrato antes de que la llene.
+    from .telefono import solo_digitos_whatsapp
+    digitos = solo_digitos_whatsapp(lead.celular or "") or ""
+    if digitos:
+        if len(digitos) > 9:
+            ficha["celular_codigo"] = "+" + digitos[:-9]
+            ficha["celular"] = digitos[-9:]
+        else:
+            ficha["celular_codigo"] = "+51"
+            ficha["celular"] = digitos
     ficha.update({
         "lead_origen_id": lead.id,
         "conclusion_ia": lead.conclusion_ia, "calificacion_final": lead.calificacion_final,

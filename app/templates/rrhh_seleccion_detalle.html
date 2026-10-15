@@ -15,6 +15,12 @@
   {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor, o falta un correo cargado).</p></div>
   {% endif %}
+  {% if request.query_params.get('ok') == 'contrato_enviado' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">
+    Contrato enviado a firma {% if request.query_params.get('via') == 'n8n' %}por WhatsApp y correo.{% elif request.query_params.get('via') == 'correo' %}por correo.{% else %}(no hay envío automático configurado: copia el enlace de firma de abajo y mándaselo).{% endif %}</p></div>
+  {% elif request.query_params.get('ok') == 'contrato_ya_firmado' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El contrato ya está firmado.</p></div>
+  {% endif %}
   {% if request.query_params.get('wa_auto') %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Mensaje de WhatsApp enviado automáticamente al candidato.</p></div>
   {% endif %}
@@ -28,7 +34,8 @@
   <div class="card" style="margin-top:16px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h2 style="margin:0;">{{ e.nombre_completo }}</h2>
-      {% if ficha.get('seleccion_rrhh_confirmado') == 'aprobado' %}
+      {% if nuevo %}<span class="badge pendiente">{{ etapa_texto }}</span>
+      {% elif ficha.get('seleccion_rrhh_confirmado') == 'aprobado' %}
       <span class="badge firmado">APROBADO</span>
       {% elif ficha.get('seleccion_rrhh_confirmado') == 'descartado' %}
       <span class="badge cancelado">DESCARTADO</span>
@@ -63,6 +70,114 @@
     {% endif %}
   </div>
 
+  {% if nuevo %}
+  {% set cita = ficha.get('entrevista_cita') or {} %}
+  <div class="card">
+    <h2>Entrevista</h2>
+    <table>
+      <tr><td style="width:220px;"><strong>Fecha y hora</strong></td><td>{{ cita.get('fecha_hora') or '—' }} <span class="muted">(hora de Lima)</span></td></tr>
+      <tr><td><strong>Entrevista</strong></td><td>{{ ficha.get('entrevistador_pedido_nombre') or '—' }}
+        <span class="muted">· {{ ficha.get('entrevistador_pedido_email') or 'sin correo' }}</span></td></tr>
+      <tr><td><strong>Google Meet</strong></td><td>{% if cita.get('meet_link') %}<a href="{{ cita.meet_link }}" target="_blank" rel="noopener">{{ cita.meet_link }}</a>{% else %}—{% endif %}</td></tr>
+    </table>
+  </div>
+
+  {% if pedido %}
+  <div class="card">
+    <h2>Condiciones del pedido <span class="muted" style="font-size:13px; font-weight:400;">· {{ pedido.codigo }}</span></h2>
+    <table>
+      <tr><td style="width:220px;"><strong>Cargo</strong></td><td>{{ pedido.cargo_solicitado }}{% if pedido.area %} <span class="muted">· {{ pedido.area }}</span>{% endif %}</td></tr>
+      <tr><td><strong>Modalidad</strong></td><td>{{ pedido.modalidad or '—' }}{% if pedido.tipo_contrato %} · {{ pedido.tipo_contrato }}{% endif %}</td></tr>
+      <tr><td><strong>Sueldo base</strong></td><td>{% if pedido.sueldo_base_ofrecido %}S/ {{ '%.2f'|format(pedido.sueldo_base_ofrecido) }}{% else %}—{% endif %}</td></tr>
+      {% if pedido.conceptos_lista %}
+      <tr><td><strong>Conceptos</strong></td><td>
+        {% for c in pedido.conceptos_lista %}{{ c.concepto or c.nombre }}: S/ {{ '%.2f'|format(c.importe or 0) }}{{ '; ' if not loop.last else '' }}{% endfor %}
+      </td></tr>
+      {% endif %}
+      {% if pedido.comision_ofrecida %}<tr><td><strong>Comisión mensual</strong></td><td>S/ {{ '%.2f'|format(pedido.comision_ofrecida) }}
+        {% if pedido.comision_pdf_path %}· <a href="/rrhh/reclutamiento/pedidos/{{ pedido.id }}/comision.pdf" target="_blank">ver esquema (PDF)</a>{% endif %}</td></tr>{% endif %}
+      <tr><td><strong>Horario</strong></td><td>{{ pedido.horario.nombre if pedido.horario else '—' }}{% if pedido.horario %} <span class="muted">· {{ pedido.horario.resumen }}</span>{% endif %}</td></tr>
+      <tr><td><strong>Base / zona</strong></td><td>{{ pedido.base.nombre if pedido.base else '—' }}</td></tr>
+      <tr><td><strong>Vacantes pendientes</strong></td><td>{{ pedido.cantidad }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Resultado de la evaluación</h2>
+    {% if ficha.get('calificacion_final') %}
+    {% set cf = (ficha.calificacion_final + 0.5)|int %}
+    <p style="font-size:22px; margin:4px 0;">{% for i in range(1,6) %}{{ '★' if i <= cf else '☆' }}{% endfor %}
+      <span class="muted" style="font-size:14px;">Calificación final {{ ficha.calificacion_final }}/5
+        {% if ficha.get('cv_estrellas') %}· CV {{ ficha.cv_estrellas }}/5{% endif %}</span></p>
+    {% endif %}
+    {% if ficha.get('conclusion_ia') %}
+    <div class="section-title">Conclusión de MICELIO</div>
+    <p style="white-space:pre-wrap;">{{ ficha.conclusion_ia }}</p>
+    {% endif %}
+    {% if ficha.get('cv_analisis') %}
+    <details><summary class="muted" style="cursor:pointer; font-size:13px;">Análisis del CV</summary>
+      <p style="white-space:pre-wrap;">{{ ficha.cv_analisis }}</p></details>
+    {% endif %}
+  </div>
+
+  {% if lead and lead.conversacion_whatsapp %}
+  <div class="card">
+    <h2>Conversación de WhatsApp</h2>
+    <div style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+      {% for m in lead.conversacion_whatsapp %}
+      <div style="align-self:{{ 'flex-end' if m.rol == 'sistema' else 'flex-start' }}; max-width:75%; padding:8px 12px; border-radius:10px; background:{{ 'var(--green-bg)' if m.rol == 'sistema' else '#f0f0f0' }};">
+        <div style="font-size:11px; opacity:.7;">{{ 'DIGETEL GROUP' if m.rol == 'sistema' else e.nombre_completo }} — {{ m.ts }}</div>
+        <div>{{ m.texto }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% set decidido = ficha.get('seleccion_rrhh_confirmado') %}
+  <div class="card">
+    <h2>{{ 'Decisión' if not decidido else 'Seguimiento de la contratación' }}</h2>
+    {% if not decidido %}
+    <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-aprobado" id="form-decision">
+      <div class="field"><label>Observaciones de la entrevista</label>
+        <textarea name="observaciones" rows="4" style="width:100%; box-sizing:border-box;"
+          placeholder="Lo que vio quien entrevistó, acuerdos, dudas…">{{ ficha.get('seleccion_observaciones') or '' }}</textarea></div>
+      <button class="btn" type="submit"
+              onclick="return confirm('¿CONTRATAR a {{ e.nombre_completo }}? Se le enviará automáticamente el enlace para llenar su ficha de datos.');">CONTRATAR</button>
+      <button class="btn secondary" type="submit" formaction="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-descartado"
+              onclick="return confirm('¿DESCARTAR a {{ e.nombre_completo }}? Se le enviará un mensaje de agradecimiento dando por concluido su proceso y quedará archivado.');">DESCARTAR</button>
+    </form>
+    {% else %}
+    {% if ficha.get('seleccion_observaciones') %}<p><strong>Observaciones:</strong> {{ ficha.seleccion_observaciones }}</p>{% endif %}
+    <ol style="line-height:2; padding-left:20px;">
+      <li>Contratar — ficha enviada <span class="muted">{{ (ficha.get('contratar_at') or '')[:16].replace('T', ' ') }}</span> ✔</li>
+      <li>{% if ya_lleno_ficha %}✔{% else %}⏳{% endif %} Ficha de datos {{ 'completada' if ya_lleno_ficha else 'pendiente' }}
+        {% if ya_lleno_ficha and not legajo_completo %}<span class="muted">· faltan documentos por firmar</span>{% endif %}</li>
+      <li>{% if ficha.get('contrato_enviado_at') %}✔ Contrato enviado a firma{% else %}⏳ Contrato por enviar{% endif %}</li>
+      <li>{% if etapa_clave == 'firmado' %}✔ Contrato firmado: ya está en Onboarding{% else %}⏳ Firma del contrato{% endif %}</li>
+    </ol>
+    <div class="field"><label>Enlace de la ficha</label>
+      <input type="text" readonly value="{{ enlace_ficha }}" onclick="this.select()" style="width:100%;"></div>
+    {% if etapa_clave != 'firmado' %}
+      {% if legajo_completo or ya_lleno_ficha %}
+      <a class="btn" href="/rrhh/reclutamiento/seleccion/{{ e.id }}/contrato">ENVIAR CONTRATO</a>
+      {% if not legajo_completo %}<p class="hint" style="color:var(--yellow);">La ficha está llena pero aún faltan documentos por firmar: puedes enviar el contrato igual, o esperar.</p>{% endif %}
+      {% else %}
+      <button class="btn" disabled title="Se habilita cuando la persona termina de llenar su ficha">ENVIAR CONTRATO</button>
+      <p class="hint">Se habilita cuando la persona termine de llenar su ficha.</p>
+      {% endif %}
+      {% if ficha.get('contrato_enviado_at') %}
+      <div class="field" style="margin-top:12px;"><label>Enlace de firma del contrato</label>
+        <input type="text" readonly value="{{ enlace_contrato }}" onclick="this.select()" style="width:100%;"></div>
+      {% endif %}
+    {% else %}
+    <a class="btn small" href="/rrhh/reclutamiento/onboarding">Ver en Onboarding</a>
+    {% endif %}
+    <a class="btn small secondary" style="margin-left:6px;" href="/rrhh/personal/{{ e.id }}">Ver ficha en Personal</a>
+    {% endif %}
+  </div>
+  {% else %}
   <div class="card">
     <h2>Segunda entrevista (con el área)</h2>
     <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/asignar" class="inline-form">
@@ -129,6 +244,8 @@
     </p>
     <a class="btn small" style="margin-top:10px;" href="/rrhh/personal/{{ e.id }}">Ir a la ficha de {{ e.nombre_completo }}</a>
   </div>
+  {% endif %}
+
   {% endif %}
 
 </div>

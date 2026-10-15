@@ -625,6 +625,13 @@ async def firmar_documento(token: str, doc_type: str, request: Request, db: Sess
             log_event(db, emp, "boletin_pensionario_error", request, meta={"error": str(e)})
 
     if doc_type == "contrato":
+        # Contrato firmado (15/10): descuenta la vacante del pedido y la persona
+        # pasa de Selección a Onboarding.
+        try:
+            from .reclutamiento import registrar_contrato_firmado
+            registrar_contrato_firmado(db, emp)
+        except Exception as e:
+            log_event(db, emp, "contrato_firmado_hook_error", request, meta={"error": str(e)})
         # El contrato ya no dispara el correo de "legajo completo" (no forma
         # parte de él) — se manda su propio correo con el PDF firmado (y el
         # anexo de Política de Subvención, si es un Convenio APE).
