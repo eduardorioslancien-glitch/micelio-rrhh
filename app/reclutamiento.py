@@ -558,7 +558,10 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
         disc_dimensiones=DISC_DIMENSIONES, disc_resultado=disc_resultado,
         disc_respuestas_guardadas=disc_respuestas_guardadas, entrevistadores=entrevistadores,
         clasificaciones=CLASIFICACIONES_LEAD, lead_incompleto=lead_incompleto(lead),
-        pedido_base_distritos=pedido_base_distritos, ultimo_analisis=ultimo_analisis, active="leads",
+        pedido_base_distritos=pedido_base_distritos, ultimo_analisis=ultimo_analisis,
+        cuestionario=lead.cuestionario_data or {},
+        cuestionario_enlace=(_public_base_url() + f"cuestionario/{lead.cuestionario_token}") if lead.cuestionario_token else "",
+        active="leads",
     ))
 
 

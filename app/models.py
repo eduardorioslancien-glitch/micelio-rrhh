@@ -1213,6 +1213,15 @@ class LeadCandidato(Base):
     # Cuándo pidió la BAJA (escribió «BAJA» por WhatsApp) y todavía no se pudo borrar
     # sola porque ya está en Selección/Oferta: RR.HH. debe resolverla a mano.
     baja_solicitada_at = Column(DateTime, nullable=True)
+    # Formulario del postulante (15/10): Competencias + DISC. Ver app/cuestionario.py.
+    cuestionario_token = Column(String(40), nullable=True, index=True)
+    cuestionario_enviado_at = Column(DateTime, nullable=True)
+    cuestionario_respondido_at = Column(DateTime, nullable=True)
+    cuestionario_data = Column(JSON, nullable=True)
+    conclusion_ia = Column(Text, nullable=True)
+    conclusion_origen = Column(String(10), nullable=True)  # auto | ia
+    conclusion_at = Column(DateTime, nullable=True)
+    calificacion_final = Column(Float, nullable=True)
 
     # Entrevista por Competencias + Evaluación DISC (JSON, ver diseño en
     # reclutamiento.py: DISC_PREGUNTAS). Vacío hasta que RR.HH. la registre.

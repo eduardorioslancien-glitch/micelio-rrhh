@@ -38,8 +38,13 @@ services:
       - N8N_WEBHOOK_SELECCION_APROBADO_URL=${N8N_WEBHOOK_SELECCION_APROBADO_URL:-}
       # Análisis del CV con IA (13/10): n8n lee el CV y devuelve estrellas + resumen.
       - N8N_WEBHOOK_ANALIZAR_CV_URL=${N8N_WEBHOOK_ANALIZAR_CV_URL:-}
+      # Formulario de Competencias + DISC del postulante y conclusión con IA (15/10).
+      - N8N_WEBHOOK_CUESTIONARIO_URL=${N8N_WEBHOOK_CUESTIONARIO_URL:-}
+      - N8N_WEBHOOK_CONCLUSION_URL=${N8N_WEBHOOK_CONCLUSION_URL:-}
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
-      # - PUBLIC_BASE_URL=https://micelio.digetelperu.com
+      # Base de los enlaces públicos que MICELIO manda (ficha, contrato, formulario). Sin esto
+      # los enlaces salían como http://127.0.0.1:8000.
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://micelio.digetelperu.com}
       # Integración con Man Academy (menú Capacitación): URL pública de esa
       # app y un secreto largo y aleatorio compartido con ella (mismo valor
       # en su .env allá, como MAN_ACADEMY_SSO_SECRET) para que MICELIO le

@@ -32,6 +32,8 @@ EVENTOS = {
     "N8N_WEBHOOK_DESCARTAR_URL": "descartar",
     "N8N_WEBHOOK_SELECCION_APROBADO_URL": "seleccion_aprobado",
     "N8N_WEBHOOK_ANALIZAR_CV_URL": "analizar_cv",
+    "N8N_WEBHOOK_CUESTIONARIO_URL": "cuestionario",
+    "N8N_WEBHOOK_CONCLUSION_URL": "conclusion",
 }
 MAX_REGISTROS = 500
 
@@ -121,7 +123,7 @@ def llamar_webhook(env_var: str, payload: dict, evento: str | None = None) -> di
     except ValueError:
         # El aviso de "nuevo lead" no necesita respuesta (n8n solo arranca la
         # conversación); en Entrevistar/Descartar MICELIO espera el resultado.
-        solo_aviso = evento in ("nuevo_lead", "seleccion_aprobado", "analizar_cv") or evento.startswith("prueba")
+        solo_aviso = evento in ("nuevo_lead", "seleccion_aprobado", "analizar_cv", "cuestionario", "conclusion") or evento.startswith("prueba")
         registrar_llamada(sentido="saliente", evento=evento, destino=destino, ok=solo_aviso, http_status=r.status_code,
                           error=None if solo_aviso else "n8n recibió el aviso pero no devolvió JSON (¿falta el nodo «Respond to Webhook»?).",
                           duracion_ms=ms, lead_id=lead_id)

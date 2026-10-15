@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gracias — Formulario de postulación</title>
+<style>
+  body { margin:0; background:#f4f6fb; color:#1b2433; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+  .wrap { max-width:560px; margin:0 auto; padding:48px 16px; }
+  .card { background:#fff; border:1px solid #d9dfe8; border-radius:12px; padding:26px 22px; text-align:center; }
+  h1 { font-size:22px; margin:8px 0; }
+  p { color:#5b6779; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>{{ 'Ya recibimos tus respuestas' if ya else '¡Gracias por completar el formulario!' }}</h1>
+    <p>El equipo de Recursos Humanos revisará tu postulación y te escribirá por WhatsApp o correo con los siguientes pasos.</p>
+    <p style="font-size:14px;">Ya puedes cerrar esta página.</p>
+  </div>
+</div>
+</body>
+</html>

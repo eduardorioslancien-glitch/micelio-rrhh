@@ -25,6 +25,7 @@ from .models import Cargo, LeadCandidato, PedidoPersonal, LEAD_NOMBRE_PENDIENTE,
 from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 from .rrhh import _pedido_recibio_lead, _payload_analizar_cv, _notificar_analizar_cv_n8n
 from . import bajas
+from . import cuestionario as cuestionario_mod
 from .telefono import normalizar_o_dejar, solo_digitos_whatsapp
 import datetime as _dt
 
@@ -374,8 +375,8 @@ def api_cargo_requisitos(nombre: str, db: Session = Depends(get_db), _=Depends(_
 
 
 @router.post("/api/leads/{lead_id}/analisis-ia")
-async def api_guardar_analisis_ia(lead_id: int, request: Request, db: Session = Depends(get_db),
-                                   _=Depends(_verificar_api_key)):
+async def api_guardar_analisis_ia(lead_id: int, request: Request, background_tasks: BackgroundTasks,
+                                   db: Session = Depends(get_db), _=Depends(_verificar_api_key)):
     """n8n empuja acá el resultado de calificar el CV contra los requisitos
     del Cargo — punto 3.2 del pedido de automatización RyS (21/09). Body
     JSON: {"estrellas": 1-5 (admite un decimal, ej. 3.8), "resumen": "texto
@@ -400,4 +401,33 @@ async def api_guardar_analisis_ia(lead_id: int, request: Request, db: Session = 
     if payload.get("resumen"):
         lead.analisis_ia = str(payload["resumen"]).strip()
     db.commit()
-    return {"id": lead.id, "estrellas": lead.estrellas}
+    # CV analizado con éxito (hay estrellas) -> el postulante recibe su formulario
+    # de Competencias + DISC, una sola vez. Si n8n no está configurado queda el
+    # botón «Enviar formulario» en la ficha del lead.
+    enviado = False
+    if (lead.estrellas is not None and not (lead.analisis_ia or "").startswith("⚠") and lead.pedido_id
+            and not lead.cuestionario_enviado_at and (lead.email or lead.celular)):
+        payload_envio = cuestionario_mod.preparar_envio(db, lead)
+        background_tasks.add_task(cuestionario_mod._enviar_n8n, payload_envio)
+        enviado = True
+    return {"id": lead.id, "estrellas": lead.estrellas, "formulario_enviado": enviado}
+
+
+@router.post("/api/leads/{lead_id}/conclusion")
+async def api_guardar_conclusion(lead_id: int, request: Request, db: Session = Depends(get_db),
+                                  _=Depends(_verificar_api_key)):
+    """n8n deja acá la conclusión redactada con IA (CV + competencias + DISC +
+    cargo) cuando el postulante respondió el formulario. Body: {"texto": "..."}.
+    Reemplaza la conclusión automática de MICELIO."""
+    lead = db.query(LeadCandidato).get(lead_id)
+    if not lead:
+        raise HTTPException(404, "Lead no encontrado.")
+    payload = await request.json()
+    texto = str(payload.get("texto") or "").strip()
+    if not texto:
+        raise HTTPException(400, "Se requiere 'texto'.")
+    lead.conclusion_ia = texto[:6000]
+    lead.conclusion_origen = "ia"
+    lead.conclusion_at = _dt.datetime.utcnow()
+    db.commit()
+    return {"id": lead.id, "conclusion_origen": "ia"}

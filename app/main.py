@@ -41,6 +41,7 @@ from .models import (
 from .auth import NotAuthenticated, Forbidden, MustChangePassword, require_role, require_admin, require_login, acceso_ficha
 from . import rrhh as rrhh_module
 from . import reclutamiento as reclutamiento_module
+from . import cuestionario as cuestionario_module
 from . import clima as clima_module
 from . import procesos as procesos_module
 from . import horarios as horarios_module
@@ -107,6 +108,7 @@ with SessionLocal() as _db:
 app.include_router(conceptos_module.router)
 app.include_router(rrhh_module.router)
 app.include_router(reclutamiento_module.router)
+app.include_router(cuestionario_module.router)
 app.include_router(clima_module.router)
 app.include_router(procesos_module.router)
 app.include_router(horarios_module.router)

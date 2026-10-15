@@ -49,6 +49,12 @@ CONFIGURACION = [
     ("N8N_WEBHOOK_ANALIZAR_CV_URL", "Webhook «Analizar CV»",
      "n8n lee el CV, lo compara con los requisitos del cargo con IA y devuelve estrellas y resumen.",
      "El CV no se analiza solo: el botón «Analizar CV» de la ficha del lead no hace nada."),
+    ("N8N_WEBHOOK_CUESTIONARIO_URL", "Webhook «Enviar formulario»",
+     "n8n manda al postulante el enlace del formulario de Competencias y DISC por WhatsApp y correo.",
+     "El formulario no se envía solo: en la ficha del lead queda el enlace para copiarlo y mandarlo a mano."),
+    ("N8N_WEBHOOK_CONCLUSION_URL", "Webhook «Conclusión con IA»",
+     "n8n redacta con IA la conclusión (CV + competencias + DISC + cargo) cuando el postulante responde.",
+     "Queda la conclusión automática de MICELIO, más breve y sin IA."),
 ]
 PRUEBAS = {
     "nuevo_lead": "N8N_WEBHOOK_NUEVO_LEAD_URL",
@@ -56,6 +62,8 @@ PRUEBAS = {
     "descartar": "N8N_WEBHOOK_DESCARTAR_URL",
     "seleccion_aprobado": "N8N_WEBHOOK_SELECCION_APROBADO_URL",
     "analizar_cv": "N8N_WEBHOOK_ANALIZAR_CV_URL",
+    "cuestionario": "N8N_WEBHOOK_CUESTIONARIO_URL",
+    "conclusion": "N8N_WEBHOOK_CONCLUSION_URL",
 }
 
 
