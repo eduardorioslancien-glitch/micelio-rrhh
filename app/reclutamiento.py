@@ -322,6 +322,7 @@ async def pedidos_crear(cargo_solicitado: str = Form(""), cantidad: str = Form("
         sueldo_base_ofrecido=sueldo, comision_ofrecida=comision_importe, conceptos=conceptos or None,
         comision_pdf_path=pdf_path, comision_pdf_filename=pdf_nombre,
         registrado_por=user.nombre_completo,
+        creado_por_user_id=user.id,
     ))
     db.commit()
     return RedirectResponse("/rrhh/reclutamiento/pedidos", status_code=303)
@@ -534,6 +535,11 @@ def lead_cv(lead_id: int, db: Session = Depends(get_db),
     return FileResponse(lead.cv_path, filename=lead.cv_filename or "cv.pdf")
 
 
+def _entrevistador_de(db, pedido):
+    from .entrevistas import entrevistador_de
+    return entrevistador_de(db, pedido)
+
+
 @router.get("/rrhh/reclutamiento/leads/{lead_id}", response_class=HTMLResponse)
 def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
                   user: User = Depends(require_perm("leads", "ver"))):
@@ -560,6 +566,8 @@ def lead_detalle(request: Request, lead_id: int, db: Session = Depends(get_db),
         clasificaciones=CLASIFICACIONES_LEAD, lead_incompleto=lead_incompleto(lead),
         pedido_base_distritos=pedido_base_distritos, ultimo_analisis=ultimo_analisis,
         cuestionario=lead.cuestionario_data or {},
+        entrevistador=_entrevistador_de(db, lead.pedido),
+        seleccion_id=request.query_params.get('seleccion'),
         cuestionario_enlace=(_public_base_url() + f"cuestionario/{lead.cuestionario_token}") if lead.cuestionario_token else "",
         active="leads",
     ))

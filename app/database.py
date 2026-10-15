@@ -88,6 +88,7 @@ _MIGRACIONES_COLUMNAS = [
     ("leads_candidatos", "conclusion_origen", "VARCHAR(10)"),
     ("leads_candidatos", "conclusion_at", "DATETIME"),
     ("leads_candidatos", "calificacion_final", "FLOAT"),
+    ("pedidos_personal", "creado_por_user_id", "INTEGER"),
     ("leads_candidatos", "entrevista_data", "JSON"),
     ("asistencia_registros", "latitud", "FLOAT"),
     ("asistencia_registros", "longitud", "FLOAT"),

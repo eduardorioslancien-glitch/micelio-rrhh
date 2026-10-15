@@ -989,6 +989,8 @@ class PedidoPersonal(Base):
     estado = Column(String(20), default="abierto")  # uno de ESTADO_PEDIDO_KEYS
     observaciones = Column(Text, nullable=True)
     registrado_por = Column(String(200), nullable=True)  # usuario de RR.HH. que lo cargó
+    # Quién generó el pedido = quien entrevista a los postulantes (15/10). Usuario de MICELIO.
+    creado_por_user_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     cerrado_at = Column(DateTime, nullable=True)
 
