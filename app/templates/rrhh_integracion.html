@@ -56,7 +56,7 @@
       <tr><th>Aviso</th><th>Webhook</th><th>Último éxito</th><th>Último intento</th><th></th></tr>
       {% for e in resumen_eventos %}
       <tr>
-        <td><strong>{{ {'nuevo_lead': 'Nuevo lead', 'entrevistar': 'Entrevistar', 'descartar': 'Descartar', 'seleccion_aprobado': 'Selección aprobado'}[e.evento] }}</strong></td>
+        <td><strong>{{ {'nuevo_lead': 'Nuevo lead', 'entrevistar': 'Entrevistar', 'descartar': 'Descartar', 'seleccion_aprobado': 'Selección aprobado', 'analizar_cv': 'Analizar CV (IA)', 'cuestionario': 'Enviar formulario', 'conclusion': 'Conclusión con IA'}.get(e.evento, e.evento) }}</strong></td>
         <td><span class="int-estado {{ 'ok' if e.configurado else 'mal' }}">{{ 'Configurado' if e.configurado else 'Falta URL' }}</span></td>
         <td>{{ e.ultimo_ok }}</td>
         <td>{% if e.ultimo %}<span class="int-estado {{ 'ok' if e.ultimo.ok else 'mal' }}">{{ 'OK' if e.ultimo.ok else 'Falló' }}</span> {{ (e.ultimo.created_at|lima).strftime('%d/%m %H:%M') }}
