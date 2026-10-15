@@ -15,31 +15,17 @@
   <div class="card">
     <h2>{{ plural }}</h2>
     <table>
-      <tr><th style="width:220px;">Nombre</th><th>Descripción</th><th>Estado</th><th></th></tr>
+      <tr><th style="width:260px;">Nombre</th><th>Descripción</th><th style="width:130px;">Preguntas por nivel</th><th>Estado</th><th></th></tr>
       {% for item in items if item.tipo == tipo %}
+      {% set np = niveles_con_pregunta.get(item.id, 0) %}
       <tr>
-        <td style="white-space:nowrap;"><strong>{{ item.nombre }}</strong></td>
+        <td><a href="/rrhh/parametrizacion/competencia/{{ item.id }}"><strong>{{ item.nombre }}</strong></a></td>
         <td class="muted">{{ item.descripcion or "—" }}</td>
+        <td><span class="badge {{ 'firmado' if np == 4 else 'pendiente' }}">{{ np }} de 4 niveles</span></td>
         <td><span class="badge {{ 'firmado' if item.activo else 'pendiente' }}">{{ 'activo' if item.activo else 'inactivo' }}</span></td>
         <td class="icon-btn-row">
-          <details>
-            <summary class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar"></summary>
-            <div class="edit-popover" style="min-width:340px;">
-              <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/editar">
-                <input type="hidden" name="tipo" value="{{ item.tipo }}">
-                <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ item.nombre }}" required></div>
-                <div class="field"><label>Descripción</label><input type="text" name="descripcion" value="{{ item.descripcion or '' }}"></div>
-                <div class="field"><label>Nivel 1 (Básico)</label><textarea name="nivel_1" rows="2">{{ item.nivel_1 or '' }}</textarea></div>
-                <div class="field"><label>Nivel 2 (Consolidado)</label><textarea name="nivel_2" rows="2">{{ item.nivel_2 or '' }}</textarea></div>
-                <div class="field"><label>Nivel 3 (Avanzado)</label><textarea name="nivel_3" rows="2">{{ item.nivel_3 or '' }}</textarea></div>
-                <div class="field"><label>Nivel 4 (Referente)</label><textarea name="nivel_4" rows="2">{{ item.nivel_4 or '' }}</textarea></div>
-                {% if tipo == 'valor' %}
-                <div class="field"><label>Conductas No Deseadas</label><textarea name="conductas_no_deseadas" rows="2">{{ item.conductas_no_deseadas or '' }}</textarea></div>
-                {% endif %}
-                <button class="btn small" type="submit">Guardar</button>
-              </form>
-            </div>
-          </details>
+          <a class="icon-btn icon-btn-editar" style="display:inline-flex;" title="Editar niveles y preguntas"
+             href="/rrhh/parametrizacion/competencia/{{ item.id }}"></a>
           <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/toggle" style="display:inline;">
             <button class="icon-btn {{ 'icon-btn-desactivar' if item.activo else 'icon-btn-activar' }}" type="submit" title="{{ 'Desactivar' if item.activo else 'Activar' }}"></button>
           </form>
@@ -50,7 +36,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
+      <tr><td colspan="5" class="muted">Todavía no hay nada registrado en esta lista.</td></tr>
       {% endfor %}
     </table>
 
@@ -59,15 +45,7 @@
       <input type="hidden" name="tipo" value="{{ tipo }}">
       <div class="field"><label>Nombre</label><input type="text" name="nombre" required></div>
       <div class="field"><label>Descripción</label><input type="text" name="descripcion"></div>
-      <div class="grid2">
-        <div class="field"><label>Nivel 1 (Básico)</label><textarea name="nivel_1" rows="2"></textarea></div>
-        <div class="field"><label>Nivel 2 (Consolidado)</label><textarea name="nivel_2" rows="2"></textarea></div>
-        <div class="field"><label>Nivel 3 (Avanzado)</label><textarea name="nivel_3" rows="2"></textarea></div>
-        <div class="field"><label>Nivel 4 (Referente)</label><textarea name="nivel_4" rows="2"></textarea></div>
-      </div>
-      {% if tipo == 'valor' %}
-      <div class="field"><label>Conductas No Deseadas</label><textarea name="conductas_no_deseadas" rows="2"></textarea></div>
-      {% endif %}
+      <p class="hint">Después de agregarla se abre su pantalla para completar los 4 niveles y sus preguntas.</p>
       <button class="btn" type="submit">Agregar {{ label|lower }}</button>
     </form>
   </div>

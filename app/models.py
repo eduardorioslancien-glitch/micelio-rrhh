@@ -465,6 +465,24 @@ class Competencia(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class CompetenciaPregunta(Base):
+    """Pregunta del formulario del postulante (15/10/2026). Por competencia hay
+    una `afirmacion` por nivel 1-4 (el postulante la puntúa de 1 a 5) y una
+    pregunta `ejemplo` abierta. Se siembran desde competencias_preguntas.py y
+    RR.HH. las edita en Parámetros › Competencias."""
+    __tablename__ = "competencia_preguntas"
+
+    id = Column(Integer, primary_key=True)
+    competencia_id = Column(Integer, ForeignKey("competencias.id"), nullable=False, index=True)
+    tipo = Column(String(12), nullable=False)  # afirmacion | ejemplo
+    nivel = Column(Integer, nullable=True)  # 1-4 solo para afirmacion
+    texto = Column(Text, nullable=False)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    competencia = relationship("Competencia")
+
+
 class Cargo(Base):
     """Cargos - MOF — Manual de Organización y Funciones (MOF) de cada
     puesto: descripción, funciones, responsabilidades, a quién reporta,

@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
     Holding, UnidadNegocio, Empresa, LineaProducto, Catalogo, Competencia, Cargo, CargoRequisitoCompetencia,
-    EsquemaPago, BaseOperativa,
+    EsquemaPago, BaseOperativa, CompetenciaPregunta,
 )
 
 DEFAULT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parametros_export.json")
@@ -44,6 +44,9 @@ DEFAULT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pa
 def export_data(out_path: str):
     db = SessionLocal()
     try:
+        # Las preguntas por nivel se siembran solas; se aseguran antes de exportar.
+        from app.competencias_preguntas import asegurar_todas
+        asegurar_todas(db)
         data = {
             "holdings": [
                 {"nombre": h.nombre, "descripcion": h.descripcion, "activo": h.activo}
@@ -93,6 +96,14 @@ def export_data(out_path: str):
                     "conductas_no_deseadas": c.conductas_no_deseadas, "activo": c.activo,
                 }
                 for c in db.query(Competencia).order_by(Competencia.tipo, Competencia.nombre).all()
+            ],
+            "competencia_preguntas": [
+                {
+                    "competencia_tipo": q.competencia.tipo, "competencia_nombre": q.competencia.nombre,
+                    "tipo": q.tipo, "nivel": q.nivel, "texto": q.texto, "activo": q.activo,
+                }
+                for q in db.query(CompetenciaPregunta).join(Competencia).order_by(
+                    Competencia.tipo, Competencia.nombre, CompetenciaPregunta.tipo, CompetenciaPregunta.nivel).all()
             ],
             "cargos": [
                 {
@@ -239,6 +250,20 @@ def import_data(in_path: str):
             obj.nivel_4 = c.get("nivel_4")
             obj.conductas_no_deseadas = c.get("conductas_no_deseadas")
             obj.activo = c.get("activo", True)
+        db.commit()
+
+        # 4b. Preguntas por nivel de cada competencia (upsert por competencia + tipo + nivel)
+        for q in data.get("competencia_preguntas", []):
+            comp = db.query(Competencia).filter_by(tipo=q["competencia_tipo"], nombre=q["competencia_nombre"]).first()
+            if not comp:
+                continue
+            obj = db.query(CompetenciaPregunta).filter_by(
+                competencia_id=comp.id, tipo=q["tipo"], nivel=q.get("nivel")).first()
+            if not obj:
+                obj = CompetenciaPregunta(competencia_id=comp.id, tipo=q["tipo"], nivel=q.get("nivel"), texto=q["texto"])
+                db.add(obj)
+            obj.texto = q["texto"]
+            obj.activo = q.get("activo", True)
         db.commit()
 
         # 5. Cargos y Funciones — primero los datos propios, luego reporta_a

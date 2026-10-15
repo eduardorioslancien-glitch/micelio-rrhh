@@ -1336,10 +1336,79 @@ def eliminar_base(base_id: int, db: Session = Depends(get_db), user: User = Depe
 @router.get("/rrhh/parametrizacion/competencias", response_class=HTMLResponse)
 def competencias_list(request: Request, error: str = "", db: Session = Depends(get_db),
                        user: User = Depends(require_perm("p_competencias", "ver"))):
+    from .competencias_preguntas import asegurar_todas
+    asegurar_todas(db)  # siembra las preguntas por nivel de las que aún no tienen
     items = db.query(Competencia).order_by(Competencia.tipo, Competencia.nombre).all()
+    from .models import CompetenciaPregunta
+    cuenta = {}
+    for cid, nivel in db.query(CompetenciaPregunta.competencia_id, CompetenciaPregunta.nivel).filter(
+            CompetenciaPregunta.tipo == "afirmacion", CompetenciaPregunta.activo == True).all():  # noqa: E712
+        cuenta.setdefault(cid, set()).add(nivel)
     return templates.TemplateResponse(request, "rrhh_competencias.html", _ctx(
         request, user, items=items, tipos=TIPOS_COMPETENCIA, error=error, active="competencias",
+        niveles_con_pregunta={cid: len(n) for cid, n in cuenta.items()},
     ))
+
+
+@router.get("/rrhh/parametrizacion/competencia/{item_id}", response_class=HTMLResponse)
+def competencia_editar_pantalla(request: Request, item_id: int, ok: str = "", db: Session = Depends(get_db),
+                                 user: User = Depends(require_perm("p_competencias", "ver"))):
+    from .competencias_preguntas import asegurar_preguntas, NIVELES
+    from .models import CompetenciaPregunta
+    item = db.query(Competencia).get(item_id)
+    if not item:
+        raise HTTPException(404)
+    if asegurar_preguntas(db, item):
+        db.commit()
+    preguntas = db.query(CompetenciaPregunta).filter(CompetenciaPregunta.competencia_id == item_id,
+                                                     CompetenciaPregunta.activo == True).all()  # noqa: E712
+    afirmaciones = {p.nivel: p.texto for p in preguntas if p.tipo == "afirmacion"}
+    ejemplo = next((p.texto for p in preguntas if p.tipo == "ejemplo"), "")
+    return templates.TemplateResponse(request, "rrhh_competencia_editar.html", _ctx(
+        request, user, item=item, tipos=TIPOS_COMPETENCIA, niveles=sorted(NIVELES.items()),
+        afirmaciones=afirmaciones, ejemplo=ejemplo, ok=ok, active="competencias",
+    ))
+
+
+@router.post("/rrhh/parametrizacion/competencia/{item_id}/guardar")
+async def competencia_guardar(request: Request, item_id: int, db: Session = Depends(get_db),
+                               user: User = Depends(require_perm("p_competencias", "editar"))):
+    from .models import CompetenciaPregunta
+    item = db.query(Competencia).get(item_id)
+    if not item:
+        raise HTTPException(404)
+    f = await request.form()
+    tipo = f.get("tipo") or item.tipo
+    if tipo in TIPO_COMPETENCIA_KEYS:
+        item.tipo = tipo
+    if (f.get("nombre") or "").strip():
+        item.nombre = f.get("nombre").strip()
+    item.descripcion = (f.get("descripcion") or "").strip() or None
+    for n in (1, 2, 3, 4):
+        setattr(item, f"nivel_{n}", (f.get(f"nivel_{n}") or "").strip() or None)
+    item.conductas_no_deseadas = ((f.get("conductas_no_deseadas") or "").strip() or None) if item.tipo == "valor" else None
+
+    existentes = db.query(CompetenciaPregunta).filter(CompetenciaPregunta.competencia_id == item_id).all()
+    por_nivel = {p.nivel: p for p in existentes if p.tipo == "afirmacion"}
+    for n in (1, 2, 3, 4):
+        texto = (f.get(f"afirmacion_{n}") or "").strip()
+        if not texto:
+            continue  # nunca se deja un nivel sin pregunta: se conserva la anterior
+        if n in por_nivel:
+            por_nivel[n].texto = texto
+            por_nivel[n].activo = True
+        else:
+            db.add(CompetenciaPregunta(competencia_id=item_id, tipo="afirmacion", nivel=n, texto=texto))
+    texto_ej = (f.get("ejemplo") or "").strip()
+    ej = next((p for p in existentes if p.tipo == "ejemplo"), None)
+    if texto_ej:
+        if ej:
+            ej.texto = texto_ej
+            ej.activo = True
+        else:
+            db.add(CompetenciaPregunta(competencia_id=item_id, tipo="ejemplo", nivel=None, texto=texto_ej))
+    db.commit()
+    return RedirectResponse(f"/rrhh/parametrizacion/competencia/{item_id}?ok=1", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/competencia")
@@ -1350,14 +1419,16 @@ def crear_competencia(tipo: str = Form(...), nombre: str = Form(...), descripcio
                        user: User = Depends(require_perm("p_competencias", "editar"))):
     if tipo not in TIPO_COMPETENCIA_KEYS:
         raise HTTPException(400, "Tipo inválido.")
-    db.add(Competencia(
+    nueva = Competencia(
         tipo=tipo, nombre=nombre.strip(), descripcion=descripcion.strip() or None,
         nivel_1=nivel_1.strip() or None, nivel_2=nivel_2.strip() or None,
         nivel_3=nivel_3.strip() or None, nivel_4=nivel_4.strip() or None,
         conductas_no_deseadas=(conductas_no_deseadas.strip() or None) if tipo == "valor" else None,
-    ))
+    )
+    db.add(nueva)
     db.commit()
-    return RedirectResponse("/rrhh/parametrizacion/competencias", status_code=303)
+    # Se abre su pantalla de edición para completar niveles y preguntas.
+    return RedirectResponse(f"/rrhh/parametrizacion/competencia/{nueva.id}", status_code=303)
 
 
 @router.post("/rrhh/parametrizacion/competencia/{item_id}/editar")

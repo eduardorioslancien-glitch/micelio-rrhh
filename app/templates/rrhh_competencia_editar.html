@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ item.nombre }} — Competencias — MICELIO</title>
+<link rel="stylesheet" href="/static/style.css?v=17">
+<style>
+  .nivel-card { border:1px solid #d9dfe8; border-radius:12px; margin:0 0 16px; background:#fff; overflow:hidden; }
+  .nivel-head { display:flex; gap:12px; align-items:center; padding:10px 16px; background:#f1f4fa; border-bottom:1px solid #d9dfe8; }
+  .nivel-num { width:30px; height:30px; border-radius:50%; background:#1e4aa8; color:#fff; display:flex;
+               align-items:center; justify-content:center; font-weight:700; flex:none; }
+  .nivel-body { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:14px 16px; }
+  .nivel-body label { display:block; font-weight:600; margin-bottom:2px; }
+  .nivel-body .ayuda { display:block; font-size:12px; color:#667085; margin-bottom:6px; }
+  .nivel-body textarea { width:100%; min-height:96px; box-sizing:border-box; }
+  .barra-guardar { position:sticky; bottom:0; background:#fff; border-top:1px solid #d9dfe8;
+                   padding:12px 0; display:flex; gap:12px; align-items:center; }
+  @media (max-width: 760px) { .nivel-body { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+{% include "_rrhh_topbar.html" %}
+
+  <p style="margin:0 0 8px;"><a href="/rrhh/parametrizacion/competencias">← Volver a Principios, Valores y Competencias</a></p>
+  {% if ok %}<div class="alert-ok" style="background:var(--green-bg); border:1px solid var(--green); color:var(--green); padding:10px 14px; border-radius:8px; margin-bottom:12px;">Cambios guardados.</div>{% endif %}
+
+  <form method="post" action="/rrhh/parametrizacion/competencia/{{ item.id }}/guardar">
+  <div class="card">
+    <h2 style="margin-top:0;">{{ item.nombre }}</h2>
+    <div class="grid2">
+      <div class="field"><label>Nombre</label><input type="text" name="nombre" value="{{ item.nombre }}" required></div>
+      <div class="field"><label>Tipo</label>
+        <select name="tipo">{% for t, l in tipos %}<option value="{{ t }}" {{ 'selected' if item.tipo == t else '' }}>{{ l }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div class="field"><label>Descripción</label>
+      <textarea name="descripcion" rows="2" style="width:100%; box-sizing:border-box;">{{ item.descripcion or '' }}</textarea></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Niveles y preguntas</h2>
+    <p class="hint">Cada nivel tiene dos textos: <strong>qué se observa</strong> en una persona de ese nivel (para RR.HH. y el
+      MOF) y la <strong>afirmación que verá el postulante</strong> en el formulario, que responde de 1 (nada) a 5 (totalmente).
+      El nivel estimado del postulante es el más alto que puntúa con 4 o 5.</p>
+
+    {% for n, nombre in niveles %}
+    <div class="nivel-card">
+      <div class="nivel-head"><span class="nivel-num">{{ n }}</span><strong>Nivel {{ n }} — {{ nombre }}</strong></div>
+      <div class="nivel-body">
+        <div>
+          <label>Qué se observa en este nivel</label>
+          <span class="ayuda">Descripción del comportamiento (tercera persona).</span>
+          <textarea name="nivel_{{ n }}">{{ item['nivel_' ~ n] or '' }}</textarea>
+        </div>
+        <div>
+          <label>Afirmación para el postulante</label>
+          <span class="ayuda">En primera persona: «Yo…». Evita palabras muy técnicas.</span>
+          <textarea name="afirmacion_{{ n }}">{{ afirmaciones.get(n, '') }}</textarea>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="nivel-card">
+      <div class="nivel-head"><span class="nivel-num" style="background:#667085;">+</span><strong>Pregunta abierta (ejemplo real)</strong></div>
+      <div class="nivel-body" style="grid-template-columns:1fr;">
+        <div>
+          <span class="ayuda">El postulante la responde con sus palabras; la ve RR.HH. y la usa la IA en la conclusión.</span>
+          <textarea name="ejemplo" style="min-height:70px;">{{ ejemplo or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    {% if item.tipo == 'valor' %}
+    <div class="field"><label>Conductas no deseadas</label>
+      <textarea name="conductas_no_deseadas" rows="3" style="width:100%; box-sizing:border-box;">{{ item.conductas_no_deseadas or '' }}</textarea></div>
+    {% endif %}
+  </div>
+
+  <div class="barra-guardar">
+    <button class="btn" type="submit">Guardar cambios</button>
+    <a class="btn secondary" href="/rrhh/parametrizacion/competencias">Cancelar</a>
+  </div>
+  </form>
+
+</div>
+</body>
+</html>
