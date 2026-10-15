@@ -42,6 +42,8 @@ DEFAULT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pa
 
 
 def export_data(out_path: str):
+    from app.database import init_db
+    init_db()  # crea tablas/columnas nuevas si la base es anterior al codigo
     db = SessionLocal()
     try:
         # Las preguntas por nivel se siembran solas; se aseguran antes de exportar.
@@ -147,6 +149,8 @@ def import_data(in_path: str):
     with open(in_path, encoding="utf-8") as f:
         data = json.load(f)
 
+    from app.database import init_db
+    init_db()
     db = SessionLocal()
     try:
         # 1. Holdings

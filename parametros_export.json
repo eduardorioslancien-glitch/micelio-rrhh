@@ -650,6 +650,1168 @@
       "activo": true
     }
   ],
+  "competencia_preguntas": [
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cuando cambia una instrucción o la forma de trabajar, la acepto y la aplico siguiendo las indicaciones que me dan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Me ajusto con rapidez a cambios en mis tareas o prioridades sin que baje mi desempeño.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Ante cambios importantes propongo cómo organizarme y ayudo a mi equipo a adaptarse.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Anticipo los cambios del entorno y lidero a otros para aprovecharlos como mejoras para la organización.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ADAPTABILIDAD",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Adaptabilidad»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Transmito mis mensajes de forma clara y respetuosa cuando me lo piden.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Adapto lo que digo y cómo lo digo según la persona, y compruebo que me hayan entendido.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Escucho con atención, expongo ideas con argumentos y logro que otros las comprendan y se comprometan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Manejo conversaciones difíciles o con muchas personas, y mi comunicación alinea a toda un área o a la organización.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "COMUNICACION",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Comunicacion»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "DISPONIBILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Estoy disponible en el horario acordado y respondo cuando se me requiere.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "DISPONIBILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Me ajusto con flexibilidad a horarios o turnos distintos cuando el trabajo lo necesita.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "DISPONIBILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Me ofrezco por iniciativa a cubrir necesidades urgentes y respondo rápido aun fuera de lo habitual.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "DISPONIBILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Soy un referente de compromiso: mi ejemplo hace que otros se involucren en las urgencias del negocio.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "DISPONIBILIDAD",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Disponibilidad»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ETICA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cumplo las normas y políticas de la empresa aunque nadie me esté supervisando.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ETICA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Actúo con honestidad y reconozco mis errores sin ocultarlos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ETICA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Cuando veo una conducta inadecuada la señalo o la reporto por el canal correcto.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ETICA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Tomo decisiones difíciles guiado por la ética aunque tengan un costo, y promuevo una cultura de integridad.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ETICA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Etica»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE CONFLICTOS",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Evito responder con agresividad cuando hay un desacuerdo y procuro calmarme.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE CONFLICTOS",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Escucho la posición del otro y busco un punto de acuerdo cuando surge un desacuerdo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE CONFLICTOS",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Intervengo en conflictos entre otras personas y ayudo a que lleguen a una solución justa.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE CONFLICTOS",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Prevengo conflictos antes de que escalen y establezco formas de trabajo que los reducen en toda el área.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE CONFLICTOS",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Gestion De Conflictos»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE PROCESOS",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Sigo los procedimientos establecidos tal como están definidos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE PROCESOS",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Entiendo cómo mi tarea encaja en el proceso completo y cuido los pasos anteriores y siguientes.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE PROCESOS",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Identifico fallas o demoras en un proceso y propongo mejoras concretas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE PROCESOS",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Rediseño procesos y doy seguimiento a indicadores para mejorar de forma sostenida el desempeño del área.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "GESTION DE PROCESOS",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Gestion De Procesos»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cumplo mi parte y apoyo a mis compañeros cuando me lo piden.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Oriento a otros en tareas concretas y doy el ejemplo en mi trabajo diario.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Motivo al equipo, delego con claridad y doy retroalimentación para que mejoren.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Desarrollo a otras personas y líderes, genero confianza y conduzco a un grupo grande hacia resultados exigentes.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "LIDERAZGO",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Liderazgo»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Mantengo mi puesto y mis materiales ordenados y cumplo mis tareas del día.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Priorizo mis tareas y cumplo mis plazos de forma consistente.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Organizo mi trabajo y el de otros para que los plazos se cumplan aun con imprevistos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Diseño sistemas de trabajo ordenados que mejoran la eficiencia de todo un equipo o área.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORGANIZACION",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Organizacion»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTACION A RESULTADOS",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cumplo las metas que me asignan siguiendo las instrucciones.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTACION A RESULTADOS",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Doy seguimiento a mi avance y cumplo mis metas con constancia.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTACION A RESULTADOS",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Supero las metas con frecuencia y busco cómo lograr más con los mismos recursos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTACION A RESULTADOS",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Establezco metas retadoras para mi área y consigo que otros las alcancen de manera sostenida.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTACION A RESULTADOS",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Orientacion A Resultados»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Atiendo consultas básicas de clientes con amabilidad, sin necesidad de anticipar lo que necesitan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Identifico lo que el cliente pide de forma explícita y le respondo adecuadamente.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Anticipo necesidades que el cliente no expresó y le propongo soluciones.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Diseño estrategias de servicio que elevan la experiencia del cliente en toda la organización.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "ORIENTADO AL CLIENTE",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Orientado Al Cliente»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Realizo mis actividades siguiendo el plan que me dan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Planifico mi semana definiendo tareas, plazos y recursos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Preveo riesgos y preparo alternativas para que el plan se cumpla.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Elaboro planes de largo plazo para varias áreas y los ajusto según los resultados.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "PLANIFICACION",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Planificacion»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cuando algo falla, aviso a quien corresponde y aplico la solución que me indican.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Analizo qué causó el problema y aplico una solución por mi cuenta en situaciones habituales.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Resuelvo problemas complejos o nuevos con calma, evaluando varias alternativas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Resuelvo problemas críticos bajo mucha presión y establezco soluciones que evitan que vuelvan a ocurrir.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "RESOLUCION DE PROBLEMAS",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Resolucion De Problemas»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TOMA DE DECISIONES",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Decido en asuntos simples de mi tarea y consulto cuando tengo dudas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TOMA DE DECISIONES",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Decido con autonomía en mi ámbito, usando la información disponible.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TOMA DE DECISIONES",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Decido en situaciones con incertidumbre, evaluando riesgos y asumiendo la responsabilidad.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TOMA DE DECISIONES",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Tomo decisiones estratégicas de alto impacto, considerando a toda la organización y sus consecuencias.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TOMA DE DECISIONES",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Toma De Decisiones»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TRABAJO EN EQUIPO",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Colaboro con mi equipo cumpliendo la parte que me corresponde.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TRABAJO EN EQUIPO",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Comparto información y ayudo a mis compañeros sin que me lo pidan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TRABAJO EN EQUIPO",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Coordino con otras áreas y busco que el equipo logre el resultado en conjunto.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TRABAJO EN EQUIPO",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Construyo equipos que colaboran entre áreas y resuelvo diferencias en beneficio de la organización.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "competencia",
+      "competencia_nombre": "TRABAJO EN EQUIPO",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Trabajo En Equipo»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "APRENDIZAJE Y MEJORA CONTINUA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Aprendo de las correcciones que me hacen y las aplico.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "APRENDIZAJE Y MEJORA CONTINUA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Reconozco mis errores y los uso para mejorar mi trabajo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "APRENDIZAJE Y MEJORA CONTINUA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Comparto lo que aprendo con mi equipo para que no se repitan los errores.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "APRENDIZAJE Y MEJORA CONTINUA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Promuevo prácticas para convertir errores y experiencias en mejoras permanentes en toda el área.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "APRENDIZAJE Y MEJORA CONTINUA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Aprendizaje Y Mejora Continua»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "COLABORACION SISTEMICA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Respeto las decisiones del equipo aunque no coincidan con mi preferencia.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "COLABORACION SISTEMICA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Considero cómo mi trabajo afecta a otras áreas antes de actuar.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "COLABORACION SISTEMICA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Evito mejorar mi resultado a costa del de otras áreas y busco soluciones convenientes para todos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "COLABORACION SISTEMICA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Tomo decisiones pensando en el resultado global de la empresa, aunque me perjudiquen a mí o a mi área.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "COLABORACION SISTEMICA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Colaboracion Sistemica»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "DECISIONES BASADAS EN LA EXPERIENCIA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Decido usando la información y las instrucciones que tengo a mano.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "DECISIONES BASADAS EN LA EXPERIENCIA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Reviso hechos y datos relevantes antes de decidir.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "DECISIONES BASADAS EN LA EXPERIENCIA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Combino datos con mi criterio y la experiencia previa para decidir mejor.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "DECISIONES BASADAS EN LA EXPERIENCIA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Establezco criterios y registros para que las decisiones del área se apoyen en datos y aprendizaje.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "DECISIONES BASADAS EN LA EXPERIENCIA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Decisiones Basadas En La Experiencia»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "EXCELENCIA DESDE EL ORIGEN",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Hago mi tarea con cuidado para evitar errores desde el inicio.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "EXCELENCIA DESDE EL ORIGEN",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Verifico mi trabajo antes de entregarlo para no depender de que otros lo corrijan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "EXCELENCIA DESDE EL ORIGEN",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Preveo en qué puntos del proceso pueden aparecer fallas y las controlo desde el principio.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "EXCELENCIA DESDE EL ORIGEN",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Diseño controles y estándares que previenen errores en toda un área o proceso.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "EXCELENCIA DESDE EL ORIGEN",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Excelencia Desde El Origen»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "INNOVACION",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Aplico las nuevas formas de trabajo que me presentan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "INNOVACION",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Propongo ideas para hacer mejor mis tareas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "INNOVACION",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Pruebo ideas nuevas y las llevo a la práctica con mi equipo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "INNOVACION",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Impulso una cultura de innovación en la que se prueban ideas y se amplían las que funcionan.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "INNOVACION",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Innovacion»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "ORIENTACION AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Trato al cliente interno y externo con respeto y cumplo lo que se le promete.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "ORIENTACION AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Considero cómo mi tarea afecta al cliente antes de ejecutarla.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "ORIENTACION AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Priorizo lo que le genera valor al cliente aun cuando requiere más esfuerzo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "ORIENTACION AL CLIENTE",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Oriento las decisiones de toda un área al valor que reciben los clientes.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "ORIENTACION AL CLIENTE",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Orientacion Al Cliente»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "RESPONSABILIDAD POR EL RESULTADO",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cumplo lo que me corresponde y respondo si algo sale mal.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "RESPONSABILIDAD POR EL RESULTADO",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Asumo mis compromisos y rindo cuentas de mis resultados, no solo de mis tareas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "RESPONSABILIDAD POR EL RESULTADO",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Asumo también los resultados de mis decisiones y corrijo el rumbo cuando hace falta.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "RESPONSABILIDAD POR EL RESULTADO",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Respondo por el resultado de todo mi equipo y promuevo que cada persona responda por el suyo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "RESPONSABILIDAD POR EL RESULTADO",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Responsabilidad Por El Resultado»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "SER INTEGROS",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Digo la verdad y cumplo las reglas en mi trabajo diario.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "SER INTEGROS",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Actúo de manera coherente: lo que digo y lo que hago coinciden.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "SER INTEGROS",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Elijo lo correcto aunque sea incómodo o no me beneficie.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "SER INTEGROS",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Soy ejemplo de integridad y pongo límites claros frente a prácticas inadecuadas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "principio",
+      "competencia_nombre": "SER INTEGROS",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Ser Integros»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "APRENDIZAJE CONTINUO",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Recibo con buena disposición las indicaciones y la retroalimentación, y aprendo lo necesario para mi función.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "APRENDIZAJE CONTINUO",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Busco activamente nuevos conocimientos, pido retroalimentación y aprendo de mis errores.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "APRENDIZAJE CONTINUO",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Me mantengo actualizado, comparto lo que sé y propongo nuevas formas de hacer las cosas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "APRENDIZAJE CONTINUO",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Soy fuente de aprendizaje para otros y promuevo una cultura de aprendizaje que se convierte en mejoras para la organización.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "APRENDIZAJE CONTINUO",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Aprendizaje Continuo»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "COLABORACION",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Mantengo una actitud respetuosa, cumplo mi parte en el equipo y apoyo cuando me lo piden.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "COLABORACION",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Coopero activamente con mis compañeros y comparto la información que el equipo necesita.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "COLABORACION",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Facilito la integración entre personas y áreas y priorizo los objetivos colectivos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "COLABORACION",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Construyo equipos cohesionados que trabajan juntos hacia objetivos comunes, incluso bajo presión o conflicto.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "COLABORACION",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Colaboracion»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "CONFIANZA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cumplo lo que prometo y comunico la información relevante con respeto.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "CONFIANZA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Mantengo mis compromisos, actúo con coherencia y manejo con discreción la información que recibo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "CONFIANZA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Genero confianza incluso en situaciones difíciles, comunicando con claridad y cumpliendo los acuerdos.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "CONFIANZA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Soy reconocido como una persona altamente confiable y ayudo a construir una cultura de confianza.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "CONFIANZA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Confianza»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "EXCELENCIA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Respeto los procedimientos y entrego un trabajo correcto, sin errores evitables.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "EXCELENCIA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Busco mejorar la calidad y la eficiencia de mi trabajo y corrijo los errores que detecto.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "EXCELENCIA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Identifico oportunidades de mejora y propongo soluciones; no me conformo con resultados solo aceptables.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "EXCELENCIA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Elevo los estándares de la organización e inspiro a otros a buscar mejores resultados.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "EXCELENCIA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Excelencia»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "INTEGRIDAD",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Respeto las normas, los procedimientos y las políticas, y evito conductas que perjudiquen a otros.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "INTEGRIDAD",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Mantengo una conducta ética aun bajo presión y reconozco mis errores.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "INTEGRIDAD",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Defiendo los principios de la organización en situaciones complejas y prevengo conductas inadecuadas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "INTEGRIDAD",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Soy un referente ético y promuevo comportamientos íntegros en la organización.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "INTEGRIDAD",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Integridad»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "RESPONSABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Cumplo horarios, funciones y compromisos, y aviso a tiempo cuando no podré cumplir algo.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "RESPONSABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Organizo y priorizo mi trabajo de forma autónoma y anticipo dificultades.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "RESPONSABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Asumo la responsabilidad por los resultados, no solo por las tareas, y ayudo a otros a cumplir las suyas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "RESPONSABILIDAD",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Me anticipo a los riesgos, asumo desafíos adicionales y movilizo a otros hacia una cultura de cumplimiento.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "RESPONSABILIDAD",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Responsabilidad»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "TRANSPARENCIA",
+      "tipo": "afirmacion",
+      "nivel": 1,
+      "texto": "Doy información verdadera por los canales establecidos y no oculto errores.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "TRANSPARENCIA",
+      "tipo": "afirmacion",
+      "nivel": 2,
+      "texto": "Comunico a tiempo avances, dificultades y resultados, y reconozco mis errores.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "TRANSPARENCIA",
+      "tipo": "afirmacion",
+      "nivel": 3,
+      "texto": "Anticipo información relevante y comunico situaciones difíciles con objetividad, proponiendo alternativas.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "TRANSPARENCIA",
+      "tipo": "afirmacion",
+      "nivel": 4,
+      "texto": "Genero un entorno donde las personas pueden decir problemas y errores sin temor, orientado a la solución.",
+      "activo": true
+    },
+    {
+      "competencia_tipo": "valor",
+      "competencia_nombre": "TRANSPARENCIA",
+      "tipo": "ejemplo",
+      "nivel": null,
+      "texto": "Cuéntanos una situación real y reciente en la que pusiste en práctica «Transparencia»: ¿qué ocurrió, qué hiciste tú concretamente y qué resultado obtuviste?",
+      "activo": true
+    }
+  ],
   "cargos": [
     {
       "nombre": "ANALISIS DE DATOS",
