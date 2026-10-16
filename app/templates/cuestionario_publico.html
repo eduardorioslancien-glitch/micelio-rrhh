@@ -8,30 +8,36 @@
   :root { --azul:#1e4aa8; --borde:#d9dfe8; --fondo:#f4f6fb; --texto:#1b2433; --suave:#5b6779; --rojo:#b42318; --verde:#067647; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
-  .wrap { max-width:820px; margin:0 auto; padding:20px 16px 90px; }
+  .wrap { max-width:860px; margin:0 auto; padding:20px 16px 90px; }
   header { text-align:center; margin:8px 0 18px; }
   header h1 { font-size:22px; margin:6px 0 2px; }
   header p { margin:0; color:var(--suave); }
-  .card { background:#fff; border:1px solid var(--borde); border-radius:12px; padding:18px 18px; margin:0 0 16px; }
+  .card { background:#fff; border:1px solid var(--borde); border-radius:12px; padding:18px; margin:0 0 16px; }
   .card h2 { font-size:18px; margin:0 0 6px; }
   .nota { background:#eef3fc; border:1px solid #cdd9f1; border-radius:10px; padding:12px 14px; font-size:15px; }
   .error { background:#fef3f2; border:1px solid #fecdca; color:var(--rojo); border-radius:10px; padding:12px 14px; margin:0 0 14px; }
-  .escala { display:flex; gap:6px; flex-wrap:wrap; font-size:13px; color:var(--suave); margin:8px 0 0; }
-  .escala span { background:#f1f4fa; border-radius:6px; padding:2px 8px; }
-  .afirm { padding:12px 0; border-top:1px solid #edf0f6; }
-  .afirm:first-of-type { border-top:0; }
-  .afirm p { margin:0 0 8px; }
-  .opts { display:flex; gap:8px; flex-wrap:wrap; }
-  .opts label { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:48px; padding:8px 10px;
-                border:1px solid var(--borde); border-radius:10px; cursor:pointer; background:#fff; font-size:15px; }
-  .opts input { margin:0; }
-  .opts label:has(input:checked) { border-color:var(--azul); background:#eef3fc; font-weight:600; }
-  .disc-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
-  .nivel { display:inline-block; font-size:12px; color:var(--suave); margin-bottom:2px; }
-  textarea { width:100%; min-height:90px; border:1px solid var(--borde); border-radius:10px; padding:10px; font:inherit; }
+  label.campo { display:block; font-weight:600; margin:0 0 4px; }
+  input[type=text] { width:100%; border:1px solid var(--borde); border-radius:10px; padding:11px; font:inherit; }
+  textarea { width:100%; min-height:100px; border:1px solid var(--borde); border-radius:10px; padding:10px; font:inherit; }
+  .ayuda { color:var(--suave); font-size:14px; margin:4px 0 0; }
+  /* frases por competencia */
+  .frase { display:grid; grid-template-columns:1fr 86px 86px; gap:8px; align-items:center; padding:10px 0; border-top:1px solid #edf0f6; }
+  .frase:first-of-type { border-top:0; }
+  .cabecera { display:grid; grid-template-columns:1fr 86px 86px; gap:8px; font-size:13px; color:var(--suave); font-weight:600; text-align:center; }
+  .cabecera span:first-child { text-align:left; }
+  .elige { display:flex; justify-content:center; }
+  .elige input { width:22px; height:22px; accent-color:var(--azul); }
+  /* palabras DISC */
+  .grupo { border-top:1px solid #edf0f6; padding:10px 0; }
+  .grupo:first-of-type { border-top:0; }
+  .grupo h3 { margin:0 0 6px; font-size:14px; color:var(--suave); font-weight:600; }
+  .palabra { display:grid; grid-template-columns:1fr 86px 86px; gap:8px; align-items:center; padding:5px 0; }
+  .palabra b { font-weight:500; }
   button { background:var(--azul); color:#fff; border:0; border-radius:10px; padding:14px 22px; font-size:17px; cursor:pointer; width:100%; }
   .pie { color:var(--suave); font-size:13px; text-align:center; margin-top:14px; }
-  @media (max-width:720px) { .disc-grid { grid-template-columns:1fr; } }
+  @media (max-width:560px) {
+    .frase, .cabecera, .palabra { grid-template-columns:1fr 62px 62px; }
+  }
 </style>
 </head>
 <body>
@@ -45,46 +51,53 @@
 
   <div class="card">
     <h2>Hola, {{ (lead.nombre_completo or '').split(' ')[0] if lead.nombre_completo and not lead.nombre_completo.startswith('(') else 'postulante' }}</h2>
-    <p>Gracias por tu interés. Este formulario nos ayuda a conocer mejor cómo trabajas. Tiene dos partes y te tomará
-       entre <strong>15 y 20 minutos</strong>. Hazlo con tranquilidad y en un solo momento: se envía al final.</p>
+    <p>Gracias por tu interés. Este formulario nos ayuda a conocer cómo trabajas. Tiene tres partes y te tomará entre
+       <strong>15 y 25 minutos</strong>. Hazlo con tranquilidad y en un solo momento: se envía al final.</p>
     <div class="nota">
       <strong>Cómo llenarlo</strong>
       <ul style="margin:6px 0 0 18px; padding:0;">
-        <li>No hay respuestas correctas ni incorrectas: responde con <strong>sinceridad</strong>, pensando en cómo actúas normalmente.</li>
-        <li>Para cada afirmación elige de <strong>1 a 5</strong> qué tanto te describe.</li>
-        <li>En las preguntas abiertas, cuéntanos una situación real con tus propias palabras (basta con 3 o 4 líneas).</li>
+        <li>No hay respuestas correctas ni incorrectas: responde con <strong>sinceridad</strong>, pensando en cómo actúas normalmente, no en cómo te gustaría ser.</li>
+        <li>En las partes 2 y 3 debes elegir <strong>una opción que MÁS te describe y otra que MENOS te describe</strong>. Siempre habrá una que te describa menos: eso es lo normal.</li>
+        <li>En la parte 2 también te pedimos un <strong>ejemplo real</strong> con tus palabras (3 o 4 líneas, con lo que pasó, lo que hiciste tú y el resultado). Lo revisará nuestro equipo.</li>
       </ul>
-      <div class="escala"><span>1 = nada</span><span>2 = poco</span><span>3 = a veces</span><span>4 = bastante</span><span>5 = totalmente</span></div>
     </div>
   </div>
 
-  <form method="post" action="/cuestionario/{{ token }}">
+  <form method="post" action="/cuestionario/{{ token }}" id="formulario">
+
+  <div class="card">
+    <h2>Parte 1 · Tus datos</h2>
+    <label class="campo" for="distrito">¿En qué distrito vives?</label>
+    <input type="text" id="distrito" name="distrito" list="lista-distritos" value="{{ distrito_previo }}" required autocomplete="off"
+           placeholder="Escribe y elige de la lista (por ejemplo: Los Olivos)">
+    <datalist id="lista-distritos">{% for d in distritos %}<option value="{{ d }}">{% endfor %}</datalist>
+    <p class="ayuda">{% if base %}Esta vacante es para la base <strong>{{ base }}</strong>: necesitamos saber desde dónde te desplazarías.{% else %}Lo usamos para valorar la cercanía al lugar de trabajo.{% endif %}</p>
+  </div>
 
   {% if bloques %}
   <div class="card">
-    <h2>Parte 1 · Competencias</h2>
-    <p style="color:var(--suave); margin:0;">Elige qué tanto te describe cada afirmación en tu trabajo habitual.</p>
+    <h2>Parte 2 · Competencias</h2>
+    <p style="color:var(--suave); margin:0;">En cada competencia lee las cuatro frases y marca la que <strong>MÁS</strong> te describe y la que <strong>MENOS</strong> te describe. Después cuéntanos un ejemplo real.</p>
   </div>
   {% for b in bloques %}
   {% set comp = b.competencia %}
   <div class="card">
     <h2>{{ comp.nombre.title() }}</h2>
-    {% if comp.descripcion %}<p style="color:var(--suave); margin:0 0 6px;">{{ comp.descripcion }}</p>{% endif %}
-    {% for pid, nivel, texto in b.afirmaciones %}
-    <div class="afirm">
-      <p>{{ texto }}</p>
-      <div class="opts">
-        {% for n in [1,2,3,4,5] %}
-        <label><input type="radio" name="a_{{ comp.id }}_{{ nivel }}" value="{{ n }}" required
-                {{ 'checked' if previo.get('a_' ~ comp.id ~ '_' ~ nivel)|string == n|string else '' }}>{{ n }}</label>
-        {% endfor %}
-      </div>
+    {% if comp.descripcion %}<p class="ayuda" style="margin:0 0 8px;">{{ comp.descripcion }}</p>{% endif %}
+    <div class="cabecera"><span>Frase</span><span>MÁS me describe</span><span>MENOS me describe</span></div>
+    {% for pid, nivel, texto in b.opciones %}
+    <div class="frase">
+      <span>{{ texto }}</span>
+      <span class="elige"><input type="radio" name="mas_{{ comp.id }}" value="{{ nivel }}" data-par="menos_{{ comp.id }}" required
+        {{ 'checked' if previo.get('mas_' ~ comp.id)|string == nivel|string else '' }}></span>
+      <span class="elige"><input type="radio" name="menos_{{ comp.id }}" value="{{ nivel }}" data-par="mas_{{ comp.id }}" required
+        {{ 'checked' if previo.get('menos_' ~ comp.id)|string == nivel|string else '' }}></span>
     </div>
     {% endfor %}
     {% if b.ejemplo %}
-    <div class="afirm">
-      <p><strong>{{ b.ejemplo[1] }}</strong></p>
-      <textarea name="e_{{ comp.id }}" placeholder="Escribe aquí tu ejemplo…">{{ previo.get('e_' ~ comp.id, '') }}</textarea>
+    <div style="margin-top:14px;">
+      <label class="campo" for="e_{{ comp.id }}">{{ b.ejemplo[1] }}</label>
+      <textarea id="e_{{ comp.id }}" name="e_{{ comp.id }}" required placeholder="Cuéntanos qué pasó, qué hiciste tú y qué resultado obtuviste…">{{ previo.get('e_' ~ comp.id, '') }}</textarea>
     </div>
     {% endif %}
   </div>
@@ -92,26 +105,23 @@
   {% endif %}
 
   <div class="card">
-    <h2>{{ 'Parte 2' if bloques else 'Parte 1' }} · Estilo de trabajo</h2>
-    <p style="color:var(--suave); margin:0 0 6px;">Estas frases describen formas de ser en el trabajo. Marca qué tanto te describe cada una.
-      No es un examen: no hay un estilo mejor que otro.</p>
-    <div class="disc-grid">
-      {% for col in (disc_preguntas[:10], disc_preguntas[10:]) %}
-      <div>
-        {% for pid, dim, texto in col %}
-        <div class="afirm">
-          <p>{{ texto }}</p>
-          <div class="opts">
-            {% for n in [1,2,3,4,5] %}
-            <label><input type="radio" name="disc_{{ pid }}" value="{{ n }}" required
-                    {{ 'checked' if previo.get('disc_' ~ pid)|string == n|string else '' }}>{{ n }}</label>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
+    <h2>Parte {{ '3' if bloques else '2' }} · Palabras que te describen</h2>
+    <p style="color:var(--suave); margin:0;">En cada grupo hay cuatro palabras. Marca la que <strong>MÁS</strong> te describe y la que <strong>MENOS</strong> te describe en el trabajo.</p>
+    {% for gid, items in grupos %}
+    <div class="grupo">
+      <h3>Grupo {{ gid }} de {{ grupos|length }}</h3>
+      <div class="cabecera"><span></span><span>MÁS</span><span>MENOS</span></div>
+      {% for dim, palabra in items %}
+      <div class="palabra">
+        <b>{{ palabra }}</b>
+        <span class="elige"><input type="radio" name="dm_{{ gid }}" value="{{ dim }}" data-par="dl_{{ gid }}" required
+          {{ 'checked' if previo.get('dm_' ~ gid) == dim else '' }}></span>
+        <span class="elige"><input type="radio" name="dl_{{ gid }}" value="{{ dim }}" data-par="dm_{{ gid }}" required
+          {{ 'checked' if previo.get('dl_' ~ gid) == dim else '' }}></span>
       </div>
       {% endfor %}
     </div>
+    {% endfor %}
   </div>
 
   <button type="submit">Enviar mis respuestas</button>
@@ -120,5 +130,18 @@
     <a href="/privacidad" target="_blank">Política de privacidad</a></p>
   </form>
 </div>
+<script>
+  // Una misma frase/palabra no puede ser a la vez la que MÁS y la que MENOS describe.
+  document.querySelectorAll('input[type=radio][data-par]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var par = this.getAttribute('data-par');
+      document.querySelectorAll('input[name="' + par + '"]').forEach(function (o) {
+        o.disabled = (o.value === r.value);
+        if (o.disabled && o.checked) { o.checked = false; }
+      });
+    });
+    if (r.checked) { r.dispatchEvent(new Event('change')); }
+  });
+</script>
 </body>
 </html>

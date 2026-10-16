@@ -40,7 +40,7 @@
         </td>
         <td class="muted">
           {% if f.get('entrevista_cita') %}{{ f.entrevista_cita.fecha_hora or '—' }}
-          {% else %}{{ f.get('segunda_entrevista_entrevistador_nombre') or 'Sin asignar' }}{% endif %}
+          {% else %}—{% endif %}
         </td>
         <td>
           {% set clave = st[0] if st else '' %}

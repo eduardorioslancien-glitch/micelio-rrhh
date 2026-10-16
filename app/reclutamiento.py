@@ -37,7 +37,14 @@ from .public_landing import CV_DIR, EXTENSIONES_CV_VALIDAS, TAMANO_MAXIMO_CV
 
 # Cargos de mayor rotación que necesitan referencia obligatoria a una Base
 # (zona geográfica) — ver punto 2 del pedido sobre Registro de Pedidos.
-CARGOS_REQUIEREN_BASE = ["tecnico", "técnico", "guardian", "guardián", "lider de base", "líder de base", "almacenero"]
+CARGOS_REQUIEREN_BASE = ["tecnico", "técnico", "guardian", "guardián", "lider de base", "líder de base", "almacenero", "supervisor"]
+# Área cuyos pedidos siempre llevan Base (16/10): OKA.
+AREAS_REQUIEREN_BASE = ["oka"]
+
+
+def requiere_base(cargo_nombre: str, area: str) -> bool:
+    c, a = (cargo_nombre or "").lower(), (area or "").strip().lower()
+    return any(k in c for k in CARGOS_REQUIEREN_BASE) or a in AREAS_REQUIEREN_BASE
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
@@ -201,7 +208,7 @@ def pedidos_list(request: Request, estado: str = "", error: str = "", db: Sessio
         cargos=cargos, areas=areas, empleados=empleados, bases=bases, horarios=horarios,
         modalidades=MODALIDADES_PEDIDO, tipos_contrato=TIPOS_CONTRATO_PEDIDO, conceptos_catalogo=conceptos_catalogo,
         compensacion_por_cargo=compensacion_por_cargo, puede_generar=puede_generar,
-        cargos_requieren_base=CARGOS_REQUIEREN_BASE, error=error,
+        cargos_requieren_base=CARGOS_REQUIEREN_BASE, areas_requieren_base=AREAS_REQUIEREN_BASE, error=error,
         f_estado=f_estado, active="pedidos",
     ))
 
@@ -254,7 +261,7 @@ async def pedidos_crear(cargo_solicitado: str = Form(""), cantidad: str = Form("
     horario = db.query(Horario).get(int(horario_id)) if horario_id.isdigit() else None
     if not horario or not horario.activo:
         return _error_pedido("Elige el horario (si no existe, créalo en Control de Asistencia › Horarios).")
-    cargo_requiere_base = any(k in cargo.nombre.lower() for k in CARGOS_REQUIEREN_BASE)
+    cargo_requiere_base = requiere_base(cargo.nombre, area)
     if cargo_requiere_base and not base_id.isdigit():
         return _error_pedido("Este cargo requiere indicar la Base (zona) donde va a trabajar.")
 
@@ -1022,7 +1029,7 @@ def _etapa_seleccion(emp: Employee, f: dict) -> tuple[str, str]:
         return "ficha_enviada", "Contratar: esperando que llene su ficha"
     if _es_flujo_nuevo(f):
         return "decidir", "Entrevista agendada: falta decidir"
-    return "legado", "Esperando evaluación"
+    return "decidir", "Falta decidir"
 
 
 def registrar_contrato_firmado(db: Session, emp: Employee) -> None:
@@ -1031,7 +1038,9 @@ def registrar_contrato_firmado(db: Session, emp: Employee) -> None:
     acá la persona aparece en Onboarding."""
     f = dict(emp.ficha_data or {})
     f["contrato_firmado_at"] = datetime.datetime.utcnow().isoformat(timespec="seconds")
-    if not f.get("vacante_descontada") and f.get("codigo_pedido_seleccion"):
+    # Solo si se contrató por el flujo nuevo (`contratar_at`): las aprobaciones
+    # anteriores ya descontaron su vacante al aprobar.
+    if not f.get("vacante_descontada") and f.get("codigo_pedido_seleccion") and f.get("contratar_at"):
         pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
         if pedido:
             _pedido_cubre_vacante(pedido)
@@ -1092,7 +1101,7 @@ def seleccion_detalle(request: Request, employee_id: int, db: Session = Depends(
     return templates.TemplateResponse(request, "rrhh_seleccion_detalle.html", _ctx(
         request, user, e=emp, ficha=f, entrevistadores=entrevistadores,
         entrevistador_actual=entrevistador_actual, ya_lleno_ficha=_ya_lleno_ficha(emp),
-        disc_dimensiones=DISC_DIMENSIONES, nuevo=_es_flujo_nuevo(f), pedido=pedido, lead=lead,
+        disc_dimensiones=DISC_DIMENSIONES, nuevo=True, pedido=pedido, lead=lead,
         etapa_clave=etapa_clave, etapa_texto=etapa_texto, legajo_completo=bool(emp.completed_at),
         enlace_ficha=_public_base_url() + f"f/{emp.token}",
         enlace_contrato=_public_base_url() + f"f/{emp.token}/contrato",
@@ -1155,13 +1164,6 @@ def seleccion_confirmar_aprobado(employee_id: int, observaciones: str = Form("")
     # pedido de origen. Desde el 15/10, en el flujo nuevo la vacante se descuenta
     # recién cuando la persona FIRMA el contrato (registrar_contrato_firmado);
     # el flujo anterior conserva el descuento al aprobar.
-    if f.get("codigo_pedido_seleccion") and not _es_flujo_nuevo(f):
-        pedido = db.query(PedidoPersonal).filter(PedidoPersonal.codigo == f["codigo_pedido_seleccion"]).first()
-        if pedido:
-            _pedido_cubre_vacante(pedido)
-            f["vacante_descontada"] = True
-            emp.ficha_data = dict(f)
-            db.commit()
 
     enlace = _public_base_url() + f"f/{emp.token}"
     enviado = False

@@ -105,3 +105,57 @@ def interpretar(resultado) -> dict | None:
                    f"{DIMENSIONES[primario]['alto']}")
     return {"dimensiones": dimensiones, "primario": primario, "segundo": segundo, "combinado": combinado,
             "resumen": resumen, "cautela": CAUTELA}
+
+
+# ---------------------------------------------------------------------------
+# DISC por ELECCIÓN FORZADA (16/10/2026)
+#
+# 20 grupos de 4 palabras (una por dimensión). En cada grupo el postulante
+# elige la que MÁS lo describe y la que MENOS. Es el formato clásico de los
+# tests DISC: como obliga a renunciar a algo, es mucho más difícil de «adornar»
+# que puntuar frases del 1 al 5. Cada «más» suma 1 a su dimensión y cada
+# «menos» resta 1; con 20 grupos el rango es -20..+20 y se convierte a
+# porcentajes que suman 100 (promedio 25 %).
+# ---------------------------------------------------------------------------
+_PALABRAS = {
+    "D": ["Decidido", "Directo", "Competitivo", "Audaz", "Exigente", "Firme", "Resuelto", "Ambicioso", "Independiente",
+          "Valiente", "Enérgico", "Emprendedor", "Determinado", "Retador", "Autónomo", "Líder", "Dominante",
+          "Impaciente", "Arriesgado", "Tenaz"],
+    "I": ["Entusiasta", "Sociable", "Persuasivo", "Optimista", "Expresivo", "Carismático", "Animado", "Comunicativo",
+          "Simpático", "Inspirador", "Espontáneo", "Amistoso", "Divertido", "Motivador", "Conversador", "Alegre",
+          "Extrovertido", "Cálido", "Convincente", "Popular"],
+    "S": ["Paciente", "Leal", "Tranquilo", "Constante", "Amable", "Colaborador", "Estable", "Sereno", "Comprensivo",
+          "Confiable", "Calmado", "Cooperador", "Atento", "Considerado", "Servicial", "Armonioso", "Pacífico",
+          "Moderado", "Perseverante", "Receptivo"],
+    "C": ["Preciso", "Analítico", "Ordenado", "Cuidadoso", "Metódico", "Perfeccionista", "Detallista", "Lógico",
+          "Cauteloso", "Disciplinado", "Reservado", "Prudente", "Sistemático", "Organizado", "Exacto", "Riguroso",
+          "Objetivo", "Formal", "Observador", "Planificador"],
+}
+# Se desplazan las columnas para que las palabras de un mismo grupo no sean «hermanas» de la lista.
+DISC_GRUPOS = []
+for _i in range(20):
+    DISC_GRUPOS.append((_i + 1, {
+        "D": _PALABRAS["D"][_i],
+        "I": _PALABRAS["I"][(_i * 3 + 1) % 20],
+        "S": _PALABRAS["S"][(_i * 7 + 2) % 20],
+        "C": _PALABRAS["C"][(_i * 9 + 3) % 20],
+    }))
+
+
+def calcular_grupos(respuestas: dict) -> dict | None:
+    """respuestas: {"1": {"mas": "D", "menos": "C"}, ...} → {"D": pct, ..., "perfil_dominante": "D"}."""
+    puntos = {"D": 0, "I": 0, "S": 0, "C": 0}
+    n = 0
+    for _gid, _pal in DISC_GRUPOS:
+        r = respuestas.get(str(_gid)) or {}
+        mas, menos = r.get("mas"), r.get("menos")
+        if mas in puntos and menos in puntos and mas != menos:
+            puntos[mas] += 1
+            puntos[menos] -= 1
+            n += 1
+    if not n:
+        return None
+    total = len(DISC_GRUPOS)
+    porcentajes = {k: round((v + total) / (4 * total) * 100, 1) for k, v in puntos.items()}
+    dominante = max(porcentajes, key=porcentajes.get)
+    return {**porcentajes, "perfil_dominante": dominante, "metodo": "eleccion_forzada"}

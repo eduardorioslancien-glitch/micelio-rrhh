@@ -35,7 +35,7 @@
         <td><strong>{{ d.nombre_completo }}</strong></td>
         <td>{{ d.email or "—" }}{% if d.celular %}<br>{{ d.celular }}{% endif %}</td>
         <td class="muted">{{ d.codigo_pedido or "—" }}{% if d.vacante_cargo %}<br>{{ d.vacante_cargo }}{% endif %}</td>
-        <td><span class="badge {{ d.etapa_descarte }}">{{ 'Gestión de Leads' if d.etapa_descarte == 'leads' else 'Selección — 2.ª entrevista' }}</span></td>
+        <td><span class="badge {{ d.etapa_descarte }}">{{ 'Gestión de Leads' if d.etapa_descarte == 'leads' else 'Selección' }}</span></td>
         <td>{{ (d.descartado_at|lima).strftime("%d/%m/%Y %H:%M") }}</td>
         <td>{{ d.descartado_por or "—" }}</td>
         <td>

@@ -54,8 +54,8 @@
     {% set disc = ficha.disc_resultado %}{% include "_disc_explicado.html" %}
     {% endif %}
 
-    {% if ficha.get('competencias_entrevista') %}
-    <div class="section-title" style="margin-top:14px;">Entrevista por Competencias</div>
+    {% if ficha.get('competencias_entrevista') and not lead %}
+    <div class="section-title" style="margin-top:14px;">Competencias</div>
     <table>
       <tr><th>Competencia</th><th>Nivel Requerido</th><th>Nivel Observado</th><th>Notas</th></tr>
       {% for c in ficha.competencias_entrevista %}
@@ -103,20 +103,50 @@
   </div>
   {% endif %}
 
+  {% set cd = (lead.cuestionario_data if lead else None) or {} %}
+  {% set calif = (lead.calificacion_final if lead and lead.calificacion_final else ficha.get('calificacion_final')) %}
+  {% set concl = (lead.conclusion_ia if lead and lead.conclusion_ia else ficha.get('conclusion_ia')) %}
   <div class="card">
     <h2>Resultado de la evaluación</h2>
-    {% if ficha.get('calificacion_final') %}
-    {% set cf = (ficha.calificacion_final + 0.5)|int %}
+    {% if calif %}
+    {% set cf = (calif + 0.5)|int %}
     <p style="font-size:22px; margin:4px 0;">{% for i in range(1,6) %}{{ '★' if i <= cf else '☆' }}{% endfor %}
-      <span class="muted" style="font-size:14px;">Calificación final {{ ficha.calificacion_final }}/5
+      <span class="muted" style="font-size:14px;">Calificación final {{ calif }}/5
         {% if ficha.get('cv_estrellas') %}· CV {{ ficha.cv_estrellas }}/5{% endif %}</span></p>
     {% endif %}
-    {% if ficha.get('conclusion_ia') %}
+    {% set zona = cd.get('zona') or {} %}
+    {% if zona.get('distrito') %}
+    <p style="margin:0 0 8px;"><strong>Distrito:</strong> {{ zona.distrito.title() }}
+      {% if zona.get('dentro') is true %}<span class="badge firmado">Dentro de la zona de {{ zona.base }}</span>
+      {% elif zona.get('dentro') is false %}<span class="badge cancelado">Fuera de la zona de {{ zona.base }}</span>{% endif %}</p>
+    {% endif %}
+    {% if concl %}
     <div class="section-title">Conclusión de MICELIO</div>
-    <p style="white-space:pre-wrap;">{{ ficha.conclusion_ia }}</p>
+    <p style="white-space:pre-wrap;">{{ concl }}</p>
+    {% endif %}
+    {% if cd.get('competencias') %}
+    <div class="section-title" style="margin-top:12px;">Competencias</div>
+    <table>
+      <tr><th>Competencia</th><th style="width:70px;">Exigido</th><th style="width:70px;">Eligió</th><th style="width:90px;">Sustentado</th><th style="width:110px;">Resultado</th><th>Ejemplo y análisis</th></tr>
+      {% for c in cd.competencias %}
+      {% set sus = c.get('nivel_sustentado') %}
+      {% set cons = c.nivel if sus is none else (c.nivel if c.nivel < sus else sus) %}
+      <tr>
+        <td><strong>{{ c.nombre.title() }}</strong></td><td>{{ c.requerido }}</td><td>{{ c.nivel }}</td>
+        <td>{% if sus is none %}—{% else %}{{ sus }}{% endif %}</td>
+        <td>{% if cons >= c.requerido %}<span class="badge firmado">{{ 'Supera' if cons > c.requerido else 'Cumple' }}</span>{% else %}<span class="badge cancelado">Brecha de {{ c.requerido - cons }}</span>{% endif %}</td>
+        <td style="font-size:13px;"><div class="muted" style="white-space:pre-wrap;">{{ c.ejemplo or '—' }}</div>
+          {% if c.get('analisis') %}<div style="margin-top:4px;"><strong>Análisis:</strong> {{ c.analisis }}</div>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    {% if cd.get('preguntas_entrevista') %}
+    <div class="section-title" style="margin-top:12px;">Preguntas sugeridas para la entrevista</div>
+    <ul style="margin:4px 0 0 18px;">{% for q in cd.preguntas_entrevista %}<li>{{ q }}</li>{% endfor %}</ul>
     {% endif %}
     {% if ficha.get('cv_analisis') %}
-    <details><summary class="muted" style="cursor:pointer; font-size:13px;">Análisis del CV</summary>
+    <details style="margin-top:10px;"><summary class="muted" style="cursor:pointer; font-size:13px;">Análisis del CV</summary>
       <p style="white-space:pre-wrap;">{{ ficha.cv_analisis }}</p></details>
     {% endif %}
   </div>
@@ -177,75 +207,6 @@
     <a class="btn small secondary" style="margin-left:6px;" href="/rrhh/personal/{{ e.id }}">Ver ficha en Personal</a>
     {% endif %}
   </div>
-  {% else %}
-  <div class="card">
-    <h2>Segunda entrevista (con el área)</h2>
-    <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/asignar" class="inline-form">
-      <div class="field">
-        <label>Persona que hará la segunda entrevista</label>
-        <select name="entrevistador_id" required>
-          <option value="">Seleccionar…</option>
-          {% for ent in entrevistadores %}
-          <option value="{{ ent.id }}" {{ 'selected' if entrevistador_actual and entrevistador_actual.id == ent.id else '' }}>{{ ent.nombre_completo }}{% if (ent.ficha_data or {}).get('cargo') %} — {{ (ent.ficha_data or {}).get('cargo') }}{% endif %}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <button class="btn small" type="submit">{{ 'Reasignar y reenviar aviso' if entrevistador_actual else 'Asignar y enviar aviso' }}</button>
-    </form>
-
-    {% if entrevistador_actual %}
-    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
-      <p style="margin:0 0 10px;">Entrevistador asignado: <strong>{{ entrevistador_actual.nombre_completo }}</strong></p>
-      {% if ficha.get('segunda_entrevista_fecha_hora') %}
-      <p class="muted" style="margin:0 0 10px;">Fecha y hora coordinada: <strong>{{ ficha.get('segunda_entrevista_fecha_hora') }}</strong></p>
-      {% endif %}
-
-      {% set v = ficha.get('segunda_entrevista_veredicto') %}
-      {% if v %}
-      <div class="section-title">Veredicto de la segunda entrevista</div>
-      <p style="margin:6px 0;">
-        <span class="badge {{ 'firmado' if v == 'aprobado' else ('cancelado' if v == 'descartado' else 'pendiente') }}">{{ v|upper }}</span>
-        <span class="muted" style="font-size:12px;">— registrado el {{ ficha.get('segunda_entrevista_veredicto_at', '—') }}</span>
-      </p>
-      {% if ficha.get('segunda_entrevista_comentario') %}
-      <p style="white-space:pre-wrap;">{{ ficha.get('segunda_entrevista_comentario') }}</p>
-      {% endif %}
-
-      {% if ficha.get('seleccion_rrhh_confirmado') %}
-      <p class="muted">RR.HH. ya confirmó este veredicto como <strong>{{ ficha.get('seleccion_rrhh_confirmado')|upper }}</strong>.</p>
-      {% elif v == 'aprobado' %}
-      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-aprobado" style="display:inline;"
-            onsubmit="return confirm('¿Confirmar la aprobación de {{ e.nombre_completo }}? Se le enviará el enlace para llenar su ficha de datos.');">
-        <button class="btn small" type="submit">Confirmar aprobación</button>
-      </form>
-      {% elif v == 'descartado' %}
-      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-descartado" style="display:inline;"
-            onsubmit="return confirm('¿Confirmar el descarte de {{ e.nombre_completo }}? Se le enviará un correo de agradecimiento y su legajo se archivará (ya no quedará en Personal).');">
-        <button class="btn small secondary" type="submit">Confirmar descarte</button>
-      </form>
-      {% else %}
-      <p class="muted">En revisión — a la espera de que RR.HH. defina. Puedes reasignar a otra persona para una nueva segunda entrevista, o descartar directamente:</p>
-      <form method="post" action="/rrhh/reclutamiento/seleccion/{{ e.id }}/confirmar-descartado" style="display:inline;"
-            onsubmit="return confirm('¿Descartar a {{ e.nombre_completo }}? Se le enviará un correo de agradecimiento y su legajo se archivará (ya no quedará en Personal).');">
-        <button class="btn small secondary" type="submit">Confirmar descarte</button>
-      </form>
-      {% endif %}
-      {% else %}
-      <p class="muted">Esperando la evaluación de {{ entrevistador_actual.nombre_completo.split(' ')[0] }} — todavía no registró su veredicto en su enlace de segunda entrevista.</p>
-      {% endif %}
-    </div>
-    {% endif %}
-  </div>
-
-  {% if ficha.get('seleccion_rrhh_confirmado') == 'aprobado' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green);">
-    <p style="margin:0; color:var(--green);">Aprobado.
-      {% if ya_lleno_ficha %}Ya llenó su ficha de datos.{% else %}Todavía no llenó su ficha de datos (se le mandó el enlace).{% endif %}
-    </p>
-    <a class="btn small" style="margin-top:10px;" href="/rrhh/personal/{{ e.id }}">Ir a la ficha de {{ e.nombre_completo }}</a>
-  </div>
-  {% endif %}
-
   {% endif %}
 
 </div>

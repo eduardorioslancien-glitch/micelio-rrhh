@@ -74,6 +74,7 @@ def _payload_entrevista(lead: LeadCandidato, entr: dict) -> dict:
         "entrevistador_celular": entr["celular"],
         "calificacion_final": lead.calificacion_final,
         "conclusion": (lead.conclusion_ia or "")[:900],
+        "preguntas": ((lead.cuestionario_data or {}).get("preguntas_entrevista") or [])[:6],
     }
 
 

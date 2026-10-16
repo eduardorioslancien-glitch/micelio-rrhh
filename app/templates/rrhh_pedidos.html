@@ -199,6 +199,7 @@
 <script>
   const COMPENSACION_POR_CARGO = {{ compensacion_por_cargo | tojson }};
   const CARGOS_REQUIEREN_BASE = {{ cargos_requieren_base | tojson }};
+  const AREAS_REQUIEREN_BASE = {{ areas_requieren_base | tojson }};
   const CONCEPTOS_CATALOGO = {{ conceptos_catalogo | tojson }};
   const HINTS = {
     APE: "APE: se firma un Convenio de Aprendizaje. La comisión se ingresa mensualmente para el cálculo de la planilla.",
@@ -233,7 +234,8 @@
   }
   function validarPedido() {
     const cargo = (document.getElementById("cargo_solicitado").value || "").toLowerCase();
-    const requiereBase = CARGOS_REQUIEREN_BASE.some(k => cargo.includes(k));
+    const area = ((document.querySelector("[name=area]") || {}).value || "").trim().toLowerCase();
+    const requiereBase = CARGOS_REQUIEREN_BASE.some(k => cargo.includes(k)) || AREAS_REQUIEREN_BASE.includes(area);
     if (requiereBase && !document.getElementById("base_id").value) {
       alert("Este cargo requiere indicar la Base (zona) donde va a trabajar.");
       return false;

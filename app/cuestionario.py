@@ -1,16 +1,29 @@
 # -*- coding: utf-8 -*-
-"""Formulario del postulante: Competencias + DISC (15/10/2026).
+"""Formulario del postulante: Competencias + DISC (15-16/10/2026).
 
 Después de analizar el CV, el postulante recibe (WhatsApp y correo, vía n8n) un
 enlace público a este formulario. Al enviarlo, MICELIO calcula el nivel por
 competencia frente al que exige el cargo, el perfil DISC, una calificación
 final y una conclusión (automática al instante; la IA de n8n la reemplaza por
-una más completa cuando responde). Los resultados quedan en
-`entrevista_data["competencias"|"disc"]` (mismo formato que ya leen Selección
-y la ficha) y el detalle completo en `cuestionario_data`.
+una más completa y además EVALÚA los ejemplos abiertos).
+
+Cómo se evita que todos se pongan «5» (16/10):
+- Competencias: por cada una el postulante lee 4 frases (una por nivel, en orden
+  aleatorio y sin número) y elige la que MÁS y la que MENOS lo describe.
+- El ejemplo real es obligatorio y se evalúa: el nivel que cuenta es el MENOR entre
+  el que eligió y el que su ejemplo sustenta (`nivel_sustentado`).
+- DISC: elección forzada (palabra que MÁS y que MENOS te describe en 20 grupos).
+- Si casi todas sus elecciones son el nivel más alto, se avisa a RR.HH.
+
+Los resultados quedan en `entrevista_data["competencias"|"disc"]` (formato que ya
+leen Selección y la ficha) y el detalle completo en `cuestionario_data`.
 """
 import datetime
+import json
 import os
+import random
+import re
+import unicodedata
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
@@ -19,7 +32,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from .auth import require_perm
-from .competencias_preguntas import asegurar_preguntas, incoherente, nivel_estimado, NIVELES
+from .competencias_preguntas import asegurar_preguntas, NIVELES
 from .database import get_db
 from .models import (Cargo, Competencia, CompetenciaPregunta, LeadCandidato, User, lead_incompleto)
 from .rrhh import _ctx, _public_base_url, _a_lima
@@ -34,6 +47,54 @@ templates.env.globals["interpretar_disc"] = disc_mod.interpretar
 router = APIRouter()
 
 PESO_CV = 0.35  # el resto (0.65) es el ajuste de competencias
+
+
+# ---------------------------------------------------------------- utilidades
+
+def _norm(texto: str) -> str:
+    t = unicodedata.normalize("NFKD", texto or "")
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    return re.sub(r"\s+", " ", t).strip().upper()
+
+
+_DISTRITOS_CACHE: list[str] | None = None
+
+
+def lista_distritos() -> list[str]:
+    """Todos los distritos del Perú (para sugerir al escribir)."""
+    global _DISTRITOS_CACHE
+    if _DISTRITOS_CACHE is None:
+        try:
+            with open(os.path.join(BASE_DIR, "static", "ubigeo_peru.json"), encoding="utf-8") as f:
+                datos = json.load(f)
+            nombres = {d for dep in datos for prov in dep["provincias"] for d in prov["distritos"]}
+            _DISTRITOS_CACHE = sorted(nombres)
+        except Exception:
+            _DISTRITOS_CACHE = []
+    return _DISTRITOS_CACHE
+
+
+def calidad_ejemplo_local(texto: str) -> str:
+    """'nula' si el ejemplo está vacío o es ruido evidente; 'pendiente' si hay
+    que dejar que la IA lo evalúe. Es una red de seguridad barata: la
+    evaluación de verdad la hace la IA (flujo 08)."""
+    t = (texto or "").strip()
+    if len(t) < 25:
+        return "nula"
+    palabras = re.findall(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,}", t)
+    if len(palabras) < 5 or len({p.lower() for p in palabras}) <= 2:
+        return "nula"
+    letras = [c for c in t.lower() if c.isalpha()]
+    if letras and sum(1 for c in letras if c in "aeiouáéíóú") / len(letras) < 0.2:
+        return "nula"
+    return "pendiente"
+
+
+def nivel_considerado(c: dict) -> int:
+    """El menor entre el nivel que eligió y el que su ejemplo sustenta."""
+    elegido = int(c.get("nivel") or 0)
+    sustentado = c.get("nivel_sustentado")
+    return min(elegido, int(sustentado)) if sustentado is not None else elegido
 
 
 # ---------------------------------------------------------------- datos del formulario
@@ -80,15 +141,23 @@ def _lead_por_token(db: Session, token: str) -> LeadCandidato | None:
     return db.query(LeadCandidato).filter(LeadCandidato.cuestionario_token == token).first()
 
 
+def zona_de(lead: LeadCandidato, distrito: str) -> dict:
+    base = lead.pedido.base if lead.pedido else None
+    if not base:
+        return {"base": None, "distrito": distrito, "dentro": None}
+    zona = {_norm(d) for d in (base.distritos or [])}
+    return {"base": base.nombre, "distrito": distrito, "dentro": (_norm(distrito) in zona) if zona else None}
+
+
 # ---------------------------------------------------------------- cálculo
 
 def calcular_calificacion(lead: LeadCandidato, competencias: list[dict]) -> dict:
     """Calificación final 1-5: ajuste de competencias (65 %) + estrellas del CV
-    (35 %). Si no hay análisis de CV, pesa solo el ajuste de competencias."""
+    (35 %). El ajuste usa el nivel CONSIDERADO (lo que elige y su ejemplo sustenta)."""
     ratios = []
     for c in competencias:
         req = max(int(c.get("requerido") or 1), 1)
-        ratios.append(min(1.0, (c.get("nivel") or 0) / req))
+        ratios.append(min(1.0, nivel_considerado(c) / req))
     ajuste = (sum(ratios) / len(ratios)) if ratios else None
     puntaje_comp = round(1 + 4 * ajuste, 1) if ajuste is not None else None
     cv = lead.estrellas
@@ -108,22 +177,32 @@ def conclusion_automatica(lead: LeadCandidato, datos: dict) -> str:
     cargo = lead.pedido.cargo_solicitado if lead.pedido else "el cargo"
     comp = datos.get("competencias") or []
     cal = datos.get("calificacion") or {}
+    zona = datos.get("zona") or {}
     partes = [f"Postulación a {cargo}."]
     if lead.estrellas:
         partes.append(f"CV: {lead.estrellas:g}/5 según el análisis automático.")
+    if zona.get("distrito"):
+        if zona.get("dentro") is True:
+            partes.append(f"Vive en {zona['distrito'].title()}, dentro de la zona de la base {zona['base']}.")
+        elif zona.get("dentro") is False:
+            partes.append(f"Vive en {zona['distrito'].title()}, FUERA de la zona de la base {zona['base']}: confirmar en la entrevista si puede desplazarse.")
+        else:
+            partes.append(f"Distrito de residencia: {zona['distrito'].title()}.")
     if comp:
-        cumplen = [c for c in comp if (c.get("nivel") or 0) >= (c.get("requerido") or 1)]
-        brechas = [c for c in comp if (c.get("nivel") or 0) < (c.get("requerido") or 1)]
-        partes.append(f"Competencias: alcanza el nivel exigido en {len(cumplen)} de {len(comp)}.")
+        cumplen = [c for c in comp if nivel_considerado(c) >= (c.get("requerido") or 1)]
+        brechas = [c for c in comp if nivel_considerado(c) < (c.get("requerido") or 1)]
+        partes.append(f"Competencias: alcanza el nivel exigido en {len(cumplen)} de {len(comp)} (considerando lo que eligió y lo que su ejemplo sustenta).")
         if brechas:
-            detalle = "; ".join(f"{b['nombre'].title()} (nivel {b.get('nivel') or 0} de {b.get('requerido')} requerido)" for b in brechas)
+            detalle = "; ".join(f"{b['nombre'].title()} (nivel {nivel_considerado(b)} de {b.get('requerido')} requerido)" for b in brechas)
             partes.append(f"Brechas a profundizar en la entrevista: {detalle}.")
-        fuertes = [c for c in cumplen if (c.get("nivel") or 0) > (c.get("requerido") or 1)]
-        if fuertes:
-            partes.append("Por encima del nivel exigido: " + ", ".join(c["nombre"].title() for c in fuertes) + ".")
-        incoh = [c["nombre"].title() for c in comp if c.get("incoherente")]
-        if incoh:
-            partes.append("Respuestas poco consistentes (contrastar con ejemplos en la entrevista): " + ", ".join(incoh) + ".")
+        sin_ejemplo = [c["nombre"].title() for c in comp if c.get("ejemplo_calidad") == "nula"]
+        if sin_ejemplo:
+            partes.append("No presentó un ejemplo válido en: " + ", ".join(sin_ejemplo) + ".")
+        sobrestimadas = [c["nombre"].title() for c in comp if c.get("nivel_sustentado") is not None and c["nivel_sustentado"] < (c.get("nivel") or 0) and c.get("ejemplo_calidad") != "nula"]
+        if sobrestimadas:
+            partes.append("Su ejemplo sustenta menos de lo que eligió en: " + ", ".join(sobrestimadas) + ".")
+        if datos.get("muy_favorable"):
+            partes.append("Eligió el nivel más alto en casi todas las competencias: contrastar con ejemplos concretos en la entrevista.")
     else:
         partes.append("El cargo no tiene competencias exigidas cargadas en el MOF: la evaluación se basa en CV y DISC.")
     info = disc_mod.interpretar(datos.get("disc"))
@@ -149,13 +228,48 @@ def payload_conclusion(lead: LeadCandidato) -> dict:
         "cargo": lead.pedido.cargo_solicitado if lead.pedido else None,
         "empresa": lead.pedido.empresa.nombre if lead.pedido and lead.pedido.empresa else None,
         "cv": {"estrellas": lead.estrellas, "analisis": lead.analisis_ia},
+        "zona": d.get("zona"), "muy_favorable": bool(d.get("muy_favorable")),
         "competencias": [
-            {k: c.get(k) for k in ("nombre", "requerido", "nivel", "ejemplo", "incoherente")}
+            {"nombre": c.get("nombre"), "requerido": c.get("requerido"), "elegido": c.get("nivel"),
+             "ejemplo": c.get("ejemplo"), "ejemplo_calidad_local": c.get("ejemplo_calidad")}
             for c in (d.get("competencias") or [])
         ],
         "disc": d.get("disc"), "calificacion": d.get("calificacion"),
         "conclusion_automatica": lead.conclusion_ia,
     }
+
+
+def aplicar_evaluacion_ia(db: Session, lead: LeadCandidato, texto: str, evaluaciones: list | None, preguntas: list | None) -> None:
+    """Guarda lo que devuelve la IA (flujo 08): conclusión, evaluación de cada
+    ejemplo y preguntas sugeridas para la entrevista; recalcula la calificación."""
+    datos = dict(lead.cuestionario_data or {})
+    comp = [dict(c) for c in (datos.get("competencias") or [])]
+    por_nombre = {_norm(c["nombre"]): c for c in comp}
+    for ev in (evaluaciones or []):
+        c = por_nombre.get(_norm(str(ev.get("nombre") or "")))
+        if not c:
+            continue
+        try:
+            nivel = int(ev.get("nivel_sustentado"))
+            if 0 <= nivel <= 4:
+                c["nivel_sustentado"] = nivel
+        except (TypeError, ValueError):
+            pass
+        if ev.get("evidencia"):
+            c["evidencia"] = str(ev["evidencia"])[:20]
+        if ev.get("comentario"):
+            c["analisis"] = str(ev["comentario"])[:600]
+    datos["competencias"] = comp
+    if preguntas:
+        datos["preguntas_entrevista"] = [str(p)[:300] for p in preguntas][:8]
+    datos["calificacion"] = calcular_calificacion(lead, comp)
+    lead.cuestionario_data = datos
+    lead.calificacion_final = datos["calificacion"]["final"]
+    if texto:
+        lead.conclusion_ia = texto[:6000]
+        lead.conclusion_origen = "ia"
+        lead.conclusion_at = datetime.datetime.utcnow()
+    db.commit()
 
 
 def payload_envio(lead: LeadCandidato) -> dict:
@@ -180,8 +294,7 @@ def _conclusion_n8n(payload: dict) -> None:
 
 
 def preparar_envio(db: Session, lead: LeadCandidato) -> dict:
-    """Marca el formulario como enviado y arma el payload para n8n. No hace
-    commit del aviso: quien llama decide."""
+    """Marca el formulario como enviado y arma el payload para n8n."""
     asegurar_token(lead)
     lead.cuestionario_enviado_at = datetime.datetime.utcnow()
     db.commit()
@@ -190,18 +303,24 @@ def preparar_envio(db: Session, lead: LeadCandidato) -> dict:
 
 # ---------------------------------------------------------------- rutas públicas
 
-def _contexto_form(db: Session, lead: LeadCandidato, error: str = "", previo: dict | None = None) -> dict:
+def _contexto_form(db: Session, lead: LeadCandidato, token: str, error: str = "", previo: dict | None = None) -> dict:
+    bloques = []
+    for b in competencias_requeridas(db, lead):
+        opciones = list(b["afirmaciones"])
+        random.Random(f"{token}-c{b['competencia'].id}").shuffle(opciones)
+        bloques.append({**b, "opciones": opciones})
+    grupos = []
+    for gid, palabras in disc_mod.DISC_GRUPOS:
+        items = list(palabras.items())
+        random.Random(f"{token}-d{gid}").shuffle(items)
+        grupos.append((gid, items))
     return {
-        "lead": lead, "bloques": competencias_requeridas(db, lead),
-        "disc_preguntas": _disc_preguntas(), "niveles": NIVELES, "error": error, "previo": previo or {},
+        "lead": lead, "bloques": bloques, "grupos": grupos, "error": error, "previo": previo or {},
+        "distritos": lista_distritos(), "distrito_previo": (previo or {}).get("distrito") or lead.distrito or "",
         "cargo": lead.pedido.cargo_solicitado if lead.pedido else "",
+        "base": lead.pedido.base.nombre if lead.pedido and lead.pedido.base else None,
         "empresa": lead.pedido.empresa.nombre if lead.pedido and lead.pedido.empresa else "DIGETEL GROUP",
     }
-
-
-def _disc_preguntas():
-    from .reclutamiento import DISC_PREGUNTAS
-    return DISC_PREGUNTAS
 
 
 @router.get("/cuestionario/{token}", response_class=HTMLResponse)
@@ -212,7 +331,7 @@ def cuestionario_form(request: Request, token: str, db: Session = Depends(get_db
     if lead.cuestionario_respondido_at:
         return templates.TemplateResponse(request, "cuestionario_gracias.html", {"request": request, "lead": lead, "ya": True})
     return templates.TemplateResponse(request, "cuestionario_publico.html", {
-        "request": request, "token": token, **_contexto_form(db, lead)})
+        "request": request, "token": token, **_contexto_form(db, lead, token)})
 
 
 @router.post("/cuestionario/{token}", response_class=HTMLResponse)
@@ -225,49 +344,61 @@ async def cuestionario_enviar(request: Request, token: str, background_tasks: Ba
         return templates.TemplateResponse(request, "cuestionario_gracias.html", {"request": request, "lead": lead, "ya": True})
     form = await request.form()
     previo = {k: v for k, v in form.items()}
-    bloques = competencias_requeridas(db, lead)
-    disc_preguntas = _disc_preguntas()
-
     faltantes = []
-    competencias = []
-    for b in bloques:
-        comp = b["competencia"]
-        respuestas = {}
-        for _pid, nivel, _txt in b["afirmaciones"]:
-            v = form.get(f"a_{comp.id}_{nivel}")
-            try:
-                v = int(v)
-            except (TypeError, ValueError):
-                v = None
-            if v is None or not 1 <= v <= 5:
-                faltantes.append(f"{comp.nombre.title()} (nivel {nivel})")
-            respuestas[nivel] = v
-        ejemplo = (form.get(f"e_{comp.id}") or "").strip()
-        nivel = nivel_estimado({n: p for n, p in respuestas.items()})
-        competencias.append({
-            "id": comp.id, "nombre": comp.nombre, "tipo": comp.tipo, "requerido": b["requerido"],
-            "respuestas": {str(n): p for n, p in respuestas.items()}, "nivel": nivel,
-            "ejemplo": ejemplo[:2000], "incoherente": incoherente(respuestas),
-        })
-    disc_resp = {}
-    for pid, _dim, _txt in disc_preguntas:
-        v = form.get(f"disc_{pid}")
-        if v in ("1", "2", "3", "4", "5"):
-            disc_resp[pid] = v
-        else:
-            faltantes.append("DISC")
-            break
-    if faltantes:
-        msg = "Falta responder: " + ", ".join(dict.fromkeys(faltantes)) + ". Revisa los campos marcados."
-        return templates.TemplateResponse(request, "cuestionario_publico.html", {
-            "request": request, "token": token, **_contexto_form(db, lead, error=msg, previo=previo)})
 
-    from .reclutamiento import _calcular_disc
-    disc = _calcular_disc(disc_resp)
-    datos = {"competencias": competencias, "disc": disc, "disc_respuestas": disc_resp}
+    distrito = re.sub(r"\s+", " ", (form.get("distrito") or "").strip())
+    if len(distrito) < 3:
+        faltantes.append("el distrito donde vives")
+
+    competencias = []
+    for b in competencias_requeridas(db, lead):
+        comp = b["competencia"]
+        niveles_validos = {n for _p, n, _t in b["afirmaciones"]}
+        try:
+            mas = int(form.get(f"mas_{comp.id}"))
+            menos = int(form.get(f"menos_{comp.id}"))
+        except (TypeError, ValueError):
+            mas = menos = None
+        if mas not in niveles_validos or menos not in niveles_validos or mas == menos:
+            faltantes.append(f"{comp.nombre.title()} (elige una frase que MÁS y otra que MENOS te describa)")
+            mas = menos = 0
+        ejemplo = (form.get(f"e_{comp.id}") or "").strip()
+        if not ejemplo:
+            faltantes.append(f"{comp.nombre.title()} (tu ejemplo)")
+        calidad = calidad_ejemplo_local(ejemplo)
+        item = {
+            "id": comp.id, "nombre": comp.nombre, "tipo": comp.tipo, "requerido": b["requerido"],
+            "nivel": mas, "menos": menos, "ejemplo": ejemplo[:2000], "ejemplo_calidad": calidad,
+            "nivel_sustentado": 0 if calidad == "nula" else None,
+        }
+        if calidad == "nula":
+            item["analisis"] = "No presentó un ejemplo válido."
+        competencias.append(item)
+
+    disc_resp = {}
+    for gid, palabras in disc_mod.DISC_GRUPOS:
+        mas, menos = form.get(f"dm_{gid}"), form.get(f"dl_{gid}")
+        if mas in palabras and menos in palabras and mas != menos:
+            disc_resp[str(gid)] = {"mas": mas, "menos": menos}
+    if len(disc_resp) < len(disc_mod.DISC_GRUPOS):
+        faltantes.append("la parte de palabras (marca una que MÁS y otra que MENOS te describa en cada grupo)")
+
+    if faltantes:
+        msg = "Falta completar: " + "; ".join(dict.fromkeys(faltantes)) + "."
+        return templates.TemplateResponse(request, "cuestionario_publico.html", {
+            "request": request, "token": token, **_contexto_form(db, lead, token, error=msg, previo=previo)})
+
+    disc = disc_mod.calcular_grupos(disc_resp)
+    n_altos = sum(1 for c in competencias if c["nivel"] == 4)
+    datos = {
+        "competencias": competencias, "disc": disc, "disc_respuestas": disc_resp,
+        "zona": zona_de(lead, distrito.upper()),
+        "muy_favorable": len(competencias) >= 3 and n_altos / len(competencias) >= 0.7,
+    }
     datos["calificacion"] = calcular_calificacion(lead, competencias)
     ahora = datetime.datetime.utcnow()
     datos["respondido_at"] = ahora.isoformat(timespec="seconds")
+    lead.distrito = distrito.upper()
     lead.cuestionario_data = datos
     lead.cuestionario_respondido_at = ahora
     lead.calificacion_final = datos["calificacion"]["final"]
@@ -276,9 +407,8 @@ async def cuestionario_enviar(request: Request, token: str, background_tasks: Ba
     lead.conclusion_at = ahora
 
     ed = dict(lead.entrevista_data or {})
-    ed["competencias"] = {str(c["id"]): {"nivel_observado": c["nivel"], "notas": c["ejemplo"] or None} for c in competencias}
+    ed["competencias"] = {str(c["id"]): {"nivel_observado": nivel_considerado(c), "notas": c["ejemplo"] or None} for c in competencias}
     ed["disc"] = disc
-    ed["disc_respuestas"] = disc_resp
     lead.entrevista_data = ed
     db.commit()
     db.refresh(lead)

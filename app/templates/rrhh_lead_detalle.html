@@ -14,12 +14,16 @@
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Correo enviado correctamente.</p></div>
   {% elif request.query_params.get('ok') == 'correo_no_configurado' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">La acción se guardó, pero no se pudo enviar el correo (falta configurar SMTP_* en el servidor).</p></div>
-  {% elif request.query_params.get('ok') == 'entrevistador_notificado' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección — se notificó por correo a quien hará la segunda entrevista.</p></div>
-  {% elif request.query_params.get('ok') == 'entrevistador_no_configurado' %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Aprobado y enviado a Selección, pero no se pudo enviar el correo a quien hará la segunda entrevista (falta configurar SMTP_* en el servidor, o no tiene correo cargado).</p></div>
-  {% elif request.query_params.get('ok') == 'sin_entrevistador' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Aprobado y enviado a Selección. No se eligió a nadie para la segunda entrevista todavía — puedes asignarla más tarde desde Selección.</p></div>
+  {% elif request.query_params.get('ok') == 'entrevista_agendada' %}
+  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Entrevista agendada: se creó la cita en el calendario (con Meet) y se avisó al postulante y a quien generó el pedido. El candidato ya está en Selección.</p></div>
+  {% elif request.query_params.get('ok') == 'entrevista_fallo' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">No se pudo agendar la entrevista{% if request.query_params.get('motivo') %}: {{ request.query_params.get('motivo') }}{% endif %}. El candidato sigue en Gestión de Leads; revisa la integración con n8n o inténtalo de nuevo.</p></div>
+  {% elif request.query_params.get('ok') == 'entrevista_sin_formulario' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El postulante todavía no responde el formulario. Si igual quieres enviarlo a entrevista, usa «Enviar a entrevista sin formulario».</p></div>
+  {% elif request.query_params.get('ok') == 'entrevista_sin_correo' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El postulante no tiene correo: la invitación de Calendar necesita un correo. Complétalo y vuelve a intentar.</p></div>
+  {% elif request.query_params.get('ok') == 'entrevista_ya_enviada' %}
+  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Este candidato ya fue enviado a entrevista.</p></div>
   {% elif request.query_params.get('ok') == 'analisis_solicitado' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Pedimos el análisis del CV. En unos segundos aparecerá aquí abajo; la página se actualiza sola.</p></div>
   {% set intento = (request.query_params.get('n') or '0')|int %}
@@ -36,24 +40,12 @@
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El postulante ya respondió el formulario.</p></div>
   {% elif request.query_params.get('ok') == 'conclusion_solicitada' %}
   <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Conclusión recalculada. La versión con IA aparecerá en unos segundos si el flujo está conectado.</p></div>
-  {% elif request.query_params.get('ok') == 'entrevista_agendada' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Entrevista agendada: se creó la cita en el calendario (con Meet) y se avisó al postulante y a quien generó el pedido. El candidato ya está en Selección.</p></div>
-  {% elif request.query_params.get('ok') == 'entrevista_fallo' %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">No se pudo agendar la entrevista{% if request.query_params.get('motivo') %}: {{ request.query_params.get('motivo') }}{% endif %}. El candidato sigue en Gestión de Leads; revisa la integración con n8n o inténtalo de nuevo.</p></div>
-  {% elif request.query_params.get('ok') == 'entrevista_sin_formulario' %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El postulante todavía no responde el formulario. Si igual quieres enviarlo a entrevista, usa «Enviar a entrevista sin formulario».</p></div>
-  {% elif request.query_params.get('ok') == 'entrevista_sin_correo' %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El postulante no tiene correo: la invitación de Calendar necesita un correo. Complétalo y vuelve a intentar.</p></div>
-  {% elif request.query_params.get('ok') == 'entrevista_ya_enviada' %}
-  <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Este candidato ya fue enviado a entrevista.</p></div>
   {% elif request.query_params.get('ok') == 'analisis_sin_cv' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">Este candidato todavía no tiene CV adjunto.</p></div>
   {% elif request.query_params.get('ok') == 'analisis_sin_pedido' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El CV se compara contra los requisitos del cargo: primero asigna el candidato a un pedido.</p></div>
   {% elif request.query_params.get('ok') == 'analisis_no_configurado' %}
   <div class="card" style="background:var(--yellow-bg); border:1px solid var(--yellow); margin-top:16px;"><p style="margin:0; color:var(--yellow);">El análisis automático todavía no está conectado (falta N8N_WEBHOOK_ANALIZAR_CV_URL en el servidor).</p></div>
-  {% elif request.query_params.get('ok') == 'entrevista_agendada' %}
-  <div class="card" style="background:var(--green-bg); border:1px solid var(--green); margin-top:16px;"><p style="margin:0; color:var(--green);">Entrevista agendada — se creó el evento en Google Calendar (trabajaconnosotros@digetelgroup.com) y el candidato quedó como invitado.</p></div>
   {% endif %}
   {% if request.query_params.get('wa') %}
   <div class="card" style="margin-top:16px;">
@@ -145,22 +137,40 @@
     {% if lead.cuestionario_respondido_at %}
       <p class="muted" style="margin:0 0 8px;">Respondido el {{ (lead.cuestionario_respondido_at|lima).strftime("%d/%m/%Y %H:%M") }}.</p>
       {% if cuestionario.get('competencias') %}
+      {% set zona = cuestionario.get('zona') or {} %}
+      {% if zona.get('distrito') %}
+      <p style="margin:0 0 8px;"><strong>Distrito:</strong> {{ zona.distrito.title() }}
+        {% if zona.get('dentro') is true %}<span class="badge firmado">Dentro de la zona de {{ zona.base }}</span>
+        {% elif zona.get('dentro') is false %}<span class="badge cancelado">Fuera de la zona de {{ zona.base }}</span>{% endif %}</p>
+      {% endif %}
+      {% if cuestionario.get('muy_favorable') %}
+      <p style="margin:0 0 8px; color:var(--yellow);">⚠ Eligió el nivel más alto en casi todas las competencias: contrastar con ejemplos concretos en la entrevista.</p>
+      {% endif %}
       <table>
-        <tr><th>Competencia</th><th style="width:90px;">Exigido</th><th style="width:90px;">Estimado</th><th style="width:130px;">Resultado</th><th>Ejemplo del postulante</th></tr>
+        <tr><th>Competencia</th><th style="width:80px;">Exigido</th><th style="width:80px;">Eligió</th><th style="width:100px;">Su ejemplo sustenta</th><th style="width:120px;">Resultado</th><th>Ejemplo y análisis</th></tr>
         {% for c in cuestionario.competencias %}
+        {% set sus = c.get('nivel_sustentado') %}
+        {% set cons = c.nivel if sus is none else (c.nivel if c.nivel < sus else sus) %}
         <tr>
           <td><strong>{{ c.nombre.title() }}</strong></td>
           <td>Nivel {{ c.requerido }}</td>
           <td>Nivel {{ c.nivel }}</td>
+          <td>{% if sus is none %}<span class="muted">pendiente</span>{% else %}Nivel {{ sus }}{% endif %}</td>
           <td>
-            {% if c.nivel >= c.requerido %}<span class="badge firmado">{{ 'Supera' if c.nivel > c.requerido else 'Cumple' }}</span>
-            {% else %}<span class="badge cancelado">Brecha de {{ c.requerido - c.nivel }}</span>{% endif %}
-            {% if c.incoherente %}<br><span class="muted" style="font-size:12px;">respuestas poco consistentes</span>{% endif %}
+            {% if cons >= c.requerido %}<span class="badge firmado">{{ 'Supera' if cons > c.requerido else 'Cumple' }}</span>
+            {% else %}<span class="badge cancelado">Brecha de {{ c.requerido - cons }}</span>{% endif %}
           </td>
-          <td class="muted" style="font-size:13px; white-space:pre-wrap;">{{ c.ejemplo or '—' }}</td>
+          <td style="font-size:13px;">
+            <div class="muted" style="white-space:pre-wrap;">{{ c.ejemplo or '—' }}</div>
+            {% if c.get('analisis') %}<div style="margin-top:4px;"><strong>Análisis:</strong> {{ c.analisis }}</div>{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </table>
+      {% if cuestionario.get('preguntas_entrevista') %}
+      <div class="section-title" style="margin-top:12px;">Preguntas sugeridas para la entrevista</div>
+      <ul style="margin:4px 0 0 18px;">{% for q in cuestionario.preguntas_entrevista %}<li>{{ q }}</li>{% endfor %}</ul>
+      {% endif %}
       {% else %}
       <p class="muted">El cargo no exige competencias en el MOF: solo se aplicó el DISC.</p>
       {% endif %}

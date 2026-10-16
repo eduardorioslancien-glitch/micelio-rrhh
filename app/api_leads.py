@@ -416,18 +416,18 @@ async def api_guardar_analisis_ia(lead_id: int, request: Request, background_tas
 @router.post("/api/leads/{lead_id}/conclusion")
 async def api_guardar_conclusion(lead_id: int, request: Request, db: Session = Depends(get_db),
                                   _=Depends(_verificar_api_key)):
-    """n8n deja acá la conclusión redactada con IA (CV + competencias + DISC +
-    cargo) cuando el postulante respondió el formulario. Body: {"texto": "..."}.
-    Reemplaza la conclusión automática de MICELIO."""
+    """n8n deja acá lo que devuelve la IA tras leer el formulario del postulante:
+    {"texto": conclusión, "evaluaciones": [{"nombre", "evidencia", "nivel_sustentado" 0-4,
+    "comentario"}], "preguntas": [preguntas sugeridas para la entrevista]}.
+    Reemplaza la conclusión automática y recalcula la calificación final."""
     lead = db.query(LeadCandidato).get(lead_id)
     if not lead:
         raise HTTPException(404, "Lead no encontrado.")
     payload = await request.json()
     texto = str(payload.get("texto") or "").strip()
-    if not texto:
-        raise HTTPException(400, "Se requiere 'texto'.")
-    lead.conclusion_ia = texto[:6000]
-    lead.conclusion_origen = "ia"
-    lead.conclusion_at = _dt.datetime.utcnow()
-    db.commit()
-    return {"id": lead.id, "conclusion_origen": "ia"}
+    evaluaciones = payload.get("evaluaciones") if isinstance(payload.get("evaluaciones"), list) else None
+    preguntas = payload.get("preguntas") if isinstance(payload.get("preguntas"), list) else None
+    if not texto and not evaluaciones:
+        raise HTTPException(400, "Se requiere 'texto' o 'evaluaciones'.")
+    cuestionario_mod.aplicar_evaluacion_ia(db, lead, texto, evaluaciones, preguntas)
+    return {"id": lead.id, "conclusion_origen": lead.conclusion_origen, "calificacion_final": lead.calificacion_final}
